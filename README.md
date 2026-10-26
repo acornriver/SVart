@@ -1,6 +1,7 @@
 # 🎧 청각 다변기 (Sound Variator) — Part 1
 > **2026 서울시립 북서울미술관 전시 사운드 프로젝트**  
-> **Part 1: 파트별 청취로 만드는 개인 선호 EQ (acornriverPart)**
+> **Part 1: 파트별 청취로 만드는 개인 선호 EQ (acornriverPart)**  
+> 🔗 **웹 데모**: [https://acornriver.github.io/SVart/](https://acornriver.github.io/SVart/)
 
 관람객이 소파에 앉아 아이패드를 손에 들고 무선 헤드폰으로 참여합니다.  
 흰 노이즈를 들으며 여러 대역을 한꺼번에 맞추는 대신, **한 단계에 한 파트만** 들려주고 **한 축(앞뒤 기울기)만** 조절해 개인 선호 EQ를 만듭니다. 결과 EQ는 세 작가의 곡에 적용됩니다. 아이패드에서 p5.js + p5.sound만으로 단독 실행합니다.
@@ -121,5 +122,5 @@ python3 -m http.server 8080   # http://localhost:8080
 ```
 
 - PC에서는 자이로 대신 **화면을 누른 채 위아래로 끌면** 기울기를 흉내 냅니다.
-- 자이로는 HTTPS에서만 동작하므로 실기기 테스트는 GitHub Pages(`Settings → Pages → main / root`)로 합니다.
+- 자이로는 HTTPS에서만 동작하므로 실기기 테스트는 GitHub Pages([https://acornriver.github.io/SVart/](https://acornriver.github.io/SVart/))로 합니다.
 - iOS는 첫 터치 때 동작 및 방향 접근 권한을 묻습니다. 허용해야 기울기를 쓸 수 있습니다.

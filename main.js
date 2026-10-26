@@ -55,6 +55,8 @@ function touchMoved() {
 
 function touchEnded() {
   lastTouchTime = millis();
+  // iOS는 touchstart를 사용자 제스처로 인정하지 않아 시작(오디오 언락 + 자이로 권한)은 손을 뗄 때 처리
+  if (window.GlobalState.currentStage === 'INIT') initAudioPart1();
   return false;
 }
 
@@ -77,9 +79,9 @@ function hit(z, px, py) {
 function handlePointerDown(px, py) {
   const stage = window.GlobalState.currentStage;
 
-  // INIT: 첫 터치로 오디오 + 자이로 언락
+  // INIT: 터치는 touchEnded()에서 처리, 마우스 클릭은 여기서 바로 시작
   if (stage === 'INIT') {
-    initAudioPart1();
+    if (touches.length === 0) initAudioPart1();
     return;
   }
 

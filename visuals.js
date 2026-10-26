@@ -186,7 +186,7 @@ function drawHeader(layout) {
   label(`0${step + 1}`, L, y, { family: FONT.mono, size: 11, c: PALETTE.accent });
   label(STEP_COPY[stage].title, L + 26, y, { size: 13, weight: 500, spacing: 1 });
 
-  label(gs.isGyroAvailable ? 'GYRO' : 'MOUSE', R, y, { family: FONT.mono, size: 10, c: PALETTE.mute, align: RIGHT, spacing: 1 });
+  label(gs.isGyroAvailable ? 'GYRO' : 'DRAG', R, y, { family: FONT.mono, size: 10, c: PALETTE.mute, align: RIGHT, spacing: 1 });
   label(`tilt ${fmtDb(gs.sensor.tilt)}°`, R, y + 15, { family: FONT.mono, size: 9, c: PALETTE.mute, a: 160, align: RIGHT });
 
   // 진행 막대 5칸
@@ -205,10 +205,31 @@ function drawHeader(layout) {
   const copy = STEP_COPY[stage];
   const reg = gs.part1.register;
   const lines = stage === 'PART1_REGISTER' && !reg.isAutoPlaying && copy.linesAfter ? copy.linesAfter : copy.lines;
-  const size = min(22, width * 0.05);
-  lines.forEach((line, i) => {
+  const size = min(22, max(16, width * 0.045));
+  const wrapped = lines.flatMap((line) => wrapText(line, layout.cw, size, 500));
+  wrapped.forEach((line, i) => {
     label(line, L, layout.copyY + i * size * 1.5, { size, weight: 500 });
   });
+}
+
+/**
+ * 폭에 맞춰 어절 단위로 줄바꿈 (폰 세로 화면에서 문구가 넘치지 않게)
+ */
+function wrapText(str, maxW, size, weight) {
+  drawingContext.font = `${weight} ${size}px ${FONT.sans}`;
+  const out = [];
+  let line = '';
+  str.split(' ').forEach((word) => {
+    const next = line ? `${line} ${word}` : word;
+    if (line && drawingContext.measureText(next).width > maxW) {
+      out.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  });
+  if (line) out.push(line);
+  return out;
 }
 
 /**
@@ -254,10 +275,10 @@ function renderAdjustStep(layout) {
     PART1_LOW: `low ${fmtDb(profile.lowShelf.gain)}dB`,
     PART1_HIGH: `high ${fmtDb(profile.highShelf.gain)}dB`
   }[gs.currentStage];
-  label(debug, width - layout.margin, layout.headerY + 30, { family: FONT.mono, size: 9, c: PALETTE.mute, a: 160, align: RIGHT });
+  label(debug, width - layout.margin, layout.progressY + 14, { family: FONT.mono, size: 9, c: PALETTE.mute, a: 160, align: RIGHT });
 
   if (!p1.hasMoved) {
-    const hint = gs.isGyroAvailable ? '먼저 기기를 앞뒤로 기울여 보세요' : '먼저 화면을 누른 채 위아래로 끌어 보세요 (PC 모드)';
+    const hint = gs.isGyroAvailable ? '먼저 기기를 앞뒤로 기울여 보세요' : '먼저 화면을 누른 채 위아래로 끌어 보세요';
     label(hint, cx, layout.btnSecondary.y + layout.btnH / 2, { size: 12, c: PALETTE.mute, align: CENTER });
   } else {
     label('2초간 멈추면 다음으로 넘어가요', cx, layout.btnSecondary.y + layout.btnH / 2, { size: 12, c: PALETTE.mute, align: CENTER });

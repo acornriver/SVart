@@ -72,8 +72,9 @@ let activeSourceKey = null;
 
 // 센서 내부 상태
 let hasReceivedOrientation = false;
-let mouseTilt = 0;         // 자이로가 없을 때 마우스 드래그로 흉내 내는 기울기
+let mouseTilt = 0;         // 자이로가 없을 때 드래그로 흉내 내는 기울기
 let mouseRoll = 0;
+let dragLast = null;       // 직전 프레임의 드래그 좌표
 
 // 조절 단계 내부 상태
 let adjustValue = 0;       // 현재 값 (dB)
@@ -104,7 +105,9 @@ function preloadPart1() {
 function initAudioPart1() {
   if (window.GlobalState.isAudioInitialized) return;
 
+  // iOS는 touchend/click 안에서만 오디오 언락과 센서 권한 요청을 사용자 제스처로 인정
   userStartAudio();
+  getAudioContext().resume();
   setupOrientationSensor();
   setupAudioPipeline();
   loadRegisterCalibration();
@@ -306,11 +309,14 @@ function updateSensor() {
     else { tilt = b; roll = g; }
     if (TILT_INVERT) tilt = -tilt;
   } else {
-    // 마우스: 누른 채 위로 끌면 '세우기' (버튼을 누르러 갈 때 값이 바뀌지 않도록 드래그만 반영)
-    if (mouseIsPressed) {
-      mouseTilt = constrain(mouseTilt - movedY * 0.15, -60, 60);
-      mouseRoll = constrain(mouseRoll + movedX * 0.15, -60, 60);
+    // 자이로가 없으면 누른 채 위로 끌면 '세우기' (버튼을 누르러 갈 때 값이 바뀌지 않도록 드래그만 반영)
+    // p5의 movedX/Y는 터치에서 NaN이 나와서 좌표 차이를 직접 계산
+    const pointer = touches.length > 0 ? touches[0] : (mouseIsPressed ? { x: mouseX, y: mouseY } : null);
+    if (pointer && dragLast) {
+      mouseTilt = constrain(mouseTilt + (dragLast.y - pointer.y) * 0.15, -60, 60);
+      mouseRoll = constrain(mouseRoll + (pointer.x - dragLast.x) * 0.15, -60, 60);
     }
+    dragLast = pointer ? { x: pointer.x, y: pointer.y } : null;
     tilt = mouseTilt;
     roll = mouseRoll;
   }
