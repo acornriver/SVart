@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>청각 다변기 (Sound Variator) - Part 1</title>
+  
+  <!-- 모바일 뷰포트 & iOS/Android 줌 및 바운스 차단 메타 태그 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#f2f0eb">
+
+  <!-- 웹 폰트 (Preload Google Fonts) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    /* 브라우저 기본 스크롤, 바운스, 줌, 텍스트 선택 완벽 차단 */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      position: fixed;
+      top: 0;
+      left: 0;
+      background-color: #f2f0eb;
+      color: #111111;
+      font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: none;
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: auto;
+    }
+
+    /* p5.js 캔버스 스타일 */
+    #defaultCanvas0 {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+      touch-action: none;
+      outline: none;
+    }
+  </style>
+
+  <!-- p5.js 및 p5.sound 라이브러리 CDN 로드 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/addons/p5.sound.min.js"></script>
+
+  <!-- Part 1 전용 모듈 스크립트 (GitHub Pages 상대 경로 './' 사용) -->
+  <!-- 1. 단일 전역 상태 정의 -->
+  <script src="./globalState.js"></script>
+
+  <!-- 2. Part 1 핵심 오디오 파이프라인 및 센서 제어 -->
+  <script src="./part1_audio.js"></script>
+
+  <!-- 3. 비주얼 렌더러 및 인터페이스 UI -->
+  <script src="./visuals.js"></script>
+
+  <!-- 4. p5.js 생명주기 및 이벤트 메인 라우터 -->
+  <script src="./main.js"></script>
+</head>
+<body>
+</body>
+</html>
