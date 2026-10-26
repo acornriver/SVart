@@ -1,41 +1,64 @@
 /**
  * 청각 다변기 (Sound Variator) - Global State
- * 
- * [Part 1: 개인화 등청감 EQ 및 커스텀 그레이 노이즈 도출]
- * 센서 입력, 오디오 노드, 등청감 EQ 프로파일 상태를 관리하는 단일 상태 객체입니다.
+ *
+ * [Part 1: 파트별 청취로 만드는 개인 선호 EQ]
+ * ① 편한 볼륨 → ② 음역 고르기 → ③ 저음 맞추기 → ④ 고음 맞추기 → ⑤ 결과
+ * 모든 파트와 비주얼 팀원이 읽고 쓰는 단일 상태 객체입니다.
  */
 
 window.GlobalState = {
-  // 현재 인터랙션 스테이지 ('INIT' | 'TUNING' | 'PROFILE')
+  // 'INIT' | 'PART1_VOLUME' | 'PART1_REGISTER' | 'PART1_LOW' | 'PART1_HIGH' | 'PART1_RESULT'
+  // (Part 2 스테이지는 팀원 A가 'PART2_*'로 추가)
   currentStage: 'INIT',
-  
+
   isAudioInitialized: false,
   isGyroAvailable: false,
 
-  // 센서 및 인터랙션 상태
+  // 센서 상태 (비주얼 팀원이 참조)
   sensor: {
-    rawBeta: 0,            // 앞뒤 기울기 (-45 ~ +45 deg)
-    rawGamma: 0,           // 좌우 기울기 (-45 ~ +45 deg)
-    smoothBeta: 0,         // Lerp 스무딩 값
-    smoothGamma: 0,        // Lerp 스무딩 값
-    normX: 0.5,            // 0.0 ~ 1.0 정규화된 좌우 값 (모바일 Gamma 또는 PC 마우스 X)
-    normY: 0.5,            // 0.0 ~ 1.0 정규화된 앞뒤 값 (모바일 Beta 또는 PC 마우스 Y)
-    isClutchActive: false, // 클러치 패드 누름 여부 (누르고 있을 때만 Gain 변경)
-    activeBandIndex: 2     // 현재 선택된 주파수 대역 인덱스 (0: 60Hz, 1: 250Hz, 2: 1kHz, 3: 4kHz, 4: 8kHz)
+    rawBeta: 0,       // 기기 원본 beta (deg)
+    rawGamma: 0,      // 기기 원본 gamma (deg)
+    tilt: 0,          // 화면 방향을 보정한 '앞뒤 기울기' (deg, 스무딩 적용)
+    roll: 0,          // 화면 방향을 보정한 '좌우 기울기' (deg, 스무딩 적용)
+    normX: 0.5,       // 단계 시작 자세 기준 좌우 0.0 ~ 1.0
+    normY: 0.5        // 단계 시작 자세 기준 앞뒤 0.0 ~ 1.0 (앞으로 숙이면 증가)
   },
 
-  // 개인화 등청감 EQ 프로파일 데이터
+  // Part 1 진행 상태 (UI 렌더링용)
+  part1: {
+    stepIndex: 0,          // 0 ~ 4 (① ~ ⑤)
+    control: 0.5,          // 현재 단계 조절값 0.0 ~ 1.0 (게이지 위치)
+    hasMoved: false,       // 단계 시작 후 충분히 움직였는지 (멈춤 확정 조건)
+    dwell: 0,              // 멈춤 확정 진행도 0.0 ~ 1.0
+    register: {
+      order: [],           // A/B/C 카드에 배정된 음역 id 배열 (예: ['MID', 'LOW', 'HIGH'])
+      playingCard: -1,     // 현재 재생 중인 카드 인덱스
+      selectedCard: -1,
+      isAutoPlaying: false
+    },
+    isBypassed: false      // 결과 단계: true면 EQ 없이 원래 소리
+  },
+
+  // Part 1 결과 (최종 감상 곡의 개인 EQ, Part 2 기준 볼륨)
   userEQProfile: {
-    freqs: [60, 250, 1000, 4000, 8000], // 5-Band 중심 주파수 (Hz)
-    gains: [0, 0, 0, 0, 0],              // 각 대역 게인 (-15 ~ +15 dB)
-    masterVolume: 0.5                    // 마스터 출력 볼륨 (0.0 ~ 1.0)
+    masterVolume: 0.5,                                   // 0.0 ~ 1.0
+    lowShelf: { freq: 200, gain: 0 },                    // dB
+    highShelf: { freq: 4000, gain: 0 },                  // dB
+    registerPeak: { register: null, freq: 400, gain: 0, q: 1 } // register: 'LOW' | 'MID' | 'HIGH'
   },
 
-  // 실시간 오디오 분석 및 오디오 노드 참조
+  // Part 2 결과 (팀원 A가 기록할 영역)
+  psychoProfile: {
+    maxFreqHz: null,
+    dominantEar: null,     // 'LEFT' | 'RIGHT' | 'ALTERNATING'
+    speechIllusion: {}     // { yannyLaurel: null, whaleSong: null, jaCha: null }
+  },
+
+  // 오디오 노드 참조 (비주얼 팀원 및 Part 2 공유용)
   audioNodes: {
-    fft: null,          // p5.FFT 인스턴스
-    amplitude: null,    // p5.Amplitude 인스턴스
-    eqChainInput: null, // 5-Band EQ 체인 입력단 (소스 연결용)
-    masterGain: null    // 마스터 게인 노드
+    fft: null,             // p5.FFT (masterGain 출력 분석)
+    amplitude: null,       // p5.Amplitude (masterGain 출력 분석)
+    eqChainInput: null,    // 개인 EQ 체인 입력단 (최종 음원을 여기에 연결)
+    masterGain: null       // 마스터 출력단 (EQ를 우회할 Part 2 소스는 여기에 직접 연결)
   }
 };

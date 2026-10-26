@@ -1,141 +1,125 @@
 # 🎧 청각 다변기 (Sound Variator) — Part 1
 > **2026 서울시립 북서울미술관 전시 사운드 프로젝트**  
-> **Part 1: 개인화 등청감 EQ 및 커스텀 그레이 노이즈 도출 (acornriverPart)**
+> **Part 1: 파트별 청취로 만드는 개인 선호 EQ (acornriverPart)**
 
-스마트폰(iOS / Android)의 자이로 센서 및 터치 인터랙션을 활용하여 관람객 개개인의 청각 특성에 맞는 **등청감 곡선(Equal-Loudness Curve)**을 도출하고, 이에 기반한 **맞춤형 그레이 노이즈(Custom Gray Noise)**를 실시간 합성하는 인터랙티브 사운드 웹 애플리케이션입니다.
-
----
-
-## 📌 핵심 기능 (Core Features)
-
-1. **단일 터치 언락 (Single Gesture Unlock)**
-   - 브라우저 자동 재생 제한(Web Audio Context) 해제와 iOS 13+ 모바일 자이로 센서 권한(`DeviceOrientationEvent.requestPermission`)을 첫 터치 한 번으로 동시 획득합니다.
-2. **자이로 센서 & PC 마우스 폴백 (Sensor Fallback)**
-   - 모바일 환경에서는 기기의 기울기(`beta`, `gamma`)를 읽어와 오디오를 제어합니다.
-   - PC/데스크톱 브라우저 접속 시 자동으로 마우스 커서 좌표(`mouseX`, `mouseY`)가 센서 각도를 시뮬레이션하여 개발 및 테스트가 용이합니다.
-3. **클러치(Hold to Tune) UX 메커니즘**
-   - 기기를 움직일 때 이전 주파수 대역의 Gain 값이 망가지는 것을 방지하기 위해 **클러치 방식**을 적용했습니다.
-   - 화면 중앙의 **[HOLD TO TUNE]** 영역을 누르고 있는 동안에만 기기를 앞뒤로 기울여 현재 대역의 Gain(-15dB ~ +15dB)을 조절할 수 있으며, 손을 떼는 순간 값이 고정(Lock)됩니다.
-4. **5-Band Peaking EQ 오디오 파이프라인**
-   - 중심 주파수: `60Hz`, `250Hz`, `1kHz`, `4kHz`, `8kHz`
-   - 직렬(Series Chain) 연결 구조로 신호가 전달되며 실시간 FFT 분석을 통해 시각화됩니다.
-5. **독립 모듈형 구조**
-   - 단일 전역 상태(`window.GlobalState`)를 기준으로 오디오와 비주얼 렌더링이 완벽히 분리되어 있어, 향후 비주얼 아티스트나 팀원의 작업과 유연하게 결합할 수 있습니다.
+관람객이 소파에 앉아 아이패드를 손에 들고 무선 헤드폰으로 참여합니다.  
+흰 노이즈를 들으며 여러 대역을 한꺼번에 맞추는 대신, **한 단계에 한 파트만** 들려주고 **한 축(앞뒤 기울기)만** 조절해 개인 선호 EQ를 만듭니다. 결과 EQ는 세 작가의 곡에 적용됩니다. 아이패드에서 p5.js + p5.sound만으로 단독 실행합니다.
 
 ---
 
-## 📂 파일 구조 (File Architecture)
+## 📌 진행 흐름 (약 75초)
+
+| 단계 | 들려주는 소리 | 관람객이 하는 일 | 결과값 |
+| :--- | :--- | :--- | :--- |
+| **① 편한 볼륨** | 넓은 대역 소리 (북서울 환경음 자리, 지금은 핑크 노이즈) | 기울여서 편한 크기로 맞추기 | `masterVolume` |
+| **② 음역 고르기** | 같은 멜로디 "도 미 솔 라 솔 미 도"를 저(C2)/중(C4)/고(C6)로 | A/B/C 카드 중 하나 고르기 (순서 무작위) | `registerPeak` (100Hz / 400Hz / 2.5kHz, +3dB, Q 1) |
+| **③ 저음 맞추기** | 저역이 풍부한 소리 (지금은 브라운 노이즈) | 기울여서 저음을 더하거나 빼기 | `lowShelf` (200Hz, ±10dB) |
+| **④ 고음 맞추기** | 고역이 풍부한 소리 (지금은 화이트 노이즈) | 기울여서 고음을 더하거나 빼기 | `highShelf` (4kHz, ±10dB) |
+| **⑤ 결과** | 개인 EQ를 입힌 소리 | 내 EQ ↔ 원래 소리 번갈아 듣기 | `userEQProfile` 확정 |
+
+### 측정 원칙
+- **한 축만**: 매 단계 앞뒤 기울기 하나로만 조절합니다. 기기를 세우면 커지거나 많아지고, 눕히면 줄어듭니다.
+- **시작값 무작위**: 처음 놓인 자리에 끌려가지 않도록 매 단계 시작값을 무작위로 둡니다.
+- **멈추면 확정**: 충분히 움직인 뒤 2초간 멈추면 다음 단계로 넘어갑니다. `여기가 좋아요` 버튼으로도 확정할 수 있습니다.
+- **음량 자동 보정**: EQ를 바꿔도 체감 음량(A-가중 파워)이 같도록 보정합니다. 큰 소리를 더 좋다고 고르는 편향을 막기 위해서입니다.
+- **화면이 답을 알려주지 않음**: 조절 중에는 dB 값이나 곡선을 크게 보여주지 않습니다. 표식은 기울기만 따라가고, 값은 우상단에 작은 디버그 숫자로만 표시합니다.
+- **② 강제 선택**: 카드는 A/B/C로만 표시하고 "모르겠다"는 선택지가 없습니다.
+
+---
+
+## 📂 파일 구조
 
 ```
-acornriverPart/
-├── index.html        # 뷰포트 고정, 모바일 제스처 차단 CSS, p5.js CDN 및 스크립트 로드
-├── globalState.js    # 전역 상태 객체 (window.GlobalState) 정의
-├── part1_audio.js    # 오디오 버스, 5-Band EQ 체인, 자이로/마우스 센서 로직
-├── visuals.js        # 등청감 곡선, FFT 스펙트럼, 클러치 피드백, UI 렌더러
-├── main.js           # p5.js 라이프사이클(setup, draw) 및 터치/마우스 이벤트 라우터
-└── README.md         # 프로젝트 문서
+SVart/
+├── index.html            # 뷰포트 고정, 모바일 제스처 차단 CSS, p5.js CDN 및 스크립트 로드
+├── globalState.js        # 전역 상태 객체 (window.GlobalState)
+├── part1_audio.js        # 단계 진행, 소스 전환, 개인 EQ 체인, 음량 보정, 멜로디 신스, 센서
+├── visuals.js            # 단계별 화면 렌더러 + 터치 영역
+├── main.js               # p5.js 라이프사이클 및 단계별 터치 라우팅
+└── tests/register/       # ② 음역 고르기 단독 테스트 + 음역별 음량 보정 도구
 ```
+
+신호 흐름:
+
+```
+단계별 소스 → lowShelf → registerPeak → highShelf → loudnessComp → masterGain → 출력
+멜로디(②)  ─────────────────────────────────────────────────────→ masterGain
+```
+
+- 최종 감상 곡은 `GlobalState.audioNodes.eqChainInput`에 연결하면 개인 EQ가 적용됩니다.
+- EQ를 거치면 안 되는 Part 2 순음과 착청 소스는 `GlobalState.audioNodes.masterGain`에 바로 연결합니다.
 
 ---
 
 ## 🎛️ 전역 상태 규격 (`globalState.js`)
 
-비주얼 팀원 또는 타 모듈에서 `window.GlobalState`를 통해 현재 센서 수치와 EQ 설정값에 직접 접근할 수 있습니다:
-
 ```javascript
 window.GlobalState = {
-  currentStage: 'INIT', // 'INIT' | 'TUNING' | 'PROFILE'
+  // 'INIT' | 'PART1_VOLUME' | 'PART1_REGISTER' | 'PART1_LOW' | 'PART1_HIGH' | 'PART1_RESULT'
+  currentStage: 'INIT',
   isAudioInitialized: false,
   isGyroAvailable: false,
 
-  // 센서 및 정규화 값 (비주얼 연동용)
   sensor: {
-    rawBeta: 0,            // 앞뒤 기울기 (-45 ~ +45 deg)
-    rawGamma: 0,           // 좌우 기울기 (-45 ~ +45 deg)
-    smoothBeta: 0,         // Lerp 스무딩 값
-    smoothGamma: 0,
-    normX: 0.5,            // 0.0 ~ 1.0 (모바일 Gamma 또는 PC 마우스 X)
-    normY: 0.5,            // 0.0 ~ 1.0 (모바일 Beta 또는 PC 마우스 Y)
-    isClutchActive: false, // 클러치 누름 여부
-    activeBandIndex: 2     // 현재 선택된 대역 인덱스 (0: 60Hz ~ 4: 8kHz)
+    rawBeta: 0, rawGamma: 0, // 기기 원본 값 (deg)
+    tilt: 0, roll: 0,        // 화면 방향 보정 + 스무딩된 앞뒤/좌우 기울기 (deg)
+    normX: 0.5, normY: 0.5   // 단계 시작 자세 기준 0.0 ~ 1.0
   },
 
-  // Part 1 개인화 등청감 EQ 결과값
+  part1: {
+    stepIndex: 0,            // 0 ~ 4
+    control: 0.5,            // 현재 단계 조절값 0.0 ~ 1.0
+    hasMoved: false,         // 확정 가능 여부
+    dwell: 0,                // 멈춤 확정 진행도 0.0 ~ 1.0
+    register: { order: [], playingCard: -1, selectedCard: -1, isAutoPlaying: false },
+    isBypassed: false        // 결과 단계에서 원래 소리 듣는 중
+  },
+
   userEQProfile: {
-    freqs: [60, 250, 1000, 4000, 8000],
-    gains: [0, 0, 0, 0, 0], // dB 단위 (-15 ~ +15)
-    masterVolume: 0.5
+    masterVolume: 0.5,
+    lowShelf: { freq: 200, gain: 0 },
+    highShelf: { freq: 4000, gain: 0 },
+    registerPeak: { register: null, freq: 400, gain: 0, q: 1 }
   },
 
-  // 오디오 분석 노드 참조
-  audioNodes: {
-    fft: null,          // p5.FFT 인스턴스 (실시간 주파수 분석)
-    amplitude: null,    // p5.Amplitude 인스턴스 (음량 레벨 분석)
-    eqChainInput: null, // 소스 연결용 체인 입력단
-    masterGain: null    // 마스터 출력 게인 노드
-  }
+  psychoProfile: { maxFreqHz: null, dominantEar: null, speechIllusion: {} }, // Part 2
+  audioNodes: { fft: null, amplitude: null, eqChainInput: null, masterGain: null }
 };
 ```
 
 ---
 
-## 🚀 로컬 실행 방법 (Local Development)
+## 🎵 녹음 파일로 교체하기
 
-정적 파일 기반이므로 별도의 복잡한 빌드 과정 없이 정적 웹 서버로 즉시 실행할 수 있습니다.
+`part1_audio.js` 맨 위의 `PART1_SOURCES`에서 단계별로 `file` 경로만 채우면 됩니다. 비워두면 노이즈로 대체합니다.
 
-### 방법 1: Node.js (npx)
-```bash
-npx serve ./
+```javascript
+const PART1_SOURCES = {
+  VOLUME: { file: './sounds/dangyeoncheon.mp3', noise: 'pink',  spectrum: 'pink',  level: 0.35 },
+  LOW:    { file: './sounds/hagye_station.mp3', noise: 'brown', spectrum: 'brown', level: 0.35 },
+  ...
+};
 ```
 
-### 방법 2: Python 3
+- `spectrum`은 음량 보정 계산에 쓰는 대략적인 스펙트럼 기울기입니다 (`white` / `pink` / `brown`).
+- `level`은 소스별 기본 음량입니다. 실기기에서 귀로 맞춰주세요.
+- 원본 WAV는 GitHub 100MB 제한에 걸리므로, 루프 구간만 잘라 mp3/m4a로 압축해서 넣으세요.
+
+---
+
+## 🔧 실기기 보정
+
+1. **② 음역별 음량**: `tests/register/`를 아이패드와 헤드폰으로 열고 `[보정]` 패널에서 세 음역이 같은 크기로 들리게 맞춥니다. 같은 기기에서는 본 앱이 그 값을 자동으로 읽어 씁니다(`localStorage`). 확정된 값은 `REGISTERS`의 `defaultOffsetDb`에 옮겨 적어주세요.
+2. **기울기 방향**: 아이패드를 가로로 들었을 때 세우기/눕히기 방향이 반대로 느껴지면 `part1_audio.js`의 `TILT_INVERT`를 `true`로 바꿉니다.
+
+---
+
+## 🚀 로컬 실행 & 배포
+
 ```bash
-python3 -m http.server 8080
+python3 -m http.server 8080   # http://localhost:8080
 ```
-브라우저에서 `http://localhost:8080`으로 접속하여 테스트합니다.
 
----
-
-## 🌐 GitHub Pages 배포 가이드
-
-1. **HTTPS 필수 주의사항**:
-   - 모바일 Safari 및 최신 Chrome은 **보안 컨텍스트(`https://`)에서만 자이로 센서 접근 권한을 허용**합니다.
-   - GitHub Pages는 기본적으로 HTTPS가 적용되므로 스마트폰 실기기 테스트에 가장 적합합니다.
-2. **배포 단계**:
-   - 이 저장소의 모든 파일을 GitHub Repository의 `main` 브랜치에 푸시합니다.
-   - 저장소 **Settings** ➔ **Pages**로 이동합니다.
-   - **Branch**를 `main`, 폴더를 `/(root)`로 지정 후 **Save**합니다.
-   - 생성된 URL(`https://<username>.github.io/<repo>/`)로 스마트폰(iOS Safari, Android Chrome) 및 iPad에서 바로 접속해 테스트할 수 있습니다.
-
----
-
-## 🎵 현장 녹음 음원(Zoom H4essential 샘플) 교체 방법
-
-기본 상태에서는 외부 에셋 파일 없이도 즉시 작동하도록 **내장 화이트 노이즈(`p5.Noise('white')`)**를 소스로 사용합니다.  
-향후 현장 녹음 음원(비행기 이착륙음, 금속 타격음 등의 루프 WAV 파일)으로 교체할 때는:
-
-1. 프로젝트 루트에 `assets/` 폴더를 만들고 음원 파일(예: `ambient_loop.wav`)을 넣습니다.
-2. `main.js`의 `preload()`에서 파일을 로드합니다:
-   ```javascript
-   let customSample;
-   function preload() {
-     customSample = loadSound('./assets/ambient_loop.wav');
-   }
-   ```
-3. `part1_audio.js`에 준비되어 있는 `useSampleSource()` 함수를 호출합니다:
-   ```javascript
-   useSampleSource(customSample);
-   ```
-   * 체인 입력단에 자동으로 연결되고 노이즈 소스는 정지됩니다.
-
----
-
-## 📱 조작 가이드 (Interaction Guide)
-
-| 동작 | 조작 방법 |
-| :--- | :--- |
-| **사운드 및 센서 시작** | 초기 화면의 `🎧 시작하기` 버튼 탭 |
-| **주파수 대역 선택** | 하단 5개 탭(`60Hz ~ 8kHz`) 직접 터치 또는 기기를 좌우(`gamma`)로 기울이기 |
-| **대역별 Gain 조절** | 중앙 `[HOLD TO TUNE]` 패드를 누른 채 스마트폰을 앞뒤로 기울이기 (손을 떼면 고정) |
-| **EQ 초기화** | 하단 `🔄 EQ 초기화 (Flat)` 버튼 탭 (모든 대역 0dB 리셋) |
-| **결과 프로파일 확인** | 하단 `📊 결과 프로파일 보기` 탭 (대역별 최종 수치 및 요약 카드 확인) |
+- PC에서는 자이로 대신 **화면을 누른 채 위아래로 끌면** 기울기를 흉내 냅니다.
+- 자이로는 HTTPS에서만 동작하므로 실기기 테스트는 GitHub Pages(`Settings → Pages → main / root`)로 합니다.
+- iOS는 첫 터치 때 동작 및 방향 접근 권한을 묻습니다. 허용해야 기울기를 쓸 수 있습니다.

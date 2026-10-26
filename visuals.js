@@ -1,9 +1,13 @@
 /**
  * 청각 다변기 (Sound Variator) - Visual Renderer & UI
  *
- * [Part 1: 개인화 등청감 EQ 및 커스텀 그레이 노이즈 도출]
+ * [Part 1: 파트별 청취로 만드는 개인 선호 EQ]
  * 프로토타입용 미니멀 비주얼. 종이 톤 배경 + 먹색 선 + 단일 포인트 컬러.
  * 비주얼 작업 시 아래 PALETTE / FONT 값만 바꿔도 전체 톤이 바뀌도록 구성.
+ *
+ * 조절 단계(①③④)에서는 값(dB)이나 곡선을 크게 보여주지 않는다.
+ * 화면의 '가운데'나 '평평한 곡선'에 맞추려는 시각 편향을 막고 귀로만 고르게 하기 위함.
+ * 표식은 기울기만 따라가고, 값은 우상단에 작은 디버그 숫자로만 표시.
  */
 
 const PALETTE = {
@@ -19,7 +23,31 @@ const FONT = {
   mono: "'IBM Plex Mono', ui-monospace, monospace"
 };
 
-const FREQ_LABELS = ['60', '250', '1k', '4k', '8k'];
+const STEP_COPY = {
+  PART1_VOLUME: {
+    title: '편한 볼륨',
+    lines: ['기기를 세우면 커지고, 눕히면 작아져요.', '편하게 들리는 곳에서 멈추세요.']
+  },
+  PART1_REGISTER: {
+    title: '음역 고르기',
+    lines: ['같은 멜로디를 세 번 들려드릴게요.'],
+    linesAfter: ['어느 쪽이 가장 편하게 들렸나요?', '카드를 눌러 다시 들을 수 있어요.']
+  },
+  PART1_LOW: {
+    title: '저음 맞추기',
+    lines: ['기기를 세우면 저음이 많아지고, 눕히면 줄어요.', '가장 편한 곳에서 멈추세요.']
+  },
+  PART1_HIGH: {
+    title: '고음 맞추기',
+    lines: ['기기를 세우면 고음이 많아지고, 눕히면 줄어요.', '가장 편한 곳에서 멈추세요.']
+  },
+  PART1_RESULT: {
+    title: '나의 EQ',
+    lines: ['내 EQ와 원래 소리를 번갈아 들어보세요.']
+  }
+};
+
+const CARD_LABELS = ['A', 'B', 'C'];
 
 let animTimer = 0;
 
@@ -33,11 +61,15 @@ function renderVisuals() {
   const stage = window.GlobalState.currentStage;
   if (stage === 'INIT') {
     renderInitScreen();
-  } else if (stage === 'TUNING') {
-    renderTuningUI();
-  } else if (stage === 'PROFILE') {
-    renderProfileScreen();
+    return;
   }
+
+  const layout = calculateUILayout();
+  drawHeader(layout);
+
+  if (stage === 'PART1_REGISTER') renderRegisterStep(layout);
+  else if (stage === 'PART1_RESULT') renderResultStep(layout);
+  else renderAdjustStep(layout);
 }
 
 /* ---------- 작은 헬퍼 ---------- */
@@ -60,13 +92,33 @@ function label(str, x, y, { family = FONT.sans, size = 12, weight = 400, c = PAL
   pop();
 }
 
-function fmtGain(g, digits = 1) {
+function fmtDb(g, digits = 1) {
   return `${g >= 0 ? '+' : '−'}${Math.abs(g).toFixed(digits)}`;
+}
+
+function fmtHz(hz) {
+  return hz >= 1000 ? `${hz / 1000}k` : `${hz}`;
 }
 
 function getLevel() {
   const amp = window.GlobalState.audioNodes.amplitude;
   return amp ? (amp.getLevel() || 0) : 0;
+}
+
+function drawButton(z, str, { filled = false, enabled = true } = {}) {
+  push();
+  const a = enabled ? 255 : 70;
+  if (filled) {
+    noStroke();
+    fill(col(PALETTE.ink, a));
+  } else {
+    noFill();
+    stroke(col(PALETTE.ink, a));
+    strokeWeight(1);
+  }
+  rect(z.x, z.y, z.w, z.h);
+  pop();
+  label(str, z.x + z.w / 2, z.y + z.h / 2, { size: 15, weight: 500, c: filled ? PALETTE.bg : PALETTE.ink, a, align: CENTER, spacing: 1 });
 }
 
 /**
@@ -86,7 +138,6 @@ function renderInitScreen() {
   strokeWeight(1);
   ellipse(cx, height * 0.46, r, r);
   stroke(col(PALETTE.accent));
-  strokeWeight(1);
   const r2 = r * (0.18 + (sin(animTimer * 1.2) * 0.5 + 0.5) * 0.06);
   ellipse(cx, height * 0.46, r2, r2);
   pop();
@@ -95,266 +146,255 @@ function renderInitScreen() {
   label('Sound Variator · Part 1', cx, height * 0.70 + 30, { family: FONT.mono, size: 11, c: PALETTE.mute, align: CENTER, spacing: 1 });
 
   const blink = 140 + sin(animTimer * 2) * 100;
-  label('화면을 눌러 시작', cx, height * 0.88, { size: 12, c: PALETTE.ink, a: blink, align: CENTER, spacing: 2 });
-}
-
-/**
- * 2. 튜닝 화면
- */
-function renderTuningUI() {
-  const layout = calculateUILayout();
-  drawTopStatusBar(layout);
-  drawEqualLoudnessCurveAndFFT(layout);
-  drawFrequencyBandTabs(layout);
-  drawClutchTouchPad(layout);
-  drawBottomActionButtons(layout);
+  label('헤드폰을 쓰고 화면을 눌러 시작', cx, height * 0.88, { size: 12, c: PALETTE.ink, a: blink, align: CENTER, spacing: 2 });
 }
 
 /**
  * 반응형 레이아웃 (히트테스트와 공유)
  */
 function calculateUILayout() {
-  const isPortrait = height > width;
-  const margin = max(20, width * 0.07);
-  const gw = width - margin * 2;
-
-  const clutchTop = height * (isPortrait ? 0.58 : 0.56);
-  const clutchBottom = height * 0.84;
-  const clutchD = min(clutchBottom - clutchTop, gw * 0.6);
+  const margin = max(16, width * 0.06);
+  const cw = width - margin * 2;
+  const btnH = max(52, height * 0.065);
+  const bottom = height - max(24, height * 0.04);
 
   return {
-    isPortrait,
     margin,
-    statusY: max(28, height * 0.05),
-
-    graphX: margin,
-    graphY: height * 0.13,
-    graphW: gw,
-    graphH: height * (isPortrait ? 0.30 : 0.28),
-
-    tabsY: height * (isPortrait ? 0.45 : 0.43),
-    tabsH: max(44, height * 0.08),
-
-    clutchD,
-    clutchX: width / 2 - clutchD / 2,
-    clutchY: (clutchTop + clutchBottom) / 2 - clutchD / 2,
-    clutchW: clutchD,
-    clutchH: clutchD,
-
-    actionY: height * 0.91,
-    actionH: 44
+    cw,
+    headerY: max(28, height * 0.045),
+    progressY: max(52, height * 0.08),
+    copyY: height * 0.15,
+    bodyTop: height * 0.27,
+    bodyBottom: bottom - btnH * 2 - 24,
+    btnH,
+    btnPrimary: { x: margin, y: bottom - btnH, w: cw, h: btnH },
+    btnSecondary: { x: margin, y: bottom - btnH * 2 - 12, w: cw, h: btnH }
   };
 }
 
 /**
- * 상단 상태 표기
+ * 상단: 단계 번호 + 제목 + 진행 막대 + 센서 상태
  */
-function drawTopStatusBar(layout) {
-  const s = window.GlobalState.sensor;
-  const isGyro = window.GlobalState.isGyroAvailable;
-  const y = layout.statusY;
+function drawHeader(layout) {
+  const gs = window.GlobalState;
+  const stage = gs.currentStage;
+  const step = gs.part1.stepIndex;
   const L = layout.margin;
   const R = width - layout.margin;
+  const y = layout.headerY;
 
-  label('01', L, y, { family: FONT.mono, size: 11, c: PALETTE.accent });
-  label('등청감 조율', L + 24, y, { size: 12, weight: 500, spacing: 1 });
+  label(`0${step + 1}`, L, y, { family: FONT.mono, size: 11, c: PALETTE.accent });
+  label(STEP_COPY[stage].title, L + 26, y, { size: 13, weight: 500, spacing: 1 });
 
-  label(isGyro ? 'GYRO' : 'MOUSE', R, y, { family: FONT.mono, size: 10, c: PALETTE.mute, align: RIGHT, spacing: 1 });
-  label(`β ${fmtGain(s.smoothBeta)}  γ ${fmtGain(s.smoothGamma)}`, R, y + 16, { family: FONT.mono, size: 9, c: PALETTE.mute, a: 160, align: RIGHT });
-}
+  label(gs.isGyroAvailable ? 'GYRO' : 'MOUSE', R, y, { family: FONT.mono, size: 10, c: PALETTE.mute, align: RIGHT, spacing: 1 });
+  label(`tilt ${fmtDb(gs.sensor.tilt)}°`, R, y + 15, { family: FONT.mono, size: 9, c: PALETTE.mute, a: 160, align: RIGHT });
 
-/**
- * 밴드 i의 x 좌표 (그래프 노드와 하단 라벨이 정렬되도록 공유)
- */
-function bandX(i, gx, gw) {
-  return gx + gw * (i + 0.5) / 5;
-}
-
-/**
- * EQ 곡선 그리기 (튜닝/프로파일 공용)
- */
-function drawCurve(gx, gy, gw, gh, { showFFT = true, activeIdx = -1 } = {}) {
-  const gains = window.GlobalState.userEQProfile.gains;
-  const gainY = (g) => map(g, -15, 15, gy + gh, gy);
-
+  // 진행 막대 5칸
+  const n = PART1_STAGES.length;
+  const gap = 6;
+  const segW = (layout.cw - gap * (n - 1)) / n;
   push();
+  noStroke();
+  for (let i = 0; i < n; i++) {
+    fill(col(i <= step ? PALETTE.ink : PALETTE.line));
+    rect(L + i * (segW + gap), layout.progressY, segW, 2);
+  }
+  pop();
 
-  // 0dB 기준선 + ±15 눈금
+  // 안내 문구
+  const copy = STEP_COPY[stage];
+  const reg = gs.part1.register;
+  const lines = stage === 'PART1_REGISTER' && !reg.isAutoPlaying && copy.linesAfter ? copy.linesAfter : copy.lines;
+  const size = min(22, width * 0.05);
+  lines.forEach((line, i) => {
+    label(line, L, layout.copyY + i * size * 1.5, { size, weight: 500 });
+  });
+}
+
+/**
+ * 2. ①③④ 조절 단계: 기울기를 따라가는 표식 + 멈춤 확정 링
+ */
+function renderAdjustStep(layout) {
+  const gs = window.GlobalState;
+  const p1 = gs.part1;
+  const cx = width / 2;
+  const top = layout.bodyTop + 20;
+  const bottom = layout.bodyBottom - 20;
+
+  // 세로 레일 (눈금 없음)
+  push();
   stroke(col(PALETTE.line));
   strokeWeight(1);
-  line(gx, gainY(0), gx + gw, gainY(0));
+  line(cx, top, cx, bottom);
+  pop();
+  label('세우기', cx + 14, top, { size: 11, c: PALETTE.mute });
+  label('눕히기', cx + 14, bottom, { size: 11, c: PALETTE.mute });
+
+  // 표식: 상대 기울기(normY)를 따라감 + 소리 크기에 반응
+  const y = map(gs.sensor.normY, 0, 1, bottom, top);
+  const d = min(width, height) * 0.16 * (1 + getLevel() * 0.6);
+  push();
+  noStroke();
+  fill(col(p1.hasMoved ? PALETTE.ink : PALETTE.mute));
+  ellipse(cx, y, d, d);
+
+  // 멈춤 확정 진행 링
+  if (p1.dwell > 0) {
+    noFill();
+    stroke(col(PALETTE.accent));
+    strokeWeight(3);
+    arc(cx, y, d + 18, d + 18, -HALF_PI, -HALF_PI + TWO_PI * p1.dwell);
+  }
+  pop();
+
+  // 디버그 값 (프로토타입용)
+  const profile = gs.userEQProfile;
+  const debug = {
+    PART1_VOLUME: `vol ${profile.masterVolume.toFixed(2)}`,
+    PART1_LOW: `low ${fmtDb(profile.lowShelf.gain)}dB`,
+    PART1_HIGH: `high ${fmtDb(profile.highShelf.gain)}dB`
+  }[gs.currentStage];
+  label(debug, width - layout.margin, layout.headerY + 30, { family: FONT.mono, size: 9, c: PALETTE.mute, a: 160, align: RIGHT });
+
+  if (!p1.hasMoved) {
+    const hint = gs.isGyroAvailable ? '먼저 기기를 앞뒤로 기울여 보세요' : '먼저 화면을 누른 채 위아래로 끌어 보세요 (PC 모드)';
+    label(hint, cx, layout.btnSecondary.y + layout.btnH / 2, { size: 12, c: PALETTE.mute, align: CENTER });
+  } else {
+    label('2초간 멈추면 다음으로 넘어가요', cx, layout.btnSecondary.y + layout.btnH / 2, { size: 12, c: PALETTE.mute, align: CENTER });
+  }
+  drawButton(layout.btnPrimary, '여기가 좋아요', { filled: true, enabled: p1.hasMoved });
+}
+
+/**
+ * 3. ② 음역 고르기: A/B/C 카드
+ */
+function renderRegisterStep(layout) {
+  const reg = window.GlobalState.part1.register;
+  const cards = getRegisterCardZones(layout);
+
+  cards.forEach((z, i) => {
+    const playing = reg.playingCard === i;
+    const selected = reg.selectedCard === i;
+    push();
+    if (playing) {
+      noStroke();
+      fill(col(PALETTE.ink));
+    } else {
+      noFill();
+      stroke(col(PALETTE.ink, reg.isAutoPlaying ? 90 : 255));
+      strokeWeight(1);
+    }
+    rect(z.x, z.y, z.w, z.h);
+    if (selected) {
+      noFill();
+      stroke(col(PALETTE.accent));
+      strokeWeight(4);
+      rect(z.x + 2, z.y + 2, z.w - 4, z.h - 4);
+    }
+    pop();
+
+    label(CARD_LABELS[i], z.x + 16, z.y + 36, { size: min(56, z.w * 0.4), weight: 500, c: playing ? PALETTE.bg : PALETTE.ink });
+    if (!reg.isAutoPlaying) {
+      label('탭해서 듣기', z.x + 16, z.y + z.h - 20, { size: 11, c: playing ? PALETTE.bg : PALETTE.mute });
+    }
+  });
+
+  drawButton(layout.btnSecondary, '다시 전부 듣기', { enabled: !reg.isAutoPlaying });
+  drawButton(layout.btnPrimary, '이걸로 할게요', { filled: true, enabled: !reg.isAutoPlaying && reg.selectedCard >= 0 });
+}
+
+function getRegisterCardZones(layout) {
+  const gap = 12;
+  const w = (layout.cw - gap * 2) / 3;
+  const h = min(layout.bodyBottom - layout.bodyTop, w * 1.6);
+  const y = layout.bodyTop + (layout.bodyBottom - layout.bodyTop - h) / 2;
+  return [0, 1, 2].map((i) => ({ x: layout.margin + i * (w + gap), y, w, h }));
+}
+
+/**
+ * 4. ⑤ 결과: 개인 EQ 곡선 + 값 + 비교 버튼
+ */
+function renderResultStep(layout) {
+  const gs = window.GlobalState;
+  const profile = gs.userEQProfile;
+  const gx = layout.margin;
+  const gw = layout.cw;
+  const gy = layout.bodyTop;
+  const gh = (layout.bodyBottom - layout.bodyTop) * 0.55;
+
+  drawEQCurve(gx, gy, gw, gh, profile, gs.part1.isBypassed);
+
+  // 값 목록
+  const reg = REGISTERS.find((r) => r.id === profile.registerPeak.register);
+  const rows = [
+    ['볼륨', profile.masterVolume.toFixed(2)],
+    ['저음', `${fmtDb(profile.lowShelf.gain)} dB · ${fmtHz(profile.lowShelf.freq)}Hz 아래`],
+    ['음역', reg ? `${reg.name} · ${fmtHz(profile.registerPeak.freq)}Hz ${fmtDb(profile.registerPeak.gain, 0)} dB` : '—'],
+    ['고음', `${fmtDb(profile.highShelf.gain)} dB · ${fmtHz(profile.highShelf.freq)}Hz 위`]
+  ];
+  const rowTop = gy + gh + 36;
+  const rowH = min(32, (layout.bodyBottom - rowTop) / rows.length);
+  rows.forEach(([k, v], i) => {
+    const y = rowTop + i * rowH;
+    label(k, gx, y, { size: 12, c: PALETTE.mute });
+    label(v, gx + gw, y, { family: FONT.mono, size: 12, align: RIGHT });
+  });
+
+  drawButton(layout.btnSecondary, '처음부터 다시', {});
+  drawButton(layout.btnPrimary, gs.part1.isBypassed ? '내 EQ로 듣기' : '원래 소리 듣기', { filled: true });
+}
+
+/**
+ * 개인 EQ 응답 곡선 (20Hz ~ 20kHz 로그 축, ±12dB)
+ */
+function drawEQCurve(gx, gy, gw, gh, profile, isBypassed) {
+  const range = 12;
+  const yOf = (db) => map(db, -range, range, gy + gh, gy);
+  const xOf = (f) => gx + gw * Math.log10(f / 20) / 3;
+
+  push();
+  // FFT: 아주 옅은 세로 헤어라인 (로그 축)
+  const fft = window.GlobalState.audioNodes.fft;
+  if (fft) {
+    const spectrum = fft.analyze();
+    const nyquist = getAudioContext().sampleRate / 2;
+    stroke(col(PALETTE.ink, 28));
+    strokeWeight(1);
+    for (let i = 1; i < spectrum.length; i += 2) {
+      const f = i * nyquist / spectrum.length;
+      if (f < 20 || f > 20000) continue;
+      const x = xOf(f);
+      line(x, gy + gh, x, gy + gh - map(spectrum[i], 0, 255, 0, gh));
+    }
+  }
+
+  // 격자
+  stroke(col(PALETTE.line));
+  strokeWeight(1);
+  line(gx, yOf(0), gx + gw, yOf(0));
   drawingContext.setLineDash([2, 4]);
   line(gx, gy, gx + gw, gy);
   line(gx, gy + gh, gx + gw, gy + gh);
+  [100, 1000, 10000].forEach((f) => line(xOf(f), gy, xOf(f), gy + gh));
   drawingContext.setLineDash([]);
-
-  // FFT: 아주 옅은 세로 헤어라인
-  const fft = window.GlobalState.audioNodes.fft;
-  if (showFFT && fft) {
-    const spectrum = fft.analyze();
-    stroke(col(PALETTE.ink, 28));
-    strokeWeight(1);
-    const bins = 200;
-    for (let i = 0; i < bins; i += 2) {
-      const x = map(i, 0, bins, gx, gx + gw);
-      const h = map(spectrum[i] || 0, 0, 255, 0, gh);
-      line(x, gy + gh, x, gy + gh - h);
-    }
-  }
-
-  const pts = gains.map((g, i) => ({ x: bandX(i, gx, gw), y: gainY(g) }));
-
-  // 선택 밴드 세로 가이드
-  if (activeIdx >= 0) {
-    stroke(col(PALETTE.accent, 90));
-    strokeWeight(1);
-    line(pts[activeIdx].x, gy, pts[activeIdx].x, gy + gh);
-  }
 
   // 곡선
   noFill();
-  stroke(col(PALETTE.ink));
-  strokeWeight(1.5);
+  stroke(col(isBypassed ? PALETTE.mute : PALETTE.accent));
+  strokeWeight(2);
   beginShape();
-  curveVertex(gx, pts[0].y);
-  curveVertex(gx, pts[0].y);
-  pts.forEach(p => curveVertex(p.x, p.y));
-  curveVertex(gx + gw, pts[4].y);
-  curveVertex(gx + gw, pts[4].y);
+  for (let i = 0; i <= 120; i++) {
+    const f = 20 * Math.pow(1000, i / 120);
+    vertex(xOf(f), yOf(isBypassed ? 0 : constrain(getEQResponseDb(f, profile), -range, range)));
+  }
   endShape();
-
-  // 노드
-  pts.forEach((p, i) => {
-    if (i === activeIdx) {
-      noStroke();
-      fill(col(PALETTE.accent));
-      ellipse(p.x, p.y, 10, 10);
-    } else {
-      stroke(col(PALETTE.ink));
-      strokeWeight(1);
-      fill(col(PALETTE.bg));
-      ellipse(p.x, p.y, 7, 7);
-    }
-  });
-
   pop();
 
-  if (activeIdx >= 0) {
-    const p = pts[activeIdx];
-    label(`${fmtGain(gains[activeIdx])} dB`, p.x, p.y - 16, { family: FONT.mono, size: 10, c: PALETTE.accent, align: CENTER });
-  }
-}
-
-function drawEqualLoudnessCurveAndFFT(layout) {
-  drawCurve(layout.graphX, layout.graphY, layout.graphW, layout.graphH, {
-    activeIdx: window.GlobalState.sensor.activeBandIndex
+  [[100, '100'], [1000, '1k'], [10000, '10k']].forEach(([f, s]) => {
+    label(s, xOf(f), gy + gh + 12, { family: FONT.mono, size: 9, c: PALETTE.mute, align: CENTER });
   });
-}
-
-/**
- * 밴드 선택 (그래프 노드와 같은 열에 정렬된 텍스트)
- */
-function drawFrequencyBandTabs(layout) {
-  const activeIdx = window.GlobalState.sensor.activeBandIndex;
-  const gains = window.GlobalState.userEQProfile.gains;
-  const midY = layout.tabsY + layout.tabsH / 2;
-
-  for (let i = 0; i < 5; i++) {
-    const x = bandX(i, layout.graphX, layout.graphW);
-    const on = i === activeIdx;
-    label(FREQ_LABELS[i], x, midY - 7, { family: FONT.mono, size: on ? 13 : 12, weight: on ? 500 : 400, c: on ? PALETTE.ink : PALETTE.mute, align: CENTER });
-    label(fmtGain(gains[i], 0), x, midY + 10, { family: FONT.mono, size: 9, c: on ? PALETTE.accent : PALETTE.mute, a: on ? 255 : 150, align: CENTER });
-  }
-
-  label('Hz', layout.graphX + layout.graphW, midY - 7, { family: FONT.mono, size: 9, c: PALETTE.mute, a: 150, align: RIGHT });
-}
-
-/**
- * 클러치 (Hold to Tune) — 중앙의 원
- */
-function drawClutchTouchPad(layout) {
-  const held = window.GlobalState.sensor.isClutchActive;
-  const idx = window.GlobalState.sensor.activeBandIndex;
-  const cx = layout.clutchX + layout.clutchD / 2;
-  const cy = layout.clutchY + layout.clutchD / 2;
-  const d = layout.clutchD;
-
-  push();
-  if (held) {
-    const level = getLevel();
-    noStroke();
-    fill(col(PALETTE.accent));
-    ellipse(cx, cy, d * (0.96 + level * 0.3), d * (0.96 + level * 0.3));
-  } else {
-    noFill();
-    stroke(col(PALETTE.ink));
-    strokeWeight(1);
-    ellipse(cx, cy, d, d);
-
-    // 바깥으로 퍼지는 옅은 링
-    const t = (animTimer * 0.25) % 1;
-    stroke(col(PALETTE.ink, 60 * (1 - t)));
-    ellipse(cx, cy, d * (1 + t * 0.18), d * (1 + t * 0.18));
-  }
-  pop();
-
-  if (held) {
-    label(`${FREQ_LABELS[idx]} Hz`, cx, cy - 10, { family: FONT.mono, size: 12, c: PALETTE.bg, align: CENTER, spacing: 1 });
-    label(fmtGain(window.GlobalState.userEQProfile.gains[idx]), cx, cy + 14, { family: FONT.mono, size: min(d * 0.16, 28), weight: 500, c: PALETTE.bg, align: CENTER });
-  } else {
-    label('누른 채', cx, cy - 9, { size: 12, align: CENTER, spacing: 2 });
-    label('기울이기', cx, cy + 9, { size: 12, align: CENTER, spacing: 2 });
-  }
-}
-
-/**
- * 하단 텍스트 버튼
- */
-function drawBottomActionButtons(layout) {
-  const z = getInteractionZones();
-  const y = layout.actionY + layout.actionH / 2;
-
-  label('초기화', z.btnReset.x, y, { size: 12, c: PALETTE.mute, spacing: 1 });
-  label('결과 보기  →', z.btnProfile.x + z.btnProfile.w, y, { size: 12, weight: 500, align: RIGHT, spacing: 1 });
-}
-
-/**
- * 3. 결과 프로파일 화면
- */
-function renderProfileScreen() {
-  const margin = max(20, width * 0.07);
-  const gw = width - margin * 2;
-  const gains = window.GlobalState.userEQProfile.gains;
-
-  label('02', margin, max(28, height * 0.05), { family: FONT.mono, size: 11, c: PALETTE.accent });
-  label('나의 등청감 곡선', margin + 24, max(28, height * 0.05), { size: 12, weight: 500, spacing: 1 });
-
-  drawCurve(margin, height * 0.16, gw, height * 0.26, { showFFT: false });
-
-  // 대역별 수치
-  const top = height * 0.52;
-  const rowH = min(height * 0.065, 48);
-  for (let i = 0; i < 5; i++) {
-    const y = top + i * rowH;
-    label(`${FREQ_LABELS[i]} Hz`, margin, y, { family: FONT.mono, size: 11, c: PALETTE.mute });
-
-    const bx = margin + gw * 0.28;
-    const bw = gw * 0.5;
-    push();
-    stroke(col(PALETTE.line));
-    strokeWeight(1);
-    line(bx, y, bx + bw, y);
-    line(bx + bw / 2, y - 4, bx + bw / 2, y + 4);
-    noStroke();
-    fill(col(gains[i] === 0 ? PALETTE.ink : PALETTE.accent));
-    ellipse(map(gains[i], -15, 15, bx, bx + bw), y, 7, 7);
-    pop();
-
-    label(`${fmtGain(gains[i])} dB`, margin + gw, y, { family: FONT.mono, size: 11, align: RIGHT });
-  }
-
-  const b = getInteractionZones().btnBackFromProfile;
-  label('←  다시 조율하기', width / 2, b.y + b.h / 2, { size: 12, weight: 500, align: CENTER, spacing: 1 });
+  label(`+${range}`, gx, gy - 10, { family: FONT.mono, size: 9, c: PALETTE.mute });
+  label(`−${range} dB`, gx, gy + gh + 12, { family: FONT.mono, size: 9, c: PALETTE.mute });
 }
 
 /**
@@ -362,40 +402,10 @@ function renderProfileScreen() {
  */
 function getInteractionZones() {
   const layout = calculateUILayout();
-  const halfW = layout.graphW / 2;
-
   return {
     layout,
-    clutch: {
-      x: layout.clutchX,
-      y: layout.clutchY,
-      w: layout.clutchW,
-      h: layout.clutchH
-    },
-    btnReset: {
-      x: layout.graphX,
-      y: layout.actionY,
-      w: halfW,
-      h: layout.actionH
-    },
-    btnProfile: {
-      x: layout.graphX + halfW,
-      y: layout.actionY,
-      w: halfW,
-      h: layout.actionH
-    },
-    btnBackFromProfile: {
-      x: width / 2 - 120,
-      y: height * 0.88 - 24,
-      w: 240,
-      h: 48
-    },
-    tabs: [0, 1, 2, 3, 4].map(i => ({
-      index: i,
-      x: layout.graphX + i * layout.graphW / 5,
-      y: layout.tabsY,
-      w: layout.graphW / 5,
-      h: layout.tabsH
-    }))
+    btnPrimary: layout.btnPrimary,
+    btnSecondary: layout.btnSecondary,
+    cards: getRegisterCardZones(layout)
   };
 }
