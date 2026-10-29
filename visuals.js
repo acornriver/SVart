@@ -75,11 +75,14 @@ const BACKDROPS = {
 };
 const BACKDROP_WASH = 185;  // 영상 위에 덮는 배경색 불투명도 (0~255). 높을수록 영상이 숨음
 const BACKDROP_FADE = 0.8;  // 단계 전환 크로스페이드 (초)
+const BACKDROP_STALL_SECONDS = 2; // 재생 중인데 이만큼 시간이 안 흐르면 멈춘 것으로 보고 다시 재생
 
 let animTimer = 0;
 let dust = null;
 let backdropVideos = {};   // { 단계: HTMLVideoElement }
+let backdropBlobs = {};    // { 단계: blob URL } 받아 뒀지만 아직 재생 중이라 못 바꾼 것
 let backdropStage = null;
+let backdropWatch = { t: 0, lastTime: -1, stalled: 0 };
 
 // 화면에 보이는 값은 실제 값을 부드럽게 따라감
 const view = {
@@ -137,25 +140,107 @@ function setupBackdrops() {
     v.setAttribute('playsinline', '');
     v.preload = stage === 'INIT' ? 'auto' : 'metadata';
     v.style.transition = `opacity ${BACKDROP_FADE}s ease`;
+    // loop 속성이 있어도 끝에서 멈추는 브라우저가 있어 직접 처음으로 되감음
+    v.addEventListener('ended', () => {
+      v.currentTime = 0;
+      if (backdropVideos[backdropStage] === v) playBackdrop(v);
+    });
     document.body.prepend(v);
     backdropVideos[stage] = v;
   });
+  cacheBackdrops();
+}
+
+/**
+ * 영상을 처음에 전부 메모리(blob)로 받아 둔다. 전시장 와이파이가 끊겨도 단계 전환 때 멈추지 않게.
+ * 받기 전이나 실패하면 원래 주소로 스트리밍한다. 지금 보이는 영상은 끊기지 않게 다음에 숨겨질 때 바꾼다.
+ */
+async function cacheBackdrops() {
+  for (const [stage, src] of Object.entries(BACKDROPS)) {
+    try {
+      const res = await fetch(src);
+      if (!res.ok) continue;
+      const url = URL.createObjectURL(await res.blob());
+      if (backdropStage === stage) backdropBlobs[stage] = url;
+      else swapBackdropSrc(backdropVideos[stage], url);
+    } catch (e) {
+      // 네트워크 오류: 스트리밍으로 계속
+    }
+  }
+}
+
+function swapBackdropSrc(v, url) {
+  v.src = url;
+  v.load();
+}
+
+function playBackdrop(v) {
+  v.play().catch(() => {}); // 자동재생이 막혀도 막과 UI는 그대로. 감시와 다음 터치에서 다시 시도
 }
 
 function updateBackdrop(stage) {
-  if (stage === backdropStage) return;
-  const prev = backdropVideos[backdropStage];
+  if (stage !== backdropStage) switchBackdrop(stage);
+  watchBackdrop();
+}
+
+function switchBackdrop(stage) {
+  const prevStage = backdropStage;
+  const prev = backdropVideos[prevStage];
   const next = backdropVideos[stage];
   backdropStage = stage;
+  backdropWatch = { t: 0, lastTime: -1, stalled: 0 };
 
   if (prev && prev !== next) {
     prev.style.opacity = 0;
-    setTimeout(() => { if (backdropVideos[backdropStage] !== prev) prev.pause(); }, BACKDROP_FADE * 1000 + 50);
+    setTimeout(() => {
+      if (backdropVideos[backdropStage] === prev) return;
+      prev.pause();
+      if (backdropBlobs[prevStage]) {
+        swapBackdropSrc(prev, backdropBlobs[prevStage]);
+        delete backdropBlobs[prevStage];
+      }
+    }, BACKDROP_FADE * 1000 + 50);
   }
   if (next) {
-    next.play().catch(() => {}); // 자동재생이 막혀도 막과 UI는 그대로 동작
+    playBackdrop(next);
     next.style.opacity = 1;
   }
+}
+
+/**
+ * 1초마다 지금 영상이 실제로 흐르는지 확인. 멈췄거나(화면 잠금, 자동재생 거부)
+ * 시간이 안 흐르면(버퍼링 멈춤) 다시 재생한다.
+ */
+function watchBackdrop() {
+  const v = backdropVideos[backdropStage];
+  if (!v) return;
+  backdropWatch.t += Math.min(deltaTime, 100) / 1000;
+  if (backdropWatch.t < 1) return;
+  backdropWatch.t = 0;
+
+  if (v.paused) {
+    playBackdrop(v);
+    return;
+  }
+  if (v.currentTime === backdropWatch.lastTime) {
+    backdropWatch.stalled += 1;
+    if (backdropWatch.stalled >= BACKDROP_STALL_SECONDS) {
+      backdropWatch.stalled = 0;
+      v.currentTime = v.currentTime; // 디코더를 다시 깨움
+      playBackdrop(v);
+    }
+  } else {
+    backdropWatch.stalled = 0;
+  }
+  backdropWatch.lastTime = v.currentTime;
+}
+
+/**
+ * 터치할 때마다 호출. 자동재생이 막힌 기기도 사용자 제스처 안에서는 재생된다.
+ */
+function resumeBackdrop() {
+  const v = backdropVideos[backdropStage];
+  if (v && v.paused) playBackdrop(v);
 }
 
 /* ---------- 작은 헬퍼 ---------- */

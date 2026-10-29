@@ -61,6 +61,9 @@ function touchEnded() {
   dragY = null;
   // iOS는 touchstart를 사용자 제스처로 인정하지 않아 시작(오디오 언락)은 손을 뗄 때 처리
   if (window.GlobalState.currentStage === 'INIT') initAudioPart1();
+  // iOS는 touchend 안에서만 오디오/영상 재개를 확실히 허용
+  ensureAudioRunning();
+  resumeBackdrop();
   return false;
 }
 
@@ -88,6 +91,8 @@ function hit(z, px, py) {
  */
 function handlePointerDown(px, py) {
   const stage = window.GlobalState.currentStage;
+  ensureAudioRunning();
+  resumeBackdrop();
 
   // INIT: 터치는 touchEnded()에서 처리, 마우스 클릭은 여기서 바로 시작
   if (stage === 'INIT') {

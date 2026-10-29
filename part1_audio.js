@@ -42,6 +42,7 @@ const PART1_ADJUST = {
 };
 
 const MIN_STEP_SECONDS = 1.5; // 단계 시작 직후 오확정 방지
+const SOURCE_WATCH_SECONDS = 1; // 이 간격으로 오디오가 살아 있는지 확인
 
 // ② 음역 고르기: 도 미 솔 라 솔 미 도, 8분음표 6개 + 4분음표 1개 @ 120 BPM
 const MELODY_STEPS = [0, 4, 7, 9, 7, 4, 0];
@@ -71,6 +72,7 @@ let noiseSources = {};     // { pink, brown, white }: p5.Noise
 let sampleSources = {};    // { VOLUME, LOW, ... }: p5.SoundFile (file이 지정된 경우만)
 let sampleLevels = {};     // { VOLUME, LOW, ... }: RMS를 맞춘 재생 볼륨
 let activeSourceKey = null;
+let sourceWatchTimer = 0;
 
 // 조절 단계 내부 상태
 let adjustValue = 0;       // 현재 값 (dB)
@@ -104,8 +106,23 @@ function initAudioPart1() {
   setupAudioPipeline();
   loadRegisterCalibration();
 
+  // 화면 잠금, 블루투스 재연결, 다른 앱 소리 등으로 iOS가 오디오를 멈추면 돌아올 때 다시 깨움
+  getAudioContext().addEventListener('statechange', ensureAudioRunning);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) ensureAudioRunning();
+  });
+
   window.GlobalState.isAudioInitialized = true;
   goToPart1Step(0);
+}
+
+/**
+ * 오디오 컨텍스트가 멈춰 있으면 다시 켬. iOS는 사용자 제스처 안에서만 확실히 되므로 터치마다도 부름
+ */
+function ensureAudioRunning() {
+  if (!window.GlobalState.isAudioInitialized) return;
+  const ctx = getAudioContext();
+  if (ctx.state !== 'running') ctx.resume().catch(() => {});
 }
 
 /**
@@ -276,6 +293,24 @@ function updatePart1(dt) {
 
   const stage = window.GlobalState.currentStage;
   if (PART1_ADJUST[stage]) updateAdjust(stage, dt);
+
+  sourceWatchTimer += dt;
+  if (sourceWatchTimer >= SOURCE_WATCH_SECONDS) {
+    sourceWatchTimer = 0;
+    watchActiveSource();
+  }
+}
+
+/**
+ * 지금 단계의 녹음이 어떤 이유로든 멈춰 있으면 다시 루프 재생
+ */
+function watchActiveSource() {
+  ensureAudioRunning();
+  const s = sampleSources[activeSourceKey];
+  if (!s || s.isPlaying()) return;
+  s.setVolume(0);
+  s.loop();
+  s.setVolume(sampleLevels[activeSourceKey], 0.3);
 }
 
 /**
