@@ -64,8 +64,22 @@ const ADJUST_FOCUS_HZ = { PART1_LOW: 70, PART1_HIGH: 9000 };
 
 const CARD_LABELS = ['A', 'B', 'C'];
 
+// 단계별 배경 영상 (북서울 주변 촬영). 캔버스 뒤 <video>에 흑백·어둡게 깔고, 캔버스가 남색 막을 한 겹 덮는다
+const BACKDROPS = {
+  INIT:           './media/video/insert-danghyeoncheon-1.mp4',
+  PART1_VOLUME:   './media/video/water.mp4',
+  PART1_REGISTER: './media/video/insert-museum-1.mp4',
+  PART1_LOW:      './media/video/train-go.mp4',
+  PART1_HIGH:     './media/video/walk-stair.mp4',
+  PART1_RESULT:   './media/video/car-move.mp4'
+};
+const BACKDROP_WASH = 185;  // 영상 위에 덮는 배경색 불투명도 (0~255). 높을수록 영상이 숨음
+const BACKDROP_FADE = 0.8;  // 단계 전환 크로스페이드 (초)
+
 let animTimer = 0;
 let dust = null;
+let backdropVideos = {};   // { 단계: HTMLVideoElement }
+let backdropStage = null;
 
 // 화면에 보이는 값은 실제 값을 부드럽게 따라감
 const view = {
@@ -82,13 +96,17 @@ const view = {
  */
 function renderVisuals() {
   animTimer += 0.03;
-  background(...PALETTE.bg);
+  const stage = window.GlobalState.currentStage;
+  updateBackdrop(stage);
+
+  // 반투명 배경은 이전 프레임 위에 쌓이므로 먼저 지움
+  clear();
+  background(...PALETTE.bg, BACKDROP_WASH);
   updateView();
 
   const level = getLevel();
   drawDust(level);
 
-  const stage = window.GlobalState.currentStage;
   if (stage === 'INIT') {
     renderInitScreen();
     return;
@@ -100,6 +118,44 @@ function renderVisuals() {
   if (stage === 'PART1_REGISTER') renderRegisterStep(layout);
   else if (stage === 'PART1_RESULT') renderResultStep(layout);
   else renderAdjustStep(layout);
+}
+
+/* ---------- 배경 영상 ---------- */
+
+/**
+ * 단계별 배경 <video>를 만들어 캔버스 뒤에 깐다 (main.js의 setup()에서 호출).
+ * 소리는 Web Audio 쪽 녹음이 내므로 영상은 항상 음소거. iOS는 muted + playsinline이어야 자동재생된다.
+ */
+function setupBackdrops() {
+  Object.entries(BACKDROPS).forEach(([stage, src]) => {
+    const v = document.createElement('video');
+    v.className = 'backdrop';
+    v.src = src;
+    v.muted = true;
+    v.loop = true;
+    v.playsInline = true;
+    v.setAttribute('playsinline', '');
+    v.preload = stage === 'INIT' ? 'auto' : 'metadata';
+    v.style.transition = `opacity ${BACKDROP_FADE}s ease`;
+    document.body.prepend(v);
+    backdropVideos[stage] = v;
+  });
+}
+
+function updateBackdrop(stage) {
+  if (stage === backdropStage) return;
+  const prev = backdropVideos[backdropStage];
+  const next = backdropVideos[stage];
+  backdropStage = stage;
+
+  if (prev && prev !== next) {
+    prev.style.opacity = 0;
+    setTimeout(() => { if (backdropVideos[backdropStage] !== prev) prev.pause(); }, BACKDROP_FADE * 1000 + 50);
+  }
+  if (next) {
+    next.play().catch(() => {}); // 자동재생이 막혀도 막과 UI는 그대로 동작
+    next.style.opacity = 1;
+  }
 }
 
 /* ---------- 작은 헬퍼 ---------- */

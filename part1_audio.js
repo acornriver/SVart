@@ -21,13 +21,18 @@ const PART1_STAGES = ['PART1_VOLUME', 'PART1_REGISTER', 'PART1_LOW', 'PART1_HIGH
 
 // 단계별 소스. file에 경로를 넣으면 녹음 파일을 쓰고, 비워두면 noise 색으로 대체.
 // spectrum은 음량 보정 계산에 쓰는 대략적인 스펙트럼 기울기 ('white' | 'pink' | 'brown')
-// 예) file: './sounds/dangyeoncheon.mp3' (북서울 주변 녹음이 오면 교체)
+// level은 노이즈일 때만 씀. 녹음 파일은 불러온 뒤 RMS를 SAMPLE_TARGET_RMS로 맞춤
 const PART1_SOURCES = {
-  VOLUME: { file: null, noise: 'pink',  spectrum: 'pink',  level: 0.35 }, // 넓은 대역: 당현천 물소리 등
-  LOW:    { file: null, noise: 'brown', spectrum: 'brown', level: 0.35 }, // 저역: 지하철 진입 럼블 등
-  HIGH:   { file: null, noise: 'white', spectrum: 'white', level: 0.15 }, // 고역: 숲 바람, 나뭇잎 등
-  RESULT: { file: null, noise: 'pink',  spectrum: 'pink',  level: 0.35 }  // 결과 감상용
+  VOLUME: { file: './media/audio/water.m4a',      noise: 'pink',  spectrum: 'pink',  level: 0.35 }, // 넓은 대역: 당현천 물소리
+  LOW:    { file: './media/audio/train-go.m4a',   noise: 'brown', spectrum: 'brown', level: 0.35 }, // 저역: 7호선 열차
+  HIGH:   { file: './media/audio/walk-stair.m4a', noise: 'white', spectrum: 'white', level: 0.15 }, // 고역: 미술관 계단 발소리 (공원 캐노피 대체)
+  RESULT: { file: './media/audio/car-move.m4a',   noise: 'pink',  spectrum: 'pink',  level: 0.35 }  // 결과 감상용: 지나가는 차 (작가 곡이 오면 교체)
 };
+
+// 녹음마다 크기가 달라 ①에서 맞춘 볼륨이 다음 단계에서 어긋나지 않도록 RMS를 맞춤.
+// 원본이 -53 ~ -37 dBFS로 작아 크게 키우는데, 발소리처럼 피크가 큰 녹음은 피크가 상한을 넘지 않는 데까지만 키움
+const SAMPLE_TARGET_RMS = 0.05;   // -26 dBFS
+const SAMPLE_PEAK_CEILING = 0.9;
 
 // 조절 단계 설정 (값 단위는 모두 dB). span: 화면 높이만큼 쓸었을 때 바뀌는 양
 const PART1_ADJUST = {
@@ -64,6 +69,7 @@ let loudnessComp = null;
 let masterGain = null;
 let noiseSources = {};     // { pink, brown, white }: p5.Noise
 let sampleSources = {};    // { VOLUME, LOW, ... }: p5.SoundFile (file이 지정된 경우만)
+let sampleLevels = {};     // { VOLUME, LOW, ... }: RMS를 맞춘 재생 볼륨
 let activeSourceKey = null;
 
 // 조절 단계 내부 상태
@@ -145,9 +151,11 @@ function setupAudioPipeline() {
     n.start();
     noiseSources[type] = n;
   });
-  Object.values(sampleSources).forEach((s) => {
+  Object.entries(sampleSources).forEach(([key, s]) => {
     s.disconnect();
     s.connect(lowShelfFilter);
+    const { rms, peak } = getBufferStats(s.buffer);
+    sampleLevels[key] = Math.min(SAMPLE_TARGET_RMS / rms, SAMPLE_PEAK_CEILING / peak);
   });
 
   const fft = new p5.FFT(0.8, 512);
@@ -186,10 +194,29 @@ function setActiveSource(key) {
       s.setVolume(0);
       s.loop();
     }
-    s.setVolume(PART1_SOURCES[key].level, fade);
+    s.setVolume(sampleLevels[key], fade);
   }
 
   activeSourceKey = key;
+}
+
+/**
+ * 녹음 전체의 RMS(모든 채널 평균)와 피크. 무음 파일이어도 0으로 나누지 않도록 바닥값을 둠
+ */
+function getBufferStats(buffer) {
+  let sum = 0;
+  let count = 0;
+  let peak = 0;
+  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+    const data = buffer.getChannelData(ch);
+    for (let i = 0; i < data.length; i++) {
+      const v = data[i];
+      sum += v * v;
+      if (Math.abs(v) > peak) peak = Math.abs(v);
+    }
+    count += data.length;
+  }
+  return { rms: Math.max(1e-6, Math.sqrt(sum / count)), peak: Math.max(1e-6, peak) };
 }
 
 /**

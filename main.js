@@ -17,6 +17,7 @@ function setup() {
 
   pixelDensity(window.devicePixelRatio || 1);
   frameRate(60);
+  setupBackdrops();
 
   // 모바일 브라우저 롱프레스 컨텍스트 메뉴 차단
   cnv.elt.addEventListener('contextmenu', (e) => e.preventDefault());
