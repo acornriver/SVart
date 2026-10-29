@@ -40,6 +40,7 @@ function windowResized() {
  */
 
 let lastTouchTime = 0;
+let dragY = null; // 조절 단계에서 쓸기 중인 손가락의 직전 y (버튼 위에서 시작하면 null)
 
 function touchStarted() {
   lastTouchTime = millis();
@@ -50,12 +51,14 @@ function touchStarted() {
 }
 
 function touchMoved() {
+  if (touches.length > 0) handlePointerDrag(touches[0].y);
   return false;
 }
 
 function touchEnded() {
   lastTouchTime = millis();
-  // iOS는 touchstart를 사용자 제스처로 인정하지 않아 시작(오디오 언락 + 자이로 권한)은 손을 뗄 때 처리
+  dragY = null;
+  // iOS는 touchstart를 사용자 제스처로 인정하지 않아 시작(오디오 언락)은 손을 뗄 때 처리
   if (window.GlobalState.currentStage === 'INIT') initAudioPart1();
   return false;
 }
@@ -65,9 +68,15 @@ function mousePressed() {
   handlePointerDown(mouseX, mouseY);
 }
 
-// 비워둬도 지우면 안 됨: 없으면 p5가 마우스 업에서 touchEnded()를 대신 불러
+function mouseDragged() {
+  handlePointerDrag(mouseY);
+}
+
+// 지우면 안 됨: 없으면 p5가 마우스 업에서 touchEnded()를 대신 불러
 // lastTouchTime이 갱신되고, 직후 클릭이 무시된다.
-function mouseReleased() {}
+function mouseReleased() {
+  dragY = null;
+}
 
 function hit(z, px, py) {
   return px >= z.x && px <= z.x + z.w && py >= z.y && py <= z.y + z.h;
@@ -89,6 +98,7 @@ function handlePointerDown(px, py) {
 
   if (stage === 'PART1_VOLUME' || stage === 'PART1_LOW' || stage === 'PART1_HIGH') {
     if (hit(zones.btnPrimary, px, py)) tapConfirmAdjust();
+    else if (py < zones.btnPrimary.y) dragY = py;
     return;
   }
 
@@ -104,4 +114,13 @@ function handlePointerDown(px, py) {
     if (hit(zones.btnPrimary, px, py)) toggleResultBypass();
     else if (hit(zones.btnSecondary, px, py)) restartPart1();
   }
+}
+
+/**
+ * 조절 단계 쓸기: 위로 쓸면 커지고, 아래로 쓸면 작아짐 (화면 높이 비율로 전달)
+ */
+function handlePointerDrag(py) {
+  if (dragY === null) return;
+  dragAdjust((dragY - py) / height);
+  dragY = py;
 }

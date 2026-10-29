@@ -1,15 +1,15 @@
 /**
- * 청각 다변기 (Sound Variator) - Part 1 Audio & Sensor Engine
+ * 청각 다변기 (Sound Variator) - Part 1 Audio Engine
  *
  * [Part 1: 파트별 청취로 만드는 개인 선호 EQ]
- * ① 편한 볼륨    : 넓은 대역 소리를 들으며 기울여서 크기 맞추기     → masterVolume
- * ② 음역 고르기  : 같은 멜로디 저/중/고 중 하나 고르기 (A/B/C 무작위) → registerPeak
+ * ① 편한 볼륨    : 넓은 대역 소리를 들으며 위아래로 쓸어 크기 맞추기 → masterVolume
+ * ② 음역 고르기  : 같은 멜로디 저/중/고 중 하나 고르기 (듣는 순서 무작위) → registerPeak
  * ③ 저음 맞추기  : 저역이 풍부한 소리로 low shelf 맞추기             → lowShelf
  * ④ 고음 맞추기  : 고역이 풍부한 소리로 high shelf 맞추기            → highShelf
  * ⑤ 결과        : 개인 EQ가 입혀진 소리 ↔ 원래 소리 비교
  *
- * - 한 단계에 한 파트, 한 축(앞뒤 기울기)만 조절. 시작값은 매번 무작위.
- * - 2초간 멈추면 확정 (또는 확정 버튼). 충분히 움직인 뒤에만 확정 가능.
+ * - 한 단계에 한 파트, 한 축(위아래 쓸기)만 조절. 시작값은 매번 무작위.
+ * - 충분히 움직인 뒤 확정 버튼으로 확정.
  * - EQ를 바꿔도 체감 음량이 같도록 자동 음량 보정 (큰 소리를 고르는 편향 방지).
  *
  * 신호 흐름:
@@ -29,18 +29,14 @@ const PART1_SOURCES = {
   RESULT: { file: null, noise: 'pink',  spectrum: 'pink',  level: 0.35 }  // 결과 감상용
 };
 
-// 조절 단계 설정 (값 단위는 모두 dB)
+// 조절 단계 설정 (값 단위는 모두 dB). span: 화면 높이만큼 쓸었을 때 바뀌는 양
 const PART1_ADJUST = {
-  PART1_VOLUME: { min: -40, max: 0,  startMin: -26, startMax: -14, sens: 0.8, moveThreshold: 6, stillTolerance: 1.0 },
-  PART1_LOW:    { min: -10, max: 10, startMin: -6,  startMax: 6,   sens: 0.4, moveThreshold: 3, stillTolerance: 0.6 },
-  PART1_HIGH:   { min: -10, max: 10, startMin: -6,  startMax: 6,   sens: 0.4, moveThreshold: 3, stillTolerance: 0.6 }
+  PART1_VOLUME: { min: -40, max: 0,  startMin: -26, startMax: -14, span: 60, moveThreshold: 6 },
+  PART1_LOW:    { min: -10, max: 10, startMin: -6,  startMax: 6,   span: 30, moveThreshold: 3 },
+  PART1_HIGH:   { min: -10, max: 10, startMin: -6,  startMax: 6,   span: 30, moveThreshold: 3 }
 };
 
-const DWELL_SECONDS = 2.0;   // 이만큼 멈추면 확정
 const MIN_STEP_SECONDS = 1.5; // 단계 시작 직후 오확정 방지
-
-// 기기를 가로로 들었을 때 앞뒤 방향이 반대로 느껴지면 true로 (아이패드 실기 확인 필요)
-const TILT_INVERT = false;
 
 // ② 음역 고르기: 도 미 솔 라 솔 미 도, 8분음표 6개 + 4분음표 1개 @ 120 BPM
 const MELODY_STEPS = [0, 4, 7, 9, 7, 4, 0];
@@ -70,18 +66,9 @@ let noiseSources = {};     // { pink, brown, white }: p5.Noise
 let sampleSources = {};    // { VOLUME, LOW, ... }: p5.SoundFile (file이 지정된 경우만)
 let activeSourceKey = null;
 
-// 센서 내부 상태
-let hasReceivedOrientation = false;
-let mouseTilt = 0;         // 자이로가 없을 때 드래그로 흉내 내는 기울기
-let mouseRoll = 0;
-let dragLast = null;       // 직전 프레임의 드래그 좌표
-
 // 조절 단계 내부 상태
 let adjustValue = 0;       // 현재 값 (dB)
-let adjustStartValue = 0;
-let tiltAnchor = 0;        // 단계 시작 시 기울기 (상대 기울기 기준점)
 let movedPath = 0;         // 단계 시작 후 값이 움직인 누적량 (dB)
-let stillAnchorValue = 0;  // 멈춤 판정 기준값
 let stepElapsed = 0;
 
 // 음역 고르기 내부 상태
@@ -100,44 +87,19 @@ function preloadPart1() {
 }
 
 /**
- * 1. 첫 터치: 오디오 언락 + 자이로 권한 + 오디오 체인 + ① 시작
+ * 1. 첫 터치: 오디오 언락 + 오디오 체인 + ① 시작
  */
 function initAudioPart1() {
   if (window.GlobalState.isAudioInitialized) return;
 
-  // iOS는 touchend/click 안에서만 오디오 언락과 센서 권한 요청을 사용자 제스처로 인정
+  // iOS는 touchend/click 안에서만 오디오 언락을 사용자 제스처로 인정
   userStartAudio();
   getAudioContext().resume();
-  setupOrientationSensor();
   setupAudioPipeline();
   loadRegisterCalibration();
 
   window.GlobalState.isAudioInitialized = true;
   goToPart1Step(0);
-}
-
-/**
- * 모바일 자이로 센서 등록 (iOS 13+는 사용자 제스처 안에서 권한 요청)
- */
-function setupOrientationSensor() {
-  const handleOrientation = (event) => {
-    if (event.beta === null || event.gamma === null) return;
-    hasReceivedOrientation = true;
-    window.GlobalState.isGyroAvailable = true;
-    window.GlobalState.sensor.rawBeta = event.beta;
-    window.GlobalState.sensor.rawGamma = event.gamma;
-  };
-
-  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-    DeviceOrientationEvent.requestPermission()
-      .then((state) => {
-        if (state === 'granted') window.addEventListener('deviceorientation', handleOrientation, true);
-        else console.warn('[Sensor] DeviceOrientation permission denied. Using mouse fallback.');
-      })
-      .catch((err) => console.warn('[Sensor] requestPermission error:', err));
-  } else if (typeof DeviceOrientationEvent !== 'undefined') {
-    window.addEventListener('deviceorientation', handleOrientation, true);
-  }
 }
 
 /**
@@ -238,7 +200,6 @@ function goToPart1Step(index) {
   const stage = PART1_STAGES[index];
   gs.currentStage = stage;
   gs.part1.stepIndex = index;
-  gs.part1.dwell = 0;
   gs.part1.hasMoved = false;
 
   stopVoice();
@@ -285,95 +246,48 @@ function restartPart1() {
  */
 function updatePart1(dt) {
   if (!window.GlobalState.isAudioInitialized) return;
-  updateSensor();
 
   const stage = window.GlobalState.currentStage;
   if (PART1_ADJUST[stage]) updateAdjust(stage, dt);
 }
 
 /**
- * 화면 방향을 보정한 앞뒤/좌우 기울기 계산 (자이로 없으면 마우스로 대체)
- */
-function updateSensor() {
-  const sensor = window.GlobalState.sensor;
-  let tilt;
-  let roll;
-
-  if (hasReceivedOrientation) {
-    const angle = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
-    const b = sensor.rawBeta;
-    const g = sensor.rawGamma;
-    if (angle === 90) { tilt = -g; roll = b; }
-    else if (angle === -90 || angle === 270) { tilt = g; roll = -b; }
-    else if (angle === 180) { tilt = -b; roll = -g; }
-    else { tilt = b; roll = g; }
-    if (TILT_INVERT) tilt = -tilt;
-  } else {
-    // 자이로가 없으면 누른 채 위로 끌면 '세우기' (버튼을 누르러 갈 때 값이 바뀌지 않도록 드래그만 반영)
-    // p5의 movedX/Y는 터치에서 NaN이 나와서 좌표 차이를 직접 계산
-    const pointer = touches.length > 0 ? touches[0] : (mouseIsPressed ? { x: mouseX, y: mouseY } : null);
-    if (pointer && dragLast) {
-      mouseTilt = constrain(mouseTilt + (dragLast.y - pointer.y) * 0.15, -60, 60);
-      mouseRoll = constrain(mouseRoll + (pointer.x - dragLast.x) * 0.15, -60, 60);
-    }
-    dragLast = pointer ? { x: pointer.x, y: pointer.y } : null;
-    tilt = mouseTilt;
-    roll = mouseRoll;
-  }
-
-  // gamma가 ±90 경계에서 뒤집히는 순간은 무시
-  if (Math.abs(tilt - sensor.tilt) > 120) return;
-
-  sensor.tilt = lerp(sensor.tilt, tilt, 0.15);
-  sensor.roll = lerp(sensor.roll, roll, 0.15);
-  sensor.normY = constrain(map(sensor.tilt - tiltAnchor, -30, 30, 0, 1), 0, 1);
-  sensor.normX = constrain(map(sensor.roll, -30, 30, 0, 1), 0, 1);
-}
-
-/**
- * 4. ①③④ 조절 단계: 상대 기울기 → 값, 멈춤 확정
+ * 4. ①③④ 조절 단계: 위아래로 쓸기 → 값
  */
 function beginAdjust(stage) {
   const cfg = PART1_ADJUST[stage];
-  adjustStartValue = random(cfg.startMin, cfg.startMax);
-  adjustValue = adjustStartValue;
-  tiltAnchor = window.GlobalState.sensor.tilt;
+  adjustValue = random(cfg.startMin, cfg.startMax);
   movedPath = 0;
-  stillAnchorValue = adjustValue;
   stepElapsed = 0;
-  applyAdjustValue(stage);
+  applyAdjust(stage);
 }
 
 function updateAdjust(stage, dt) {
   const cfg = PART1_ADJUST[stage];
   const p1 = window.GlobalState.part1;
-  const tilt = window.GlobalState.sensor.tilt;
   stepElapsed += dt;
-
-  // 범위 끝에서 더 기울이면 기준점을 끌고 가서, 되돌릴 때 죽은 구간이 없게 함
-  let target = adjustStartValue + (tilt - tiltAnchor) * cfg.sens;
-  if (target > cfg.max) {
-    tiltAnchor = tilt - (cfg.max - adjustStartValue) / cfg.sens;
-    target = cfg.max;
-  } else if (target < cfg.min) {
-    tiltAnchor = tilt - (cfg.min - adjustStartValue) / cfg.sens;
-    target = cfg.min;
-  }
-
-  movedPath += Math.abs(target - adjustValue);
-  adjustValue = target;
-  applyAdjustValue(stage);
-
-  p1.control = (adjustValue - cfg.min) / (cfg.max - cfg.min);
   p1.hasMoved = movedPath >= cfg.moveThreshold && stepElapsed >= MIN_STEP_SECONDS;
+}
 
-  if (Math.abs(adjustValue - stillAnchorValue) > cfg.stillTolerance) {
-    stillAnchorValue = adjustValue;
-    p1.dwell = 0;
-  } else if (p1.hasMoved) {
-    p1.dwell = Math.min(1, p1.dwell + dt / DWELL_SECONDS);
-    if (p1.dwell >= 1) confirmPart1Step();
-  }
+/**
+ * 쓸어 올린 양(화면 높이 비율, 위로 +)만큼 값을 옮김. 상대 조작이라 무작위 시작값이 유지되고,
+ * 범위 끝에서 더 밀어도 값만 멈추므로 되돌릴 때 죽은 구간이 없다.
+ */
+function dragAdjust(dyRatio) {
+  const stage = window.GlobalState.currentStage;
+  const cfg = PART1_ADJUST[stage];
+  if (!cfg) return;
+
+  const next = constrain(adjustValue + dyRatio * cfg.span, cfg.min, cfg.max);
+  movedPath += Math.abs(next - adjustValue);
+  adjustValue = next;
+  applyAdjust(stage);
+}
+
+function applyAdjust(stage) {
+  const cfg = PART1_ADJUST[stage];
+  window.GlobalState.part1.control = (adjustValue - cfg.min) / (cfg.max - cfg.min);
+  applyAdjustValue(stage);
 }
 
 function applyAdjustValue(stage) {
@@ -391,7 +305,7 @@ function applyAdjustValue(stage) {
 }
 
 /**
- * 확정 버튼 (멈춤 대신 탭으로 확정)
+ * 확정 버튼
  */
 function tapConfirmAdjust() {
   if (window.GlobalState.part1.hasMoved) confirmPart1Step();
@@ -511,7 +425,9 @@ function toggleResultBypass() {
  */
 function startRegisterTrial() {
   const reg = window.GlobalState.part1.register;
-  reg.order = shuffle(REGISTERS.map((r) => r.id));
+  // 카드는 x축(음고) 위 제자리에 고정하고, 처음 들려주는 순서만 무작위
+  reg.order = REGISTERS.map((r) => r.id);
+  reg.playOrder = shuffle([0, 1, 2]);
   reg.selectedCard = -1;
   reg.playingCard = -1;
   playAllRegisterCards();
@@ -522,7 +438,7 @@ async function playAllRegisterCards() {
   const token = ++registerPlayToken;
   reg.isAutoPlaying = true;
 
-  for (let i = 0; i < reg.order.length; i++) {
+  for (const i of reg.playOrder) {
     if (token !== registerPlayToken) return;
     reg.playingCard = i;
     playRegister(reg.order[i]);

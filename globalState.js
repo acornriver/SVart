@@ -12,26 +12,15 @@ window.GlobalState = {
   currentStage: 'INIT',
 
   isAudioInitialized: false,
-  isGyroAvailable: false,
-
-  // 센서 상태 (비주얼 팀원이 참조)
-  sensor: {
-    rawBeta: 0,       // 기기 원본 beta (deg)
-    rawGamma: 0,      // 기기 원본 gamma (deg)
-    tilt: 0,          // 화면 방향을 보정한 '앞뒤 기울기' (deg, 스무딩 적용)
-    roll: 0,          // 화면 방향을 보정한 '좌우 기울기' (deg, 스무딩 적용)
-    normX: 0.5,       // 단계 시작 자세 기준 좌우 0.0 ~ 1.0
-    normY: 0.5        // 단계 시작 자세 기준 앞뒤 0.0 ~ 1.0 (앞으로 숙이면 증가)
-  },
 
   // Part 1 진행 상태 (UI 렌더링용)
   part1: {
     stepIndex: 0,          // 0 ~ 4 (① ~ ⑤)
     control: 0.5,          // 현재 단계 조절값 0.0 ~ 1.0 (게이지 위치)
-    hasMoved: false,       // 단계 시작 후 충분히 움직였는지 (멈춤 확정 조건)
-    dwell: 0,              // 멈춤 확정 진행도 0.0 ~ 1.0
+    hasMoved: false,       // 단계 시작 후 충분히 움직였는지 (확정 조건)
     register: {
-      order: [],           // A/B/C 카드에 배정된 음역 id 배열 (예: ['MID', 'LOW', 'HIGH'])
+      order: [],           // 카드에 배정된 음역 id. x축이 음고라 항상 ['LOW', 'MID', 'HIGH']
+      playOrder: [],       // 처음 들려주는 카드 순서 (무작위, 예: [1, 0, 2])
       playingCard: -1,     // 현재 재생 중인 카드 인덱스
       selectedCard: -1,
       isAutoPlaying: false
