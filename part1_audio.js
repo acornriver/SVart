@@ -2,31 +2,38 @@
  * 청각 다변기 (Sound Variator) - Part 1 Audio Engine
  *
  * [Part 1: 파트별 청취로 만드는 개인 선호 EQ]
- * ① 편한 볼륨    : 넓은 대역 소리를 들으며 위아래로 쓸어 크기 맞추기 → masterVolume
- * ② 음역 고르기  : 같은 멜로디 저/중/고 중 하나 고르기 (듣는 순서 무작위) → registerPeak
- * ③ 저음 맞추기  : 저역이 풍부한 소리로 low shelf 맞추기             → lowShelf
- * ④ 고음 맞추기  : 고역이 풍부한 소리로 high shelf 맞추기            → highShelf
- * ⑤ 결과        : 개인 EQ가 입혀진 소리 ↔ 원래 소리 비교
+ * ① 편한 볼륨    : 전체 비트를 들으며 위아래로 쓸어 크기 맞추기       → masterVolume (반죽 크기)
+ * ② 저음 맞추기  : 킥·베이스가 큰 비트로 low shelf 맞추기           → lowShelf (꼬리)
+ * ③ 고음 맞추기  : 하이햇·쉐이커가 큰 비트로 high shelf 맞추기       → highShelf (머리)
+ * ④ 음역 고르기  : 같은 멜로디 저/중/고 중 하나 고르기 (듣는 순서 무작위) → registerPeak (껍질 자리)
+ * → Part 2 검사 네 단계 (part2_audio.js: 고역 예민도 · 중앙 · 우세 귀 · 바탕음/배음)
+ * 결과          : 개인 EQ를 입힌 북서울 주변 녹음을 장소마다 차례로 (tour.js) ↔ 원래 소리 비교
  *
  * - 한 단계에 한 파트, 한 축(위아래 쓸기)만 조절. 시작값은 매번 무작위.
  * - 충분히 움직인 뒤 확정 버튼으로 확정.
  * - EQ를 바꿔도 체감 음량이 같도록 자동 음량 보정 (큰 소리를 고르는 편향 방지).
  *
  * 신호 흐름:
- *   단계별 소스 → lowShelf → registerPeak → highShelf → loudnessComp → masterGain → 출력
- *   멜로디(②)  ─────────────────────────────────────────────────────→ masterGain
+ *   비트(①②③) · 북서울 녹음(결과) → lowShelf → registerPeak → highShelf → loudnessComp → masterGain → 출력
+ *   멜로디(④)  ─────────────────────────────────────────────────────→ masterGain
+ *   Part 2 검사음 ─────────────── part2Bus (① 볼륨과 무관한 고정 크기) ───→ 출력
  */
 
-const PART1_STAGES = ['PART1_VOLUME', 'PART1_REGISTER', 'PART1_LOW', 'PART1_HIGH', 'PART1_RESULT'];
+// 전체 진행 순서. Part 2 단계는 part2_audio.js가 맡음
+const FLOW_STAGES = [
+  'PART1_VOLUME', 'PART1_LOW', 'PART1_HIGH', 'PART1_REGISTER', // 둥근 반죽 → 꼬리 → 머리 → 껍질 얹기
+  'PART2_SENSITIVITY', 'PART2_CENTER', 'PART2_EAR', 'PART2_PITCH',
+  'RESULT'
+];
+const EAR_RESULT_KEY = 'svart.earProfile'; // 청감 클라우드 연결용으로 결과를 남겨 두는 자리
 
-// 단계별 소스. file에 경로를 넣으면 녹음 파일을 쓰고, 비워두면 noise 색으로 대체.
+// ①②③ 검사 소리: 직접 만든 비트의 묶음 크기 (beat.js의 BEAT_MIXES).
 // spectrum은 음량 보정 계산에 쓰는 대략적인 스펙트럼 기울기 ('white' | 'pink' | 'brown')
-// level은 노이즈일 때만 씀. 녹음 파일은 불러온 뒤 RMS를 SAMPLE_TARGET_RMS로 맞춤
+// 결과 화면의 북서울 녹음은 tour.js의 TOUR_PLACES. 불러온 뒤 RMS를 SAMPLE_TARGET_RMS로 맞춤
 const PART1_SOURCES = {
-  VOLUME: { file: './media/audio/water.m4a',      noise: 'pink',  spectrum: 'pink',  level: 0.35 }, // 넓은 대역: 당현천 물소리
-  LOW:    { file: './media/audio/train-go.m4a',   noise: 'brown', spectrum: 'brown', level: 0.35 }, // 저역: 7호선 열차
-  HIGH:   { file: './media/audio/walk-stair.m4a', noise: 'white', spectrum: 'white', level: 0.15 }, // 고역: 미술관 계단 발소리 (공원 캐노피 대체)
-  RESULT: { file: './media/audio/car-move.m4a',   noise: 'pink',  spectrum: 'pink',  level: 0.35 }  // 결과 감상용: 지나가는 차 (작가 곡이 오면 교체)
+  VOLUME: { beat: 'FULL', spectrum: 'pink' },
+  LOW:    { beat: 'LOW',  spectrum: 'brown' },
+  HIGH:   { beat: 'HIGH', spectrum: 'white' }
 };
 
 // 녹음마다 크기가 달라 ①에서 맞춘 볼륨이 다음 단계에서 어긋나지 않도록 RMS를 맞춤.
@@ -44,12 +51,19 @@ const PART1_ADJUST = {
 const MIN_STEP_SECONDS = 1.5; // 단계 시작 직후 오확정 방지
 const SOURCE_WATCH_SECONDS = 1; // 이 간격으로 오디오가 살아 있는지 확인
 
-// ② 음역 고르기: 도 미 솔 라 솔 미 도, 8분음표 6개 + 4분음표 1개 @ 120 BPM
-const MELODY_STEPS = [0, 4, 7, 9, 7, 4, 0];
-const MELODY_DURS = [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.5];
+// ④ 음역 고르기: 도 미 솔 도' 시 라 솔 · 미 레 도 (한 옥타브를 올라갔다 내려오는 짧은 노래, 11/02 사용자 "조금 더 음악적으로")
+// 음색: 칼림바·전자피아노처럼 탁 친 뒤 울리다 사라지는 배음 4개 + 옅은 메아리. 선율·음색·메아리는 Claude가 정함
+const MELODY_STEPS = [0, 4, 7, 12, 11, 9, 7, 4, 2, 0];
+const MELODY_DURS = [0.2, 0.2, 0.2, 0.4, 0.2, 0.2, 0.4, 0.2, 0.2, 0.6];
 const MELODY_LENGTH = MELODY_DURS.reduce((a, b) => a + b, 0);
-const MELODY_ENV = { attack: 0.01, decay: 0.15, sustain: 0.3, release: 0.2 };
-const MELODY_BASE_AMP = 0.3;
+const MELODY_PARTIALS = [   // 배음 번호, 크기, 사라지는 빠르기(초, 클수록 오래 울림)
+  { n: 1, amp: 1,    tau: 0.42 },
+  { n: 2, amp: 0.32, tau: 0.22 },
+  { n: 3, amp: 0.12, tau: 0.12 },
+  { n: 4, amp: 0.05, tau: 0.07 }
+];
+const MELODY_ECHO = { time: 0.3, feedback: 0.22, wet: 0.18 };
+const MELODY_BASE_AMP = 0.42;   // 삼각파 서스테인 0.3과 비슷하게 들리도록 (귀로 다시 맞출 것)
 const MELODY_GAP = 0.7;
 
 // defaultOffsetDb: 등청감 보정 출발점. tests/register 페이지에서 보정한 값이 있으면 그걸 씀
@@ -68,9 +82,8 @@ let peakFilter = null;
 let highShelfFilter = null;
 let loudnessComp = null;
 let masterGain = null;
-let noiseSources = {};     // { pink, brown, white }: p5.Noise
-let sampleSources = {};    // { VOLUME, LOW, ... }: p5.SoundFile (file이 지정된 경우만)
-let sampleLevels = {};     // { VOLUME, LOW, ... }: RMS를 맞춘 재생 볼륨
+let sampleSources = {};    // { 장소 key: p5.SoundFile } 북서울 녹음
+let sampleLevels = {};     // { 장소 key: RMS를 맞춘 재생 볼륨 }
 let activeSourceKey = null;
 let sourceWatchTimer = 0;
 
@@ -88,16 +101,15 @@ let currentVoice = null;
  * 0. 녹음 파일 미리 불러오기 (main.js의 preload()에서 호출)
  */
 function preloadPart1() {
-  Object.keys(PART1_SOURCES).forEach((key) => {
-    const file = PART1_SOURCES[key].file;
-    if (file) sampleSources[key] = loadSound(file);
+  TOUR_PLACES.forEach(({ key, audio }) => {
+    sampleSources[key] = loadSound(audio);
   });
 }
 
 /**
- * 1. 첫 터치: 오디오 언락 + 오디오 체인 + ① 시작
+ * 1. 오디오 언락 + 오디오 체인. 첫 화면에서 터치하거나 이름을 넣을 때 부름 (소리는 아직 안 남)
  */
-function initAudioPart1() {
+function initAudio() {
   if (window.GlobalState.isAudioInitialized) return;
 
   // iOS는 touchend/click 안에서만 오디오 언락을 사용자 제스처로 인정
@@ -113,7 +125,14 @@ function initAudioPart1() {
   });
 
   window.GlobalState.isAudioInitialized = true;
-  goToPart1Step(0);
+}
+
+/**
+ * 이름을 넣은 뒤 첫 검사부터 시작
+ */
+function startFlow() {
+  initAudio();
+  goToStep(0);
 }
 
 /**
@@ -159,15 +178,7 @@ function setupAudioPipeline() {
   loudnessComp.connect(masterGain);
   masterGain.connect();
 
-  // 단계별 소스: 노이즈는 미리 켜두고 음량으로만 전환
-  ['pink', 'brown', 'white'].forEach((type) => {
-    const n = new p5.Noise(type);
-    n.disconnect();
-    n.connect(lowShelfFilter);
-    n.amp(0);
-    n.start();
-    noiseSources[type] = n;
-  });
+  setupBeat(lowShelfFilter.input);
   Object.entries(sampleSources).forEach(([key, s]) => {
     s.disconnect();
     s.connect(lowShelfFilter);
@@ -188,11 +199,9 @@ function setupAudioPipeline() {
 }
 
 /**
- * 단계별 소스 전환 (0.3초 크로스페이드). key가 null이면 모두 끔
+ * 소스 전환. key: PART1_SOURCES의 비트 이름 · TOUR_PLACES의 장소 key · null(모두 끔)
  */
-function setActiveSource(key) {
-  const fade = 0.3;
-
+function setActiveSource(key, fade = 0.3) {
   const prevKey = activeSourceKey;
   if (prevKey && prevKey !== key && sampleSources[prevKey]) {
     const prevSample = sampleSources[prevKey];
@@ -200,10 +209,10 @@ function setActiveSource(key) {
     // 페이드 사이에 다시 이 소스로 돌아오지 않았을 때만 정지
     setTimeout(() => { if (activeSourceKey !== prevKey) prevSample.stop(); }, fade * 1000 + 50);
   }
-  Object.entries(noiseSources).forEach(([type, n]) => {
-    const isTarget = key && !sampleSources[key] && PART1_SOURCES[key].noise === type;
-    n.amp(isTarget ? PART1_SOURCES[key].level : 0, fade);
-  });
+
+  const beat = key && PART1_SOURCES[key] ? PART1_SOURCES[key].beat : null;
+  if (beat) startBeat(beat);
+  else stopBeat();
 
   if (key && sampleSources[key]) {
     const s = sampleSources[key];
@@ -215,6 +224,11 @@ function setActiveSource(key) {
   }
 
   activeSourceKey = key;
+}
+
+function sourceSpectrum(key) {
+  const src = PART1_SOURCES[key] || TOUR_PLACES.find((p) => p.key === key);
+  return src ? src.spectrum : 'pink';
 }
 
 /**
@@ -239,14 +253,15 @@ function getBufferStats(buffer) {
 /**
  * 2. 단계 이동
  */
-function goToPart1Step(index) {
+function goToStep(index) {
   const gs = window.GlobalState;
-  const stage = PART1_STAGES[index];
+  const stage = FLOW_STAGES[index];
   gs.currentStage = stage;
   gs.part1.stepIndex = index;
   gs.part1.hasMoved = false;
 
   stopVoice();
+  leavePart2();
   registerPlayToken++;
 
   if (stage === 'PART1_VOLUME') {
@@ -261,38 +276,78 @@ function goToPart1Step(index) {
   } else if (stage === 'PART1_HIGH') {
     setActiveSource('HIGH');
     beginAdjust(stage);
-  } else if (stage === 'PART1_RESULT') {
+  } else if (stage.startsWith('PART2_')) {
+    setActiveSource(null); // Part 2 순음은 조용한 바탕에서
+    beginPart2Stage(stage);
+  } else if (stage === 'RESULT') {
     gs.part1.isBypassed = false;
-    setActiveSource('RESULT'); // 음량 보정이 결과 소스 스펙트럼 기준이 되도록 먼저 전환
-    applyEQ();
-    console.log('[Part 1] userEQProfile', JSON.parse(JSON.stringify(gs.userEQProfile)));
+    startTour(); // 북서울 산책. 장소를 바꿀 때마다 음량 보정도 그 녹음 기준으로
+    saveEarResult();
   }
 }
 
-function confirmPart1Step() {
+function confirmStep() {
   const next = window.GlobalState.part1.stepIndex + 1;
-  if (next < PART1_STAGES.length) goToPart1Step(next);
+  if (next < FLOW_STAGES.length) goToStep(next);
 }
 
-function restartPart1() {
-  const profile = window.GlobalState.userEQProfile;
+/**
+ * 결과를 window.EAR_RESULT와 localStorage에 남김 (청감 클라우드 연결용)
+ */
+function saveEarResult() {
+  const gs = window.GlobalState;
+  const out = {
+    name: gs.userName,
+    code: getFullEarCode(gs.userEQProfile, gs.psychoProfile),
+    userEQProfile: JSON.parse(JSON.stringify(gs.userEQProfile)),
+    psychoProfile: JSON.parse(JSON.stringify(gs.psychoProfile)),
+    savedAt: Date.now()
+  };
+  window.EAR_RESULT = out;
+  console.log('[결과]', out);
+  try {
+    localStorage.setItem(EAR_RESULT_KEY, JSON.stringify(out));
+  } catch (e) {
+    // 저장소를 못 쓰는 브라우저: 화면 결과만
+  }
+}
+
+/**
+ * 처음으로: 값을 모두 지우고 소리를 끈 뒤 이름 입력 화면으로
+ */
+function restartFlow() {
+  const gs = window.GlobalState;
+  const profile = gs.userEQProfile;
   profile.lowShelf.gain = 0;
   profile.highShelf.gain = 0;
   profile.registerPeak.register = null;
   profile.registerPeak.gain = 0;
-  window.GlobalState.part1.isBypassed = false;
-  applyEQ();
-  goToPart1Step(0);
+  resetPsychoProfile();
+  gs.part1.isBypassed = false;
+  gs.part1.stepIndex = 0;
+  gs.userName = '';
+
+  stopVoice();
+  leavePart2();
+  stopTour();
+  registerPlayToken++;
+  if (gs.isAudioInitialized) {
+    setActiveSource(null, 1);
+    applyEQ();
+  }
+  gs.currentStage = 'INIT';
 }
 
 /**
  * 3. 매 프레임 업데이트 (main.js의 draw()에서 호출)
  */
-function updatePart1(dt) {
+function updateFlow(dt) {
   if (!window.GlobalState.isAudioInitialized) return;
 
   const stage = window.GlobalState.currentStage;
   if (PART1_ADJUST[stage]) updateAdjust(stage, dt);
+  if (stage.startsWith('PART2_')) updatePart2();
+  if (stage === 'RESULT') updateTour();
 
   sourceWatchTimer += dt;
   if (sourceWatchTimer >= SOURCE_WATCH_SECONDS) {
@@ -302,10 +357,15 @@ function updatePart1(dt) {
 }
 
 /**
- * 지금 단계의 녹음이 어떤 이유로든 멈춰 있으면 다시 루프 재생
+ * 지금 단계의 비트나 녹음이 어떤 이유로든 멈춰 있으면 다시 재생
  */
 function watchActiveSource() {
   ensureAudioRunning();
+  if (PART1_SOURCES[activeSourceKey]) {
+    if (!isBeatOn()) startBeat(PART1_SOURCES[activeSourceKey].beat);
+    ensureBeatRunning();
+    return;
+  }
   const s = sampleSources[activeSourceKey];
   if (!s || s.isPlaying()) return;
   s.setVolume(0);
@@ -343,6 +403,7 @@ function dragAdjust(dyRatio) {
   const next = constrain(adjustValue + dyRatio * cfg.span, cfg.min, cfg.max);
   movedPath += Math.abs(next - adjustValue);
   adjustValue = next;
+  window.GlobalState.part1.lastDragAt = millis(); // 비주얼: 반죽을 누르는 손가락 자국
   applyAdjust(stage);
 }
 
@@ -370,7 +431,7 @@ function applyAdjustValue(stage) {
  * 확정 버튼
  */
 function tapConfirmAdjust() {
-  if (window.GlobalState.part1.hasMoved) confirmPart1Step();
+  if (window.GlobalState.part1.hasMoved) confirmStep();
 }
 
 /**
@@ -385,7 +446,7 @@ function applyEQ() {
   peakFilter.gain(bypass ? 0 : profile.registerPeak.gain);
   highShelfFilter.gain(bypass ? 0 : profile.highShelf.gain);
 
-  const spectrum = activeSourceKey ? PART1_SOURCES[activeSourceKey].spectrum : 'pink';
+  const spectrum = sourceSpectrum(activeSourceKey);
   const compDb = bypass ? 0 : getLoudnessCompDb(spectrum);
   loudnessComp.amp(dbToGain(compDb), 0.08);
 }
@@ -477,8 +538,14 @@ function aWeighting(f) {
  * 결과 단계: 내 EQ ↔ 원래 소리 비교
  */
 function toggleResultBypass() {
+  setResultBypass(!window.GlobalState.part1.isBypassed);
+}
+
+// 결과 화면: 화면을 누르고 있는 동안만 원래 소리 (main.js)
+function setResultBypass(on) {
   const p1 = window.GlobalState.part1;
-  p1.isBypassed = !p1.isBypassed;
+  if (p1.isBypassed === on) return;
+  p1.isBypassed = on;
   applyEQ();
 }
 
@@ -543,50 +610,77 @@ function confirmRegister() {
   peak.q = REGISTER_PEAK_Q;
   applyEQ();
 
-  confirmPart1Step();
+  confirmStep();
 }
 
 /**
- * 멜로디 재생: 음마다 삼각파 오실레이터 + 엔벨로프. EQ를 거치지 않고 masterGain으로.
- * (엔벨로프 하나로 여러 음을 예약하면 다음 음의 어택이 앞 음의 릴리스 꼬리를 잘라먹음)
+ * 멜로디 재생: 음마다 배음 사인파 묶음 + 탁 치고 사라지는 엔벨로프 → 메아리 → masterGain (EQ는 거치지 않음)
  */
 function playRegister(registerId) {
   stopVoice();
 
   const reg = REGISTERS.find((r) => r.id === registerId);
   const level = Math.min(0.95, MELODY_BASE_AMP * dbToGain(getRegisterOffset(reg)));
-  const notes = [];
-  let t = 0;
+  const ctx = getAudioContext();
+  const t0 = ctx.currentTime + 0.03;
 
-  MELODY_STEPS.forEach((step, n) => {
-    const dur = MELODY_DURS[n];
-    const osc = new p5.Oscillator(midiToFreq(reg.baseMidi + step), 'triangle');
-    osc.disconnect();
-    osc.connect(masterGain);
-    osc.amp(0);
-    osc.start();
+  const out = ctx.createGain();
+  out.gain.value = 1;
+  out.connect(masterGain.input);
+  // 메아리: 원래 소리 + 지연(되먹임)된 옅은 소리
+  const delay = ctx.createDelay(1);
+  delay.delayTime.value = MELODY_ECHO.time;
+  const fb = ctx.createGain();
+  fb.gain.value = MELODY_ECHO.feedback;
+  const wet = ctx.createGain();
+  wet.gain.value = MELODY_ECHO.wet;
+  const dry = ctx.createGain();
+  dry.connect(out);
+  dry.connect(delay);
+  delay.connect(fb);
+  fb.connect(delay);
+  delay.connect(wet);
+  wet.connect(out);
 
-    const env = new p5.Envelope();
-    env.setADSR(MELODY_ENV.attack, MELODY_ENV.decay, MELODY_ENV.sustain, MELODY_ENV.release);
-    env.setRange(level, 0);
-    // play()는 sustainTime을 정수로 잘라버려서(~~) 직접 어택/릴리스를 예약
-    env.triggerAttack(osc, t);
-    env.triggerRelease(osc, t + Math.max(MELODY_ENV.attack + MELODY_ENV.decay, dur - 0.05));
-
-    notes.push({ osc, env });
-    t += dur;
+  const ampSum = MELODY_PARTIALS.reduce((a, p) => a + p.amp, 0);
+  const oscs = [];
+  let t = t0;
+  MELODY_STEPS.forEach((step, k) => {
+    const f = midiToFreq(reg.baseMidi + step);
+    const end = t + MELODY_DURS[k] + 0.35; // 다음 음과 살짝 겹치며 울림이 이어짐
+    MELODY_PARTIALS.forEach((p) => {
+      if (f * p.n > 16000) return;
+      const osc = ctx.createOscillator();
+      osc.frequency.value = f * p.n;
+      const g = ctx.createGain();
+      const peak = level * p.amp / ampSum;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(peak, t + 0.006);
+      g.gain.setTargetAtTime(0, t + 0.006, p.tau);
+      g.gain.setValueAtTime(peak * Math.exp(-(end - 0.05 - t - 0.006) / p.tau), end - 0.05); // 그때 남은 크기에서 0으로
+      g.gain.linearRampToValueAtTime(0, end);
+      osc.connect(g);
+      g.connect(dry);
+      osc.start(t);
+      osc.stop(end + 0.01);
+      oscs.push(osc);
+    });
+    t += MELODY_DURS[k];
   });
 
-  const voice = { notes, disposed: false };
+  const voice = { oscs, out, nodes: [dry, delay, fb, wet], disposed: false };
   currentVoice = voice;
-  setTimeout(() => disposeVoice(voice), (t + MELODY_ENV.release + 0.2) * 1000);
+  setTimeout(() => disposeVoice(voice), (t - t0 + 2.5) * 1000); // 메아리가 사라진 뒤
 }
 
 function stopVoice() {
   if (!currentVoice) return;
   const voice = currentVoice;
   currentVoice = null;
-  voice.notes.forEach(({ osc }) => osc.stop(0.03));
+  const now = getAudioContext().currentTime;
+  voice.out.gain.cancelScheduledValues(now);
+  voice.out.gain.setValueAtTime(voice.out.gain.value, now);
+  voice.out.gain.linearRampToValueAtTime(0, now + 0.03);
   setTimeout(() => disposeVoice(voice), 200);
 }
 
@@ -594,11 +688,8 @@ function disposeVoice(voice) {
   if (voice.disposed) return;
   voice.disposed = true;
   if (currentVoice === voice) currentVoice = null;
-  voice.notes.forEach(({ osc, env }) => {
-    osc.stop();
-    osc.dispose();
-    env.dispose();
-  });
+  voice.oscs.forEach((o) => { try { o.stop(); } catch (e) { /* 이미 멈춤 */ } });
+  [voice.out, ...voice.nodes].forEach((n) => { try { n.disconnect(); } catch (e) { /* 이미 끊김 */ } });
 }
 
 function loadRegisterCalibration() {

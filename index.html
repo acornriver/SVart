@@ -2,18 +2,18 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>청각 다변기 (Sound Variator) - Part 1</title>
+  <title>모든 귀는 […] 이다 · 청각 다변기 (Sound Variator)</title>
   
   <!-- 모바일 뷰포트 & iOS/Android 줌 및 바운스 차단 메타 태그 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="theme-color" content="#04050c">
+  <meta name="theme-color" content="#000000">
 
   <!-- 웹 폰트 (Preload Google Fonts) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 
   <style>
     /* 브라우저 기본 스크롤, 바운스, 줌, 텍스트 선택 완벽 차단 */
@@ -31,8 +31,8 @@
       position: fixed;
       top: 0;
       left: 0;
-      background-color: #04050c;
-      color: #eaecf6;
+      background-color: #000;
+      color: #f5f5f0;
       font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       user-select: none;
       -webkit-user-select: none;
@@ -40,19 +40,6 @@
       touch-action: none;
       overscroll-behavior: none;
       -webkit-overflow-scrolling: auto;
-    }
-
-    /* 단계별 배경 영상: 캔버스 뒤에 흑백·어둡게. 색은 캔버스의 남색 막이 입힘 */
-    video.backdrop {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 0;
-      filter: grayscale(1) brightness(0.5) contrast(1.1);
-      pointer-events: none;
-      z-index: 0;
     }
 
     /* p5.js 캔버스 스타일 */
@@ -65,6 +52,41 @@
       touch-action: none;
       outline: none;
     }
+
+    /* 결과 화면 배경 영상: 캔버스 뒤에 고대비 흑백 */
+    video.backdrop {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      filter: grayscale(1) contrast(2.4) brightness(0.55);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* 첫 화면: 모든 귀는 [ ] 이다 + 언어 고르기 (캔버스 위 DOM, 입력칸과 언어 버튼만 터치를 받음) */
+    input { -webkit-user-select: text; user-select: text; touch-action: manipulation; }
+    .intro { position: fixed; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 26px; padding: 0 24px; pointer-events: none; text-align: center; color: #f5f5f0; transition: opacity 1s ease; }
+    .intro.out { opacity: 0; }
+    .intro.gone { display: none; }
+    .intro .langs { position: absolute; top: max(24px, env(safe-area-inset-top)); right: 24px; display: flex; gap: 6px; }
+    .intro .langs button { pointer-events: auto; touch-action: manipulation; font: 500 14px 'Noto Sans KR', sans-serif; color: #80807c;
+      background: transparent; border: 1.5px solid #3a3a38; border-radius: 999px; padding: 8px 16px; transition: all .3s ease; }
+    .intro .langs button.on { color: #000; background: #f5f5f0; border-color: #f5f5f0; }
+    .intro.started .langs { opacity: 0; transition: opacity .4s ease; }
+    .intro .title { margin: 0; font-weight: 700; font-size: clamp(30px, 6vw, 60px); white-space: nowrap; }
+    .intro .br { color: #ff3b1f; }
+    .intro .name { pointer-events: auto; width: 2.4em; padding: 0 .1em; background: transparent; border: none; outline: none;
+      border-bottom: 2px solid #f5f5f0; color: #f5f5f0; font: inherit; text-align: center; caret-color: #ff3b1f;
+      border-radius: 0; -webkit-appearance: none; transition: border-color .6s ease; }
+    .intro .name::placeholder { color: #3a3a38; }
+    .intro .name.done { border-bottom-color: transparent; }
+    .intro .hint { font-size: 14px; letter-spacing: .08em; color: #80807c; transition: opacity .4s ease; }
+    .intro .shake { animation: shake .4s; }
+    @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
   </style>
 
   <!-- p5.js 및 p5.sound 라이브러리 CDN 로드 -->
@@ -75,13 +97,26 @@
   <!-- 1. 단일 전역 상태 정의 -->
   <script src="./globalState.js"></script>
 
-  <!-- 2. Part 1 핵심 오디오 파이프라인 및 센서 제어 -->
+  <!-- 2. 화면 문구 (한국어 / English) -->
+  <script src="./copy.js"></script>
+
+  <!-- 3. 청감 코드 (IwS/6 · CRH 16.5) -->
+  <script src="./earCode.js"></script>
+
+  <!-- 4. 검사용 비트 · 결과 화면의 북서울 산책과 보내기 -->
+  <script src="./beat.js"></script>
+  <script src="./tour.js"></script>
+
+  <!-- 5. Part 1 오디오 파이프라인과 전체 진행 -->
   <script src="./part1_audio.js"></script>
 
-  <!-- 3. 비주얼 렌더러 및 인터페이스 UI -->
+  <!-- 6. Part 2 임시 검사 -->
+  <script src="./part2_audio.js"></script>
+
+  <!-- 7. 달팽이 비주얼 렌더러 및 인터페이스 UI -->
   <script src="./visuals.js"></script>
 
-  <!-- 4. p5.js 생명주기 및 이벤트 메인 라우터 -->
+  <!-- 8. p5.js 생명주기 및 이벤트 메인 라우터 -->
   <script src="./main.js"></script>
 </head>
 <body>

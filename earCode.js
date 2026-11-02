@@ -7,7 +7,7 @@
  * - 고음: V v E s S  (Velvet ~ Shiny)
  * - 음량: 0~9, -40~0dB를 고르게 나눔 (약 4.4dB 간격)
  * 쉘프 게인은 4dB 칸(대표값 -8 -4 0 4 8)이라 되살렸을 때 EQ 곡선 오차는 최대 약 2dB.
- * 글자 이름은 미확정 (원우리 작가 확인 필요). Part 2 글자 D N B M C P L R F H와 겹치지 않게 고름.
+ * 글자 이름은 미확정 (원우리 작가 확인 필요). Part 2 글자 L C R F B H와 겹치지 않게 고름.
  */
 
 const EAR_CODE = {
@@ -66,4 +66,23 @@ function parseEarCode(code) {
     highShelf: { freq: 4000, gain: letterToShelf(m[3], 'HIGH') },
     registerPeak: { register: reg.id, freq: reg.peakHz, gain: EAR_CODE.PEAK_GAIN_DB, q: EAR_CODE.PEAK_Q }
   };
+}
+
+/**
+ * Part 2 글자: [중앙][우세 귀][바탕음·배음] [고역 한계 kHz]   예) RLF 13.2
+ * - 중앙: L 왼쪽으로 치우침 / C 가운데(±5° 안) / R 오른쪽으로 치우침
+ * - 우세 귀: L / R,  바탕음·배음: F 바탕음 귀 / B 두 귀 / H 배음 귀
+ * - 고역 한계: 고역 예민도 검사에서 소리가 사라진 높이 (8.0 ~ 16.0)
+ * 재지 못한 검사는 '·'(kHz는 '–'). 글자 이름은 Part 1과 마찬가지로 미확정.
+ * 세기(중앙 °, 우세 귀 세기, 바탕음 지수)는 코드에 없고 psychoProfile에만 있음 (달팽이 색·더듬이에 쓰는 값)
+ */
+function getPart2Code(psycho) {
+  const ear = { LEFT: 'L', RIGHT: 'R' }[psycho.dominantEar] || '·';
+  const khz = typeof psycho.maxFreqHz === 'number' ? (psycho.maxFreqHz / 1000).toFixed(1) : '–';
+  return (psycho.centerImage || '·') + ear + (psycho.pitchMode || '·') + ' ' + khz;
+}
+
+/** 전체 청감 코드. 예) "IwS/6 · RLF 13.2" */
+function getFullEarCode(profile, psycho) {
+  return getEarCode(profile) + ' · ' + getPart2Code(psycho);
 }
