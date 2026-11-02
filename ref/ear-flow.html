@@ -1,0 +1,1367 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>모든 귀는 […] 이다 · 청감 코드</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #04050a; overflow: hidden; position: fixed; inset: 0;
+    touch-action: none; overscroll-behavior: none; user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  canvas { display: block; touch-action: none; }
+  input { -webkit-user-select: text; user-select: text; touch-action: manipulation; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.1/p5.min.js"></script>
+</head>
+<body>
+<script>
+// 모든 귀는 [ ] 이다 — 청각 다변기 전체 플로우 (Part 1 + Part 2 → 청감 코드 + 달팽이)  p5.js 1.x / 2.x 모두 동작
+//
+// 흐름
+//   0) 첫 화면   "모든 귀는 [   ] 이다" 에 이름 입력
+//   PART 1 (SVart https://acornriver.github.io/SVart/ 와 같은 진행 · 값 범위)
+//     1 볼륨        위아래로 쓸기            → 달팽이 몸 크기
+//     2 음역 A/B/C  셋 중 고르기             → 뼈 굵기 (낮을수록 굵게)
+//     3 저음        위아래로 쓸기            → 가닥 왼쪽 색 (땅·나무)
+//     4 고음        위아래로 쓸기            → 가닥 오른쪽 색 (건물·하늘)
+//     → 2·3·4를 합쳐 음색 D / N / B
+//   PART 2 (※ Part 2 검사 페이지를 확인하지 못해 아래 진행 방식은 임시. 결과값 이름과 범위만 회의 내용에 맞춤)
+//     5 가청주파수   올라가는 소리가 안 들리면 누르기  → 예: 16.5 kHz → 뼈의 꼬임 정도 (높이 들을수록 촘촘)
+//     6 중앙패닝     가운데 소리가 어디서 들리는지  → M 머리 한가운데 / C 앞쪽 가운데 / P 넓게 퍼짐 → 지나간 자리의 점액 모양
+//     7 우세귀       양쪽 귀에 다른 음, 더 또렷한 쪽 → L / R → 꼬임 방향 · 껍데기 나선 방향
+//     8 배음·바탕    두 음의 높낮이 (3번)          → F 바탕귀 / H 배음귀 → 뼈 모양 (배음귀는 가로대 위 배음 구슬)
+//   결과   펼쳐진 나선이 말려 달팽이가 되고, 청감 코드가 나옴  예) N·C·R·H 16.5
+//
+// 결과는 window.EAR_RESULT 와 localStorage 'svart.earProfile' 에도 저장 (청감 클라우드 연결용)
+// 소리: 확인용 임시 소리. 실제 전시에서는 SVart의 필드레코딩과 Part 2 검사 음원이 들어감
+// 단축키(결과 화면): S 이미지 저장 · F 전체화면 · R 처음으로
+
+// ---------- 조절용 값 ----------
+const INTRO_LINE = '';      // "모든 귀는 [ ] 이다" 위에 들어갈 문장 (비워두면 표시 안 함, 줄바꿈은 \n)
+const VOL_DB_MIN = -40;     // ① 최소 볼륨(dB) → 가장 작은 달팽이
+const VOL_DB_MAX = 0;       // ① 최대 볼륨(dB) → 가장 큰 달팽이
+const SIZE_MIN = 0.55;      // 가장 작은 몸 크기 배율
+const SIZE_MAX = 1.45;      // 가장 큰 몸 크기 배율
+const EQ_MIN = -10;
+const EQ_MAX = 10;
+const MORPH_DUR = 3600;     // 결과 화면에서 나선 → 달팽이로 말리는 시간(ms)
+
+// ② 음역별 뼈 굵기: 악기 현처럼 낮은 음은 굵게, 높은 음은 가늘게
+const BONES = {
+  LOW: { rung: 3.6, bead: 5.4, name: '굵은 뼈' },
+  MID: { rung: 2.0, bead: 3.4, name: '중간 뼈' },
+  HIGH: { rung: 0.9, bead: 1.9, name: '가는 뼈' },
+  NONE: { rung: 1.2, bead: 2.6, name: '' }
+};
+
+// 북서울미술관 팔레트 (정면 사진의 각 재료 영역 평균색)
+// ③ 저음 → 땅 · 나무 (저음을 뺄수록 마른 잔디, 더할수록 깊은 흙)
+const GROUND_RAMP = [
+  [177, 158, 107], // 마른 잔디 (앞마당)
+  [128, 142, 48],  // 옥상 잔디 · 이끼
+  [92, 106, 54],   // 소나무 잎
+  [140, 114, 86],  // 돌망태 벽
+  [168, 118, 92]   // 자갈 · 붉은 흙
+];
+// ④ 고음 → 건물 · 하늘 (고음을 뺄수록 무거운 석재, 더할수록 맑은 하늘)
+const SKY_RAMP = [
+  [151, 138, 135], // 어두운 석재 외벽
+  [196, 184, 176], // 밝은 석재 외벽
+  [168, 176, 193], // 금속 루버 패널
+  [124, 160, 186], // 유리 입구
+  [108, 154, 209]  // 하늘
+];
+const GREY = [86, 88, 96];
+
+const ADJUST = {
+  VOLUME: { min: VOL_DB_MIN, max: VOL_DB_MAX, startMin: -26, startMax: -14, span: 60, moveThreshold: 6 },
+  LOW: { min: EQ_MIN, max: EQ_MAX, startMin: -6, startMax: 6, span: 30, moveThreshold: 3 },
+  HIGH: { min: EQ_MIN, max: EQ_MAX, startMin: -6, startMax: 6, span: 30, moveThreshold: 3 }
+};
+const MIN_STEP_SECONDS = 1.5;
+
+const STEPS = ['VOLUME', 'REGISTER', 'LOW', 'HIGH', 'HEARING', 'PANNING', 'EAR', 'HARMONIC', 'RESULT'];
+const N_TESTS = 8;
+const TILT_D = -4;          // 음색 기울기 이하 → D
+const TILT_B = 4;           // 음색 기울기 이상 → B
+const SWEEP_FROM = 10;      // 가청주파수 검사 시작(kHz)
+const SWEEP_TO = 20;        // 끝(kHz)
+const SWEEP_SECONDS = 20;   // 올라가는 데 걸리는 시간
+const HARM_TRIALS = 3;      // 배음·바탕 검사 반복 수
+const STEP_TEXT = {
+  VOLUME: { title: '편한 볼륨', lines: ['위로 쓸면 커지고, 아래로 쓸면 작아져요.', '편하게 들리는 크기를 찾아 주세요.'] },
+  REGISTER: { title: '음역 고르기', lines: ['같은 멜로디를 세 가지 높이로 들려드릴게요.', '어느 높이가 가장 편하게 들렸나요?'] },
+  LOW: { title: '저음 맞추기', lines: ['위로 쓸면 낮은 소리가 많아지고, 아래로 쓸면 줄어요.', '가장 편한 곳을 찾아 주세요.'] },
+  HIGH: { title: '고음 맞추기', lines: ['위로 쓸면 높은 소리가 많아지고, 아래로 쓸면 줄어요.', '가장 편한 곳을 찾아 주세요.'] },
+  HEARING: { title: '가청주파수', lines: ['점점 높아지는 소리를 들려드릴게요.', '소리가 사라지는 순간 버튼을 눌러 주세요.'] },
+  PANNING: { title: '가운데 소리', lines: ['양쪽에서 똑같이 나오는 소리예요.', '이 소리가 어디에서 들리나요?'] },
+  EAR: { title: '더 또렷한 귀', lines: ['양쪽 귀에 서로 다른 높이의 소리가 동시에 나와요.', '어느 소리가 더 또렷하게 들렸나요?'] },
+  HARMONIC: { title: '높아졌나요, 낮아졌나요', lines: ['두 소리를 차례로 들려드릴게요.', '두 번째 소리가 높아졌나요, 낮아졌나요?'] }
+};
+const PAN_OPTIONS = [
+  { id: 'M', big: 'M', small: '머리 한가운데', name: '머리 한가운데' },
+  { id: 'C', big: 'C', small: '앞쪽 가운데', name: '앞쪽 가운데' },
+  { id: 'P', big: 'P', small: '넓게 퍼짐', name: '넓게 퍼짐' }
+];
+const TIMBRE_NAME = { D: '어두운 음색', N: '중간 음색', B: '밝은 음색' };
+
+const REGISTERS = [
+  { id: 'LOW', card: 'A', baseMidi: 36, peakHz: 100, offsetDb: 6 },
+  { id: 'MID', card: 'B', baseMidi: 60, peakHz: 400, offsetDb: 0 },
+  { id: 'HIGH', card: 'C', baseMidi: 84, peakHz: 2500, offsetDb: -2 }
+];
+const MELODY_STEPS = [0, 4, 7, 9, 7, 4, 0];
+const MELODY_DURS = [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.5];
+const MELODY_LENGTH = 2.0;
+const MELODY_GAP = 0.7;
+
+const N_SHELL = 230;  // 껍데기 노드 수 (펼쳤을 때 왼쪽)
+const N_BODY = 150;   // 몸통 노드 수 (펼쳤을 때 오른쪽)
+const N_ALL = N_SHELL + N_BODY;
+
+// ---------- 상태 ----------
+let stage = 'INIT';
+let userName = '';
+let profile = emptyProfile();
+let sweep = { start: 0, on: false, f: SWEEP_FROM };
+let choice = { selected: -1, playEnd: 0, earMap: null, harm: [] };
+let particles = [];
+let resultSaved = false;
+
+function emptyProfile() {
+  return { volDb: null, register: null, low: null, high: null, maxKHz: null, pan: null, ear: null, fh: null };
+}
+let adjustValue = 0, movedPath = 0, stepStart = 0, hasMoved = false;
+let dragY = null;
+let reg = { queue: [], nextAt: 0, playing: -1, playEnd: 0, selected: -1 };
+let zones = {};
+let cur = null;
+let vis = { bead: 0.25, rung: 0, s1: 0, s2: 0 };
+let twist = 0;
+let resultAt = 0;
+let ui = {};
+
+const INK = [234, 236, 246];
+const MUTE = [112, 116, 138];
+const BG = [4, 5, 10];
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  pixelDensity(min(2, window.devicePixelRatio || 1));
+  cur = targetParams();
+  buildUI();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+// =====================================================================
+// 첫 화면: 모든 귀는 [ ] 이다
+// =====================================================================
+function buildUI() {
+  const font = createElement('link');
+  font.attribute('rel', 'stylesheet');
+  font.attribute('href', 'https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  createElement('style', `
+    .intro { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 26px; padding: 0 24px; box-sizing: border-box; pointer-events: none; text-align: center;
+      font-family: 'Noto Sans KR', system-ui, sans-serif; color: #eaecf6; transition: opacity 1s ease; }
+    .intro.out { opacity: 0; }
+    .intro.gone { display: none; }
+    .lead { margin: 0; max-width: 30em; font-weight: 300; font-size: clamp(15px, 2.2vw, 21px); line-height: 1.75;
+      letter-spacing: .04em; color: #c6cbd8; white-space: pre-line; text-shadow: 0 0 18px #04050a, 0 0 6px #04050a; }
+    .title { font-weight: 500; font-size: clamp(30px, 6vw, 60px); white-space: nowrap; text-shadow: 0 0 24px #04050a, 0 0 8px #04050a; }
+    .br { color: #c4b8b0; }
+    .name { pointer-events: auto; width: 2.4em; padding: 0 .1em; background: transparent; border: none; outline: none;
+      border-bottom: 2px solid rgba(196, 184, 176, .6); color: #eaecf6; font: inherit; text-align: center; caret-color: #c4b8b0;
+      border-radius: 0; -webkit-appearance: none; transition: border-color .6s ease; }
+    .name::placeholder { color: rgba(196, 184, 176, .35); }
+    .name.done { border-bottom-color: transparent; }
+    .hint { font-size: 13px; letter-spacing: .2em; color: #70748a; transition: opacity .4s ease; }
+    .shake { animation: shake .4s; }
+    @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+  `);
+  ui.wrap = createDiv('').addClass('intro');
+  if (INTRO_LINE) createP(INTRO_LINE).addClass('lead').parent(ui.wrap);
+  ui.title = createDiv('').addClass('title').parent(ui.wrap);
+  createSpan('모든 귀는 ').parent(ui.title);
+  createSpan('[').addClass('br').parent(ui.title);
+  ui.input = createInput('').addClass('name').parent(ui.title);
+  createSpan(']').addClass('br').parent(ui.title);
+  createSpan(' 이다').parent(ui.title);
+  ui.hint = createDiv('[ ] 안에 이름을 쓰고 Enter').addClass('hint').parent(ui.wrap);
+
+  const el = ui.input.elt;
+  el.setAttribute('placeholder', '이름');
+  el.setAttribute('maxlength', '12');
+  el.setAttribute('autocomplete', 'off');
+  el.setAttribute('enterkeyhint', 'done');
+  el.addEventListener('input', fitInput);
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); submitName(); }
+  });
+  fitInput();
+  setTimeout(() => el.focus(), 400);
+}
+
+function fitInput() {
+  const n = [...ui.input.value()].length;
+  ui.input.elt.style.width = max(2.4, n * 1.02 + 0.5) + 'em';
+}
+
+function submitName() {
+  if (stage !== 'INIT') return;
+  const name = ui.input.value().trim();
+  if (!name) {
+    ui.title.removeClass('shake');
+    void ui.title.elt.offsetWidth;
+    ui.title.addClass('shake');
+    return;
+  }
+  userName = name;
+  ui.input.value(name);
+  fitInput();
+  ui.input.elt.readOnly = true;
+  ui.input.elt.blur();
+  ui.input.addClass('done');
+  ui.hint.elt.style.opacity = 0;
+  audioInit();   // Enter 키 = 사용자 동작이라 여기서 소리를 켤 수 있음
+  audioResume();
+  stage = 'NAMED';
+  setTimeout(() => ui.wrap.addClass('out'), 900);
+  setTimeout(() => { ui.wrap.addClass('gone'); goToStep(0); }, 1900);
+}
+
+function restart() {
+  profile = emptyProfile();
+  particles = [];
+  resultSaved = false;
+  stopTone();
+  userName = '';
+  stopNoise();
+  stopVoices();
+  if (AC) master.gain.setTargetAtTime(0, AC.currentTime, 0.05);
+  stage = 'INIT';
+  ui.wrap.removeClass('gone');
+  ui.wrap.removeClass('out');
+  ui.input.removeClass('done');
+  ui.input.elt.readOnly = false;
+  ui.input.value('');
+  ui.hint.elt.style.opacity = 1;
+  fitInput();
+  setTimeout(() => ui.input.elt.focus(), 300);
+}
+
+// =====================================================================
+// 검사 단계
+// =====================================================================
+function goToStep(i) {
+  stage = STEPS[i];
+  stepStart = millis();
+  hasMoved = false;
+  stopVoices();
+  stopTone();
+  choice.selected = -1;
+  if (ADJUST[stage]) {
+    const cfg = ADJUST[stage];
+    adjustValue = random(cfg.startMin, cfg.startMax);
+    movedPath = 0;
+  }
+  if (stage === 'VOLUME') playNoise('pink');
+  if (stage === 'REGISTER') {
+    stopNoise();
+    reg.queue = shuffle([0, 1, 2]);
+    reg.nextAt = millis() + 700;
+    reg.selected = -1;
+    reg.playing = -1;
+  }
+  if (stage === 'LOW') playNoise('brown');
+  if (stage === 'HIGH') playNoise('white');
+  if (stage === 'HEARING') { stopNoise(); startSweep(); }
+  if (stage === 'PANNING') playPanProbe();
+  if (stage === 'EAR') { choice.earMap = random() < 0.5 ? { L: 'HIGH', R: 'LOW' } : { L: 'LOW', R: 'HIGH' }; playDichotic(); }
+  if (stage === 'HARMONIC') { choice.harm = []; playHarmPair(); }
+  if (stage === 'RESULT') { playNoise('pink'); resultAt = millis(); saveResult(); }
+  applyAudio();
+}
+
+function confirmStep() {
+  if (stage === 'VOLUME') profile.volDb = adjustValue;
+  if (stage === 'LOW') profile.low = adjustValue;
+  if (stage === 'HIGH') profile.high = adjustValue;
+  if (stage === 'REGISTER') profile.register = REGISTERS[reg.selected].id;
+  if (stage === 'HEARING') profile.maxKHz = Math.round(sweep.f * 10) / 10;
+  if (stage === 'PANNING') profile.pan = PAN_OPTIONS[choice.selected].id;
+  if (stage === 'EAR') {
+    const pick = choice.selected === 0 ? 'HIGH' : 'LOW';
+    profile.ear = choice.earMap.L === pick ? 'L' : 'R';
+  }
+  goToStep(STEPS.indexOf(stage) + 1);
+}
+
+// ---------- Part 2 진행 ----------
+function startSweep() {
+  sweep.start = millis() + 800;
+  sweep.on = true;
+  sweep.f = SWEEP_FROM;
+  playSweepTone();
+}
+
+function updateSweep() {
+  if (stage !== 'HEARING' || !sweep.on) return;
+  const t = constrain((millis() - sweep.start) / (SWEEP_SECONDS * 1000), 0, 1);
+  sweep.f = SWEEP_FROM * Math.pow(SWEEP_TO / SWEEP_FROM, t);
+  if (t >= 1) { sweep.on = false; stopTone(); }
+}
+
+function answerHarm(up) {
+  // 바탕음은 올라가고 배음 성분은 내려가는 소리 쌍: "높아졌다" = 바탕음을 들음(F), "낮아졌다" = 배음을 들음(H)
+  choice.harm.push(up ? 'F' : 'H');
+  if (choice.harm.length < HARM_TRIALS) {
+    playHarmPair();
+  } else {
+    const f = choice.harm.filter((x) => x === 'F').length;
+    profile.fh = f * 2 > choice.harm.length ? 'F' : 'H';
+    goToStep(STEPS.indexOf(stage) + 1);
+  }
+}
+
+// ---------- 청감 코드 ----------
+function timbreOf(v) {
+  if (v.low === null || v.high === null) return null;
+  const regAdj = { LOW: -3, MID: 0, HIGH: 3 }[v.register] || 0;
+  const tilt = v.high - v.low + regAdj;
+  return tilt <= TILT_D ? 'D' : tilt >= TILT_B ? 'B' : 'N';
+}
+
+function earCode(v) {
+  return {
+    timbre: timbreOf(v), pan: v.pan, ear: v.ear, fh: v.fh,
+    khz: v.maxKHz === null ? null : v.maxKHz.toFixed(1),
+    letters: [timbreOf(v) || '·', v.pan || '·', v.ear || '·', v.fh || '·'].join(' · ')
+  };
+}
+
+function saveResult() {
+  if (resultSaved) return;
+  resultSaved = true;
+  const c = earCode(profile);
+  const out = { name: userName, code: c.letters.replace(/ · /g, '') + ' ' + c.khz, profile: profile, savedAt: Date.now() };
+  window.EAR_RESULT = out;
+  try { localStorage.setItem('svart.earProfile', JSON.stringify(out)); } catch (e) { /* 저장소 없음 */ }
+}
+
+function regAutoPlaying() {
+  return reg.queue.length > 0 || millis() < reg.playEnd;
+}
+
+function playCard(i) {
+  reg.playing = i;
+  reg.playEnd = millis() + MELODY_LENGTH * 1000;
+  playMelody(REGISTERS[i]);
+}
+
+// 지금 단계는 조절 중인 값을 바로 미리 보여줌
+function viewValues() {
+  const v = Object.assign({}, profile);
+  if (stage === 'VOLUME') v.volDb = adjustValue;
+  if (stage === 'LOW') v.low = adjustValue;
+  if (stage === 'HIGH') v.high = adjustValue;
+  if (stage === 'REGISTER') {
+    const i = reg.selected >= 0 ? reg.selected : (millis() < reg.playEnd ? reg.playing : -1);
+    if (i >= 0) v.register = REGISTERS[i].id;
+  }
+  if (stage === 'HEARING') v.maxKHz = sweep.f;
+  if (stage === 'PANNING' && choice.selected >= 0) v.pan = PAN_OPTIONS[choice.selected].id;
+  if (stage === 'EAR' && choice.selected >= 0) {
+    const pick = choice.selected === 0 ? 'HIGH' : 'LOW';
+    v.ear = choice.earMap.L === pick ? 'L' : 'R';
+  }
+  if (stage === 'HARMONIC' && choice.harm.length) {
+    const f = choice.harm.filter((x) => x === 'F').length;
+    v.fh = f * 2 >= choice.harm.length ? 'F' : 'H';
+  }
+  return v;
+}
+
+// =====================================================================
+// 값 → 비주얼
+// =====================================================================
+function rampColor(ramp, t) {
+  t = constrain(t, 0, 1) * (ramp.length - 1);
+  const i = min(floor(t), ramp.length - 2);
+  const f = t - i;
+  return ramp[i].map((c, k) => lerp(c, ramp[i + 1][k], f));
+}
+
+function targetParams() {
+  const v = viewValues();
+  const vol = v.volDb === null ? -20 : v.volDb;
+  const bone = BONES[v.register || 'NONE'];
+  const tl = v.low === null ? null : (v.low - EQ_MIN) / (EQ_MAX - EQ_MIN);
+  const th = v.high === null ? null : (v.high - EQ_MIN) / (EQ_MAX - EQ_MIN);
+  // 그라데이션 4지점: 왼쪽 두 색은 저음(땅·나무), 오른쪽 두 색은 고음(건물·하늘)
+  const stops = [
+    tl === null ? GREY : rampColor(GROUND_RAMP, tl - 0.2),
+    tl === null ? GREY : rampColor(GROUND_RAMP, tl),
+    th === null ? GREY : rampColor(SKY_RAMP, th),
+    th === null ? GREY : rampColor(SKY_RAMP, th + 0.2)
+  ];
+  return {
+    volDb: vol,
+    size: map(vol, VOL_DB_MIN, VOL_DB_MAX, SIZE_MIN, SIZE_MAX, true),
+    rung: bone.rung, bead: bone.bead,
+    low: v.low === null ? 0 : v.low,
+    high: v.high === null ? 0 : v.high,
+    peakU: v.register ? freqU(REGISTERS.find((r) => r.id === v.register).peakHz) : 0.43,
+    peak: v.register ? 1 : 0,
+    stops: stops,
+    // Part 2
+    twistK: v.maxKHz === null ? 1 : map(v.maxKHz, 12, 20, 0.6, 1.7, true),
+    chir: v.ear === 'L' ? -1 : 1,
+    harm: v.fh === 'H' ? 1 : 0
+  };
+}
+
+function visTarget() {
+  const playingNow = stage === 'REGISTER' && (reg.selected >= 0 || millis() < reg.playEnd);
+  const at = { INIT: 0, NAMED: 0, VOLUME: 1, REGISTER: 2, LOW: 3, HIGH: 4 }[stage];
+  const n = at === undefined ? 5 : at;
+  return {
+    bead: n >= 1 ? 1 : 0.22,
+    rung: n >= 3 ? 1 : n === 2 ? (playingNow ? 1 : 0.2) : 0,
+    s1: n >= 3 ? 1 : 0,
+    s2: n >= 4 ? 1 : 0
+  };
+}
+
+function smoothAll() {
+  const t = targetParams();
+  const k = 0.1;
+  for (const key of ['volDb', 'size', 'rung', 'bead', 'low', 'high', 'peakU', 'peak', 'twistK', 'chir', 'harm']) cur[key] = lerp(cur[key], t[key], k);
+  cur.stops = cur.stops.map((c, i) => c.map((v, j) => lerp(v, t.stops[i][j], k)));
+  const vt = visTarget();
+  for (const key in vis) vis[key] = lerp(vis[key], vt[key], 0.06);
+}
+
+function freqU(hz) {
+  return constrain(Math.log10(hz / 20) / 3, 0, 1);
+}
+
+// 그라데이션 색 (t: 0 = 왼쪽/낮은 소리, 1 = 오른쪽/높은 소리)
+function gradColor(t) {
+  const P = [0, 0.33, 0.67, 1];
+  t = constrain(t, 0, 1);
+  let i = 0;
+  while (i < 2 && t > P[i + 1]) i++;
+  let f = (t - P[i]) / (P[i + 1] - P[i]);
+  f = f * f * (3 - 2 * f); // 부드럽게
+  return cur.stops[i].map((v, j) => lerp(v, cur.stops[i + 1][j], f));
+}
+
+// EQ 모양 (SVart 막처럼): 볼륨 + 저음 셸프 + 음역 피크 + 고음 셸프
+function eqShapeDb(u) {
+  const sig = (x) => 1 / (1 + Math.exp(-x));
+  const uLow = freqU(200), uHigh = freqU(4000);
+  return cur.low * sig((uLow - u) / 0.05) + cur.high * sig((u - uHigh) / 0.05) +
+    6 * cur.peak * Math.exp(-sqr((u - cur.peakU) / 0.07));
+}
+
+// =====================================================================
+// 메인 루프
+// =====================================================================
+function draw() {
+  background(BG);
+  if (stage === 'REGISTER' && reg.queue.length && millis() >= reg.nextAt) {
+    playCard(reg.queue.shift());
+    reg.nextAt = millis() + (MELODY_LENGTH + MELODY_GAP) * 1000;
+  }
+  if (ADJUST[stage]) {
+    hasMoved = movedPath >= ADJUST[stage].moveThreshold && millis() - stepStart >= MIN_STEP_SECONDS * 1000;
+  }
+  updateSweep();
+  smoothAll();
+  twist += 0.022;
+
+  const L = layout();
+  if (stage !== 'RESULT') drawPitchAxis(L);
+  drawTrail(L);
+  drawHelix(L);
+
+  if (stage === 'INIT' || stage === 'NAMED') return;
+  if (stage === 'RESULT') drawResultText(L);
+  else {
+    drawHeader(L);
+    if (ADJUST[stage]) drawGauge(L);
+    if (stage === 'REGISTER') drawCards(L);
+    if (stage === 'HEARING') drawSweep(L);
+    if (stage === 'PANNING') drawOptionCards(L, PAN_OPTIONS);
+    if (stage === 'EAR') drawOptionCards(L, [{ big: '높은 음', small: '' }, { big: '낮은 음', small: '' }]);
+    if (stage === 'HARMONIC') drawOptionCards(L, [{ big: '높아졌어요', small: '' }, { big: '낮아졌어요', small: '' }], true);
+  }
+  drawButtons(L);
+}
+
+// ---------- 점액 (중앙패닝) ----------
+// M 머리 한가운데 → 잔잔한 도트 점선 / C 앞쪽 가운데 → 반짝이 / P 넓게 퍼짐 → 샤샤샥 흩어지는 별
+function drawTrail(L) {
+  const v = viewValues();
+  if (!v.pan) return;
+  let src;
+  if (stage === 'RESULT') {
+    if (millis() - resultAt < MORPH_DUR * 0.9) return;
+    const S = L.unit * cur.size;
+    src = { x: L.snailX - 150 * S, y: L.snailY + 118 * S, dir: -1, spread: 30 * S };
+  } else {
+    src = { x: L.x0 + 4, y: L.lineY + L.lineH + 14, dir: 1, spread: 14 };
+  }
+  const style = v.pan;
+  if (frameCount % (style === 'M' ? 6 : style === 'C' ? 4 : 2) === 0) {
+    const c = random() < 0.3 ? [245, 245, 243] : gradColor(random(0.2, 0.9));
+    const P = style === 'P';
+    particles.push({
+      x: src.x + random(-4, 4), y: src.y + (P ? random(-src.spread, src.spread) * 0.4 : random(-2, 2)),
+      vx: src.dir * (style === 'M' ? 0.6 : 0.9) + (P ? random(-0.6, 0.6) : 0), vy: P ? random(-0.9, 0.9) : 0,
+      life: 1, decay: P ? 0.012 : 0.005, size: P ? random(5, 10) : style === 'C' ? random(5, 8) : random(3, 4.5),
+      rot: random(TWO_PI), spin: P ? random(-0.08, 0.08) : 0, shape: style === 'M' ? 'dot' : style === 'C' ? 'sparkle' : 'star', c: c, tw: random(TWO_PI)
+    });
+  }
+  noStroke();
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vx *= 0.995; p.vy *= 0.97; p.rot += p.spin; p.life -= p.decay;
+    if (p.life <= 0 || p.x < -20 || p.x > width + 20) { particles.splice(i, 1); continue; }
+    const tw = p.shape === 'dot' ? 1 : 0.55 + 0.45 * sin(frameCount * 0.25 + p.tw);
+    fill(p.c[0], p.c[1], p.c[2], 255 * p.life * tw);
+    push();
+    translate(p.x, p.y);
+    rotate(p.rot);
+    drawShape(p.shape, p.size * (0.6 + 0.4 * p.life));
+    pop();
+  }
+}
+
+function drawShape(shape, s) {
+  if (shape === 'dot') { circle(0, 0, s * 0.8); return; }
+  const n = shape === 'star' ? 5 : 4;
+  const r1 = shape === 'star' ? 0.6 : 0.75, r2 = shape === 'star' ? 0.25 : 0.12;
+  beginShape();
+  for (let k = 0; k < n * 2; k++) {
+    const r = k % 2 === 0 ? s * r1 : s * r2;
+    const a = -HALF_PI + (k * PI) / n;
+    vertex(cos(a) * r, sin(a) * r);
+  }
+  endShape(CLOSE);
+}
+
+function layout() {
+  const m = max(20, min(width, height) * 0.05);
+  const btnH = 54;
+  const btn = { x: m, y: height - m - btnH, w: width - m * 2, h: btnH };
+  const top = 150;
+  let bottom = btn.y - 30;
+  if (['REGISTER', 'PANNING', 'EAR', 'HARMONIC'].includes(stage)) bottom = btn.y - 140;
+  const lineY = stage === 'INIT' || stage === 'NAMED' ? height * 0.72 : (top + bottom) / 2;
+  const lineH = min(110, (bottom - top) * 0.38);
+  // 결과 화면의 달팽이 자리
+  const sTop = m + 150, sBottom = btn.y - 186;
+  const sAvail = max(140, sBottom - sTop);
+  const unit = min((width - m * 2) / (380 * SIZE_MAX), sAvail / (300 * SIZE_MAX));
+  return { m: m, btn: btn, lineY: lineY, lineH: lineH, x0: m + 8, x1: width - m - 8, snailX: width / 2, snailY: sTop + sAvail * 0.55, unit: unit };
+}
+
+function drawPitchAxis(L) {
+  const y = L.lineY + L.lineH + 34;
+  const a = stage === 'INIT' || stage === 'NAMED' ? 0 : 255;
+  if (!a) return;
+  stroke(34, 38, 56);
+  strokeWeight(1);
+  line(L.x0, y, L.x1, y);
+  for (let dec = 20; dec <= 20000; dec *= 10) {
+    for (let mm = 1; mm <= 9; mm++) {
+      const f = dec * mm;
+      if (f > 20000) break;
+      const x = lerp(L.x0, L.x1, freqU(f));
+      stroke(mm === 1 ? 70 : 40, mm === 1 ? 74 : 44, mm === 1 ? 92 : 60);
+      line(x, y - (mm === 1 ? 6 : 3), x, y);
+    }
+  }
+  noStroke();
+  fill(MUTE);
+  textFont('Noto Sans KR, system-ui, sans-serif');
+  textSize(12);
+  textStyle(NORMAL);
+  textAlign(LEFT, TOP);
+  text('낮은 소리', L.x0, y + 8);
+  textAlign(RIGHT, TOP);
+  text('높은 소리', L.x1, y + 8);
+}
+
+// =====================================================================
+// 나선 ↔ 달팽이
+// =====================================================================
+function bez(a, b, c, d, u) {
+  const v = 1 - u;
+  return { x: v * v * v * a.x + 3 * v * v * u * b.x + 3 * v * u * u * c.x + u * u * u * d.x,
+    y: v * v * v * a.y + 3 * v * v * u * b.y + 3 * v * u * u * c.y + u * u * u * d.y };
+}
+function bezD(a, b, c, d, u) {
+  const v = 1 - u;
+  return { x: 3 * v * v * (b.x - a.x) + 6 * v * u * (c.x - b.x) + 3 * u * u * (d.x - c.x),
+    y: 3 * v * v * (b.y - a.y) + 6 * v * u * (c.y - b.y) + 3 * u * u * (d.y - c.y) };
+}
+function sqr(x) { return x * x; }
+
+// 펼쳐진 나선 (검사 화면): 가로축 = 음고
+function straightNodes(L) {
+  const t = millis() / 1000;
+  const lv = audioLevel();
+  const volK = map(cur.volDb, VOL_DB_MIN, VOL_DB_MAX, 0.3, 1, true);
+  const nodes = [];
+  for (let i = 0; i < N_ALL; i++) {
+    const u = i / (N_ALL - 1);
+    const shapeK = Math.pow(10, eqShapeDb(u) / 40);
+    const shimmer = 1 + (0.06 + lv * 1.5) * sin(i * 0.21 - t * 5);
+    nodes.push({
+      x: lerp(L.x0, L.x1, u), y: L.lineY, ang: -HALF_PI,
+      amp: L.lineH * volK * shapeK * shimmer, ph: i * 0.17 * cur.twistK * cur.chir, sc: 1, rung: i % 6 === 3, w: 2.2
+    });
+  }
+  return nodes;
+}
+
+// 달팽이 (결과 화면): 노드 0~N_SHELL-1 = 껍데기(안쪽→바깥), 이후 = 몸통(꼬리→머리)
+function snailNodes(cx, cy, S) {
+  const t = millis() / 1000;
+  const nodes = [];
+  const C0 = { x: cx - 38 * S, y: cy - 18 * S };
+  const R = 96 * S * (1 + 0.025 * sin(t * 1.1));
+  const T = 3 * TWO_PI;
+  const bb = log(R / (5 * S)) / T;
+  let acc = 0, prev = null, last = -1e9;
+  for (let j = 0; j < N_SHELL; j++) {
+    const th = lerp(1.3, T, j / (N_SHELL - 1));
+    const r = R * exp(bb * (th - T));
+    const k = r / R;
+    const sg = cur.chir >= 0 ? 1 : -1; // 우세귀: 껍데기 나선 방향
+    const ang = sg * th + (sg > 0 ? 0.35 : PI - 0.35);
+    const c = { x: C0.x + cos(ang) * r, y: C0.y + sin(ang) * r };
+    if (prev) acc += Math.hypot(c.x - prev.x, c.y - prev.y);
+    prev = c;
+    const rung = k > 0.13 && acc - last >= 8 * S * (0.5 + 0.5 * k);
+    if (rung) last = acc;
+    nodes.push({ x: c.x, y: c.y, ang: ang, amp: 0.17 * r, ph: th * 4.2 * cur.twistK * cur.chir, sc: 0.35 + 0.65 * k, rung: rung, w: 3.2 * S });
+  }
+  const P0 = { x: -160, y: 92 + sin(t * 1.3) * 2 }, P1 = { x: -60, y: 116 };
+  const P2 = { x: 90, y: 110 + sin(t * 1.3 + 1) * 3 }, P3 = { x: 140, y: 22 + sin(t * 1.3 + 2) * 3 };
+  acc = 0; prev = null; last = -1e9;
+  for (let i = 0; i < N_BODY; i++) {
+    const u = i / (N_BODY - 1);
+    const p = bez(P0, P1, P2, P3, u), d = bezD(P0, P1, P2, P3, u);
+    const len = Math.hypot(d.x, d.y);
+    const n = { x: d.y / len, y: -d.x / len };
+    if (prev) acc += Math.hypot(p.x - prev.x, p.y - prev.y);
+    prev = p;
+    let w = 30 * (0.12 + 0.88 * pow(u, 0.7));
+    if (u > 0.9) w *= sqrt(max(0.06, 1 - ((u - 0.9) / 0.1) * 0.85));
+    const rung = acc - last >= 8 && u > 0.04 && u < 0.96;
+    if (rung) last = acc;
+    nodes.push({
+      x: cx + (p.x + n.x * w * 0.15) * S, y: cy + (p.y + n.y * w * 0.15) * S, ang: Math.atan2(n.y, n.x),
+      amp: 0.7 * w * S, ph: acc * (TWO_PI / 46) * cur.twistK * cur.chir, sc: 0.55 + 0.45 * u, rung: rung, w: 3.2 * S
+    });
+  }
+  return { nodes: nodes, C0: C0, R: R, head: { x: cx + P3.x * S, y: cy + P3.y * S }, S: S };
+}
+
+function easeInOut(x) {
+  return x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2;
+}
+
+function angLerp(a, b, t) {
+  let d = (b - a) % TWO_PI;
+  if (d > PI) d -= TWO_PI;
+  if (d < -PI) d += TWO_PI;
+  return a + d * t;
+}
+
+function drawHelix(L) {
+  const flat = straightNodes(L);
+  let nodes = flat, snail = null, mAll = 0;
+  if (stage === 'RESULT') {
+    mAll = constrain((millis() - resultAt) / MORPH_DUR, 0, 1);
+    snail = snailNodes(L.snailX, L.snailY, L.unit * cur.size);
+    nodes = flat.map((a, i) => {
+      const b = snail.nodes[i];
+      // 껍데기 안쪽부터 차례로 말려 들어감
+      const e = easeInOut(constrain((mAll - (i / N_ALL) * 0.4) / 0.6, 0, 1));
+      return {
+        x: lerp(a.x, b.x, e), y: lerp(a.y, b.y, e), ang: angLerp(a.ang, b.ang, e), amp: lerp(a.amp, b.amp, e),
+        ph: lerp(a.ph, b.ph, e), sc: lerp(a.sc, b.sc, e), rung: e > 0.5 ? b.rung : a.rung, w: lerp(a.w, b.w, e), e: e
+      };
+    });
+  }
+
+  // 노드 → 두 가닥 위의 점
+  const pts = nodes.map((n, i) => {
+    const s = sin(n.ph + twist), c = cos(n.ph + twist);
+    const nx = cos(n.ang), ny = sin(n.ang);
+    return {
+      a: { x: n.x + nx * n.amp * s, y: n.y + ny * n.amp * s }, b: { x: n.x - nx * n.amp * s, y: n.y - ny * n.amp * s },
+      da: c, db: -c, sc: n.sc, w: n.w, rung: n.rung, t: i / (N_ALL - 1)
+    };
+  });
+
+  const scaleK = snail ? lerp(1, snail.S, mAll) : 1;
+  const body = pts.slice(N_SHELL), shell = pts.slice(0, N_SHELL);
+  drawGroup(body, scaleK);
+  if (snail) {
+    const eShell = easeInOut(constrain((mAll - 0.1) / 0.6, 0, 1));
+    noStroke();
+    fill(BG[0], BG[1], BG[2], 230 * eShell);
+    circle(snail.C0.x, snail.C0.y, snail.R * 2.1);
+  }
+  drawGroup(shell, scaleK);
+  if (snail) {
+    const eShell = easeInOut(constrain((mAll - 0.1) / 0.6, 0, 1));
+    stroke(245, 245, 243, 255 * eShell);
+    strokeWeight(1.2);
+    noFill();
+    circle(snail.C0.x, snail.C0.y, 12 * snail.S);
+    const fade = constrain((mAll - 0.82) / 0.18, 0, 1);
+    if (fade > 0) tentacles(snail, fade);
+  }
+}
+
+function drawGroup(pts, k) {
+  // 뒤 가닥 → 흰 뼈 → 앞 가닥
+  strandPass(pts, false);
+  bonePass(pts, k);
+  strandPass(pts, true);
+}
+
+function strandPass(pts, front) {
+  for (const key of ['a', 'b']) {
+    const alpha = key === 'a' ? vis.s1 : vis.s2;
+    if (alpha < 0.01) continue;
+    const dk = key === 'a' ? 'da' : 'db';
+    const shift = key === 'a' ? 0 : 0.08;
+    const passes = front ? [[3.0, 0.18], [1, 1]] : [[0.6, 0.85]];
+    for (const [wm, al] of passes) {
+      for (let i = 0; i < pts.length - 1; i++) {
+        const d = (pts[i][dk] + pts[i + 1][dk]) * 0.5;
+        if ((d >= 0) !== front) continue;
+        const c = gradColor(pts[i].t + shift);
+        const dim = front ? 1 : 0.4;
+        stroke(c[0] * dim, c[1] * dim, c[2] * dim, 255 * alpha * al);
+        strokeWeight(max(0.7, pts[i].w * pts[i].sc * wm));
+        line(pts[i][key].x, pts[i][key].y, pts[i + 1][key].x, pts[i + 1][key].y);
+      }
+    }
+  }
+}
+
+function bonePass(pts, k) {
+  for (const p of pts) {
+    if (!p.rung) continue;
+    const s = k * p.sc;
+    if (vis.rung > 0.01) {
+      stroke(245, 245, 243, 255 * vis.rung);
+      strokeWeight(max(0.6, cur.rung * s * (1 + 0.35 * (1 - cur.harm))));
+      line(p.a.x, p.a.y, p.b.x, p.b.y);
+    }
+    noStroke();
+    fill(245, 245, 243, 255 * vis.bead);
+    circle(p.a.x, p.a.y, 2 * cur.bead * s * (0.55 + 0.45 * (p.da * 0.5 + 0.5)));
+    circle(p.b.x, p.b.y, 2 * cur.bead * s * (0.55 + 0.45 * (p.db * 0.5 + 0.5)));
+    // 배음귀(H): 가로대 위에 1/2 · 1/3 · 1/4 자리의 작은 구슬 (배음처럼 점점 작게)
+    if (cur.harm > 0.02 && vis.rung > 0.01) {
+      fill(245, 245, 243, 255 * cur.harm * vis.rung);
+      [[0.5, 0.75], [0.333, 0.55], [0.25, 0.4]].forEach(([q, r]) => {
+        circle(lerp(p.a.x, p.b.x, q), lerp(p.a.y, p.b.y, q), 2 * cur.bead * s * r);
+      });
+    }
+  }
+}
+
+function tentacles(snail, fade) {
+  const S = snail.S;
+  const H = snail.head;
+  const t = millis() / 1000;
+  const stalks = [
+    [{ x: -6, y: -6 }, { x: -14, y: -46 }, { x: -18 + sin(t) * 4, y: -86 }, gradColor(0.94)],
+    [{ x: 4, y: -4 }, { x: 22, y: -40 }, { x: 34 + sin(t + 1) * 4, y: -74 }, gradColor(1)]
+  ];
+  for (const [a, b, c, col] of stalks) {
+    const pts = [];
+    for (let k = 0; k <= 16; k++) {
+      const q = k / 16, v = 1 - q;
+      pts.push({ x: H.x + (v * v * a.x + 2 * v * q * b.x + q * q * c.x) * S, y: H.y + (v * v * a.y + 2 * v * q * b.y + q * q * c.y) * S });
+    }
+    stroke(col[0], col[1], col[2], 255 * fade);
+    strokeWeight(2 * S);
+    for (let k = 0; k < pts.length - 1; k++) line(pts[k].x, pts[k].y, pts[k + 1].x, pts[k + 1].y);
+    noStroke();
+    fill(245, 245, 243, 255 * fade);
+    for (const k of [5, 10]) circle(pts[k].x, pts[k].y, 1.4 * cur.bead * S);
+    const tip = pts[pts.length - 1];
+    stroke(245, 245, 243, 255 * fade);
+    strokeWeight(1.4);
+    fill(BG[0], BG[1], BG[2], 255 * fade);
+    circle(tip.x, tip.y, 13 * S);
+    noStroke();
+    fill(col[0], col[1], col[2], 255 * fade);
+    circle(tip.x, tip.y, 5.5 * S);
+  }
+  const col = gradColor(0.9);
+  stroke(col[0], col[1], col[2], 255 * fade);
+  strokeWeight(1.6 * S);
+  line(H.x, H.y, H.x + 26 * S, H.y + 2 * S);
+  line(H.x, H.y, H.x + 22 * S, H.y + 18 * S);
+}
+
+// =====================================================================
+// UI
+// =====================================================================
+function sans(size, bold) {
+  textFont('Noto Sans KR, system-ui, sans-serif');
+  textSize(size);
+  textStyle(bold ? BOLD : NORMAL);
+}
+
+function drawHeader(L) {
+  const i = STEPS.indexOf(stage);
+  const T = STEP_TEXT[stage];
+  noStroke();
+  textAlign(LEFT, TOP);
+  fill(MUTE);
+  textFont('IBM Plex Mono, monospace');
+  textSize(12);
+  textStyle(NORMAL);
+  text((i < 4 ? 'PART 1' : 'PART 2') + '   ' + String(i + 1) + ' / ' + N_TESTS, L.m, L.m);
+  fill(INK);
+  sans(24, true);
+  text(T.title, L.m, L.m + 22);
+  fill(MUTE);
+  sans(14);
+  T.lines.forEach((s, k) => text(s, L.m, L.m + 60 + k * 22));
+}
+
+function drawGauge(L) {
+  const cfg = ADJUST[stage];
+  const x = width - L.m - 6;
+  const y0 = 150, y1 = L.btn.y - 40;
+  const u = (adjustValue - cfg.min) / (cfg.max - cfg.min);
+  stroke(34, 38, 56);
+  strokeWeight(2);
+  line(x, y0, x, y1);
+  const y = lerp(y1, y0, u);
+  stroke(INK);
+  strokeWeight(4);
+  line(x, y1, x, y);
+  noStroke();
+  fill(INK);
+  circle(x, y, 12);
+}
+
+function drawCards(L) {
+  const gap = 12, h = 96;
+  const w = (L.btn.w - gap * 2) / 3;
+  const y = L.btn.y - 24 - h;
+  zones.cards = [];
+  for (let i = 0; i < 3; i++) {
+    const z = { x: L.btn.x + i * (w + gap), y: y, w: w, h: h };
+    zones.cards.push(z);
+    const playing = reg.playing === i && millis() < reg.playEnd;
+    const selected = reg.selected === i;
+    stroke(selected ? INK : playing ? [196, 184, 176] : [44, 48, 66]);
+    strokeWeight(playing ? 2.5 : 1.5);
+    fill(selected ? INK : [12, 14, 22]);
+    rect(z.x, z.y, z.w, z.h, 12);
+    noStroke();
+    fill(selected ? BG : INK);
+    textAlign(CENTER, CENTER);
+    sans(30, true);
+    text(REGISTERS[i].card, z.x + z.w / 2, z.y + z.h / 2 - 6);
+    if (playing) {
+      for (let k = 0; k < 3; k++) {
+        const bh = 4 + 8 * abs(sin(millis() / 140 + k));
+        fill(selected ? BG : [196, 184, 176]);
+        rect(z.x + z.w / 2 - 10 + k * 8, z.y + z.h - 16 - bh, 4, bh, 2);
+      }
+    }
+  }
+}
+
+// 공통 선택 카드 (중앙패닝 · 우세귀 · 배음/바탕)
+function drawOptionCards(L, opts, answerOnly) {
+  const gap = 12, h = 96, n = opts.length;
+  const w = (L.btn.w - gap * (n - 1)) / n;
+  const y = L.btn.y - 24 - h;
+  zones.cards = [];
+  const playing = millis() < choice.playEnd;
+  for (let i = 0; i < n; i++) {
+    const z = { x: L.btn.x + i * (w + gap), y: y, w: w, h: h };
+    zones.cards.push(z);
+    const sel = !answerOnly && choice.selected === i;
+    stroke(sel ? INK : [44, 48, 66]);
+    strokeWeight(1.5);
+    fill(sel ? INK : playing ? [10, 11, 18] : [12, 14, 22]);
+    rect(z.x, z.y, z.w, z.h, 12);
+    noStroke();
+    fill(sel ? BG : playing ? [90, 94, 112] : INK);
+    textAlign(CENTER, CENTER);
+    const big = opts[i].big;
+    sans(big.length > 2 ? 18 : 28, true);
+    text(big, z.x + z.w / 2, z.y + z.h / 2 - (opts[i].small ? 10 : 0));
+    if (opts[i].small) {
+      sans(12);
+      fill(sel ? BG : MUTE);
+      text(opts[i].small, z.x + z.w / 2, z.y + z.h / 2 + 22);
+    }
+  }
+  if (answerOnly) {
+    noStroke();
+    fill(MUTE);
+    textAlign(RIGHT, BOTTOM);
+    textFont('IBM Plex Mono, monospace');
+    textSize(12);
+    text((choice.harm.length + 1) + ' / ' + HARM_TRIALS, L.btn.x + L.btn.w, y - 8);
+  }
+}
+
+// 가청주파수: 지금 주파수 위치를 음고 축 위에 표시
+function drawSweep(L) {
+  const x = lerp(L.x0, L.x1, freqU(sweep.f * 1000));
+  const y = L.lineY + L.lineH + 34;
+  stroke(196, 184, 176);
+  strokeWeight(2);
+  line(x, y - 12, x, y + 4);
+  noStroke();
+  fill(sweep.on ? INK : MUTE);
+  textAlign(CENTER, TOP);
+  textFont('IBM Plex Mono, monospace');
+  textSize(12);
+  text(sweep.on ? '' : '끝까지 들렸어요', x, y + 8);
+}
+
+function drawResultText(L) {
+  const fade = constrain((millis() - resultAt - MORPH_DUR * 0.7) / 900, 0, 1);
+  // 모든 귀는 [이름] 이다
+  const parts = [['모든 귀는 ', INK], ['[', [196, 184, 176]], [userName, INK], [']', [196, 184, 176]], [' 이다', INK]];
+  sans(min(26, width * 0.055), true);
+  let wsum = 0;
+  for (const [t] of parts) wsum += textWidth(t);
+  let x = width / 2 - wsum / 2;
+  noStroke();
+  textAlign(LEFT, TOP);
+  for (const [t, c] of parts) {
+    fill(c[0], c[1], c[2], 255 * fade);
+    text(t, x, L.m);
+    x += textWidth(t);
+  }
+  // 청감 코드
+  const code = earCode(profile);
+  fill(INK[0], INK[1], INK[2], 255 * fade);
+  textAlign(CENTER, TOP);
+  textFont('IBM Plex Mono, monospace');
+  textStyle(NORMAL);
+  textSize(min(40, width * 0.08));
+  text(code.letters + '  ' + code.khz, width / 2, L.m + 44);
+  fill(MUTE[0], MUTE[1], MUTE[2], 255 * fade);
+  sans(12);
+  const PAN = { M: '머리 한가운데', C: '앞쪽 가운데', P: '넓게 퍼짐' };
+  text(TIMBRE_NAME[code.timbre] + ' · ' + PAN[code.pan] + ' · ' + (code.ear === 'L' ? '왼쪽 귀' : '오른쪽 귀') + ' · ' + (code.fh === 'F' ? '바탕귀' : '배음귀') + ' · ' + code.khz + ' kHz까지', width / 2, L.m + 98);
+
+  // 아래: 8개 값 (2열)
+  const v = profile;
+  const r = REGISTERS.find((q) => q.id === v.register);
+  const sg = (n) => (n >= 0 ? '+' : '') + n.toFixed(1);
+  const left = [
+    ['볼륨', v.volDb.toFixed(1) + ' dB', '몸 크기'],
+    ['음역', r.card + (r.id === 'LOW' ? ' 낮음' : r.id === 'MID' ? ' 가운데' : ' 높음'), '뼈 굵기'],
+    ['저음', sg(v.low) + ' dB', '왼쪽 색'],
+    ['고음', sg(v.high) + ' dB', '오른쪽 색']
+  ];
+  const right = [
+    ['가청', code.khz + ' kHz', '꼬임 정도'],
+    ['패닝', code.pan, '점액 모양'],
+    ['우세귀', code.ear, '꼬임 방향'],
+    ['배음/바탕', code.fh, '뼈 모양']
+  ];
+  const top = L.btn.y - 170, rowH = 36, colW = (width - L.m * 2 - 16) / 2;
+  [left, right].forEach((rows, ci) => {
+    const x0 = L.m + ci * (colW + 16);
+    rows.forEach(([k, val, mean], i) => {
+      const y = top + i * rowH;
+      stroke(34, 38, 56, 255 * fade);
+      strokeWeight(1);
+      line(x0, y + rowH - 6, x0 + colW, y + rowH - 6);
+      noStroke();
+      textAlign(LEFT, CENTER);
+      fill(MUTE[0], MUTE[1], MUTE[2], 255 * fade);
+      sans(12);
+      text(k, x0, y + 13);
+      fill(INK[0], INK[1], INK[2], 255 * fade);
+      textFont('IBM Plex Mono, monospace');
+      text(val, x0 + colW * 0.34, y + 13);
+      textAlign(RIGHT, CENTER);
+      fill(MUTE[0], MUTE[1], MUTE[2], 255 * fade);
+      sans(11);
+      text(mean, x0 + colW, y + 13);
+    });
+  });
+}
+
+function drawButtons(L) {
+  zones.primary = null;
+  zones.secondary = null;
+  const b = L.btn;
+  const half = (b.w - 12) / 2;
+  const two = () => {
+    zones.secondary = { x: b.x, y: b.y, w: half, h: b.h };
+    zones.primary = { x: b.x + half + 12, y: b.y, w: half, h: b.h };
+  };
+  const playing = millis() < choice.playEnd;
+  if (ADJUST[stage]) {
+    zones.primary = b;
+    button(b, '여기가 좋아요', hasMoved);
+  } else if (stage === 'REGISTER') {
+    two();
+    button(zones.secondary, '다시 듣기', !regAutoPlaying(), false);
+    button(zones.primary, '이 높이가 좋아요', reg.selected >= 0 && !regAutoPlaying());
+  } else if (stage === 'HEARING') {
+    two();
+    button(zones.secondary, '처음부터 다시', true, false);
+    button(zones.primary, sweep.on ? '이제 안 들려요' : '다음', sweep.on ? millis() > sweep.start : true);
+  } else if (stage === 'PANNING' || stage === 'EAR') {
+    two();
+    button(zones.secondary, '다시 듣기', !playing, false);
+    button(zones.primary, '이렇게 들렸어요', choice.selected >= 0 && !playing);
+  } else if (stage === 'HARMONIC') {
+    zones.secondary = b;
+    button(b, '다시 듣기', !playing, false);
+  } else if (stage === 'RESULT' && millis() - resultAt > MORPH_DUR) {
+    two();
+    button(zones.secondary, '처음으로', true, false);
+    button(zones.primary, '이미지 저장', true);
+  }
+}
+
+function button(z, label, enabled, filled = true) {
+  stroke(enabled ? (filled ? INK : [80, 86, 110]) : [34, 38, 56]);
+  strokeWeight(1.5);
+  fill(filled && enabled ? INK : [8, 9, 16]);
+  rect(z.x, z.y, z.w, z.h, z.h / 2);
+  noStroke();
+  fill(filled && enabled ? BG : enabled ? INK : [60, 64, 82]);
+  textAlign(CENTER, CENTER);
+  sans(16, true);
+  text(label, z.x + z.w / 2, z.y + z.h / 2);
+}
+
+// =====================================================================
+// 입력
+// =====================================================================
+function hit(z, x, y) {
+  return z && x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h;
+}
+
+function mousePressed() {
+  if (stage === 'INIT' || stage === 'NAMED') return; // 이름 입력칸이 터치를 받도록 그대로 둠
+  audioResume();
+  const x = mouseX, y = mouseY;
+  const playing = millis() < choice.playEnd;
+  if (ADJUST[stage]) {
+    if (hit(zones.primary, x, y)) { if (hasMoved) confirmStep(); }
+    else dragY = y;
+    return false;
+  }
+  if (stage === 'REGISTER') {
+    const i = (zones.cards || []).findIndex((z) => hit(z, x, y));
+    if (i >= 0 && !regAutoPlaying()) { reg.selected = i; playCard(i); }
+    else if (hit(zones.secondary, x, y) && !regAutoPlaying()) { reg.queue = [0, 1, 2]; reg.nextAt = millis() + 200; }
+    else if (hit(zones.primary, x, y) && reg.selected >= 0 && !regAutoPlaying()) confirmStep();
+    return false;
+  }
+  if (stage === 'HEARING') {
+    if (hit(zones.secondary, x, y)) startSweep();
+    else if (hit(zones.primary, x, y)) {
+      if (sweep.on && millis() > sweep.start) { sweep.on = false; stopTone(); confirmStep(); }
+      else if (!sweep.on) confirmStep();
+    }
+    return false;
+  }
+  if (stage === 'PANNING' || stage === 'EAR') {
+    const i = (zones.cards || []).findIndex((z) => hit(z, x, y));
+    if (i >= 0 && !playing) choice.selected = i;
+    else if (hit(zones.secondary, x, y) && !playing) (stage === 'PANNING' ? playPanProbe : playDichotic)();
+    else if (hit(zones.primary, x, y) && choice.selected >= 0 && !playing) confirmStep();
+    return false;
+  }
+  if (stage === 'HARMONIC') {
+    const i = (zones.cards || []).findIndex((z) => hit(z, x, y));
+    if (i >= 0 && !playing) answerHarm(i === 0);
+    else if (hit(zones.secondary, x, y) && !playing) replayHarmPair();
+    return false;
+  }
+  if (stage === 'RESULT') {
+    if (hit(zones.secondary, x, y)) restart();
+    else if (hit(zones.primary, x, y)) saveCanvas('ear-' + userName, 'png');
+    return false;
+  }
+}
+
+function mouseDragged() {
+  if (dragY === null || !ADJUST[stage]) return;
+  const cfg = ADJUST[stage];
+  const next = constrain(adjustValue + ((dragY - mouseY) / height) * cfg.span, cfg.min, cfg.max);
+  movedPath += abs(next - adjustValue);
+  adjustValue = next;
+  dragY = mouseY;
+  applyAudio();
+  return false;
+}
+
+function mouseReleased() {
+  dragY = null;
+}
+
+function keyPressed() {
+  if (stage !== 'RESULT') return; // 이름 입력 중에는 단축키 무시
+  if (key === 's' || key === 'S') saveCanvas('bukseoul-snail-' + userName, 'png');
+  if (key === 'f' || key === 'F') fullscreen(!fullscreen());
+  if (key === 'r' || key === 'R') restart();
+}
+
+// =====================================================================
+// 확인용 임시 소리 (Web Audio) — 실제 전시에서는 SVart의 필드레코딩과 EQ 체인
+// =====================================================================
+let AC = null, master, lowF, peakF, highF, analyser, noiseSrc = null, voices = [], buffers = {}, levelBuf = null;
+
+function dbToGain(db) {
+  return Math.pow(10, db / 20);
+}
+
+function audioInit() {
+  if (AC) return;
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain();
+    master.gain.value = 0;
+    lowF = AC.createBiquadFilter(); lowF.type = 'lowshelf'; lowF.frequency.value = 200;
+    peakF = AC.createBiquadFilter(); peakF.type = 'peaking'; peakF.frequency.value = 400; peakF.Q.value = 1; peakF.gain.value = 0;
+    highF = AC.createBiquadFilter(); highF.type = 'highshelf'; highF.frequency.value = 4000;
+    analyser = AC.createAnalyser();
+    analyser.fftSize = 1024;
+    levelBuf = new Float32Array(analyser.fftSize);
+    lowF.connect(peakF); peakF.connect(highF); highF.connect(master);
+    master.connect(analyser); master.connect(AC.destination);
+    for (const kind of ['pink', 'brown', 'white']) buffers[kind] = makeNoise(kind);
+  } catch (e) {
+    AC = null; // 소리 없이도 비주얼은 동작
+  }
+}
+
+function audioResume() {
+  if (AC && AC.state === 'suspended') AC.resume();
+}
+
+function audioLevel() {
+  if (!AC || !analyser) return 0;
+  analyser.getFloatTimeDomainData(levelBuf);
+  let s = 0;
+  for (let i = 0; i < levelBuf.length; i++) s += levelBuf[i] * levelBuf[i];
+  return Math.sqrt(s / levelBuf.length);
+}
+
+function makeNoise(kind) {
+  const len = AC.sampleRate * 4;
+  const buf = AC.createBuffer(1, len, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, last = 0, peak = 0;
+  for (let i = 0; i < len; i++) {
+    const w = Math.random() * 2 - 1;
+    if (kind === 'white') d[i] = w;
+    else if (kind === 'brown') { last = (last + 0.02 * w) / 1.02; d[i] = last; }
+    else {
+      b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.969 * b2 + w * 0.153852;
+      b3 = 0.8665 * b3 + w * 0.3104856; b4 = 0.55 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.016898;
+      d[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362; b6 = w * 0.115926;
+    }
+    peak = Math.max(peak, Math.abs(d[i]));
+  }
+  for (let i = 0; i < len; i++) d[i] = (d[i] / peak) * 0.5;
+  return buf;
+}
+
+function playNoise(kind) {
+  if (!AC) return;
+  stopNoise();
+  const src = AC.createBufferSource();
+  src.buffer = buffers[kind];
+  src.loop = true;
+  const g = AC.createGain();
+  g.gain.value = kind === 'white' ? 0.25 : 0.4;
+  src.connect(g);
+  g.connect(lowF);
+  src.start();
+  noiseSrc = src;
+}
+
+function stopNoise() {
+  if (noiseSrc) { try { noiseSrc.stop(); } catch (e) { /* 이미 멈춤 */ } noiseSrc = null; }
+}
+
+function applyAudio() {
+  if (!AC) return;
+  const v = viewValues();
+  const now = AC.currentTime;
+  master.gain.setTargetAtTime(dbToGain(v.volDb === null ? -20 : v.volDb), now, 0.04);
+  lowF.gain.setTargetAtTime(v.low === null ? 0 : v.low, now, 0.04);
+  highF.gain.setTargetAtTime(v.high === null ? 0 : v.high, now, 0.04);
+  const r = REGISTERS.find((x) => x.id === profile.register);
+  peakF.frequency.setTargetAtTime(r ? r.peakHz : 400, now, 0.04);
+  peakF.gain.setTargetAtTime(r ? 3 : 0, now, 0.04);
+}
+
+// 멜로디는 EQ를 거치지 않고 바로 master로 (SVart와 같은 방식)
+function playMelody(r) {
+  if (!AC) return;
+  stopVoices();
+  let t = AC.currentTime + 0.05;
+  const amp = 0.25 * dbToGain(r.offsetDb);
+  MELODY_STEPS.forEach((st, i) => {
+    const dur = MELODY_DURS[i];
+    const osc = AC.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = 440 * Math.pow(2, (r.baseMidi + st - 69) / 12);
+    const g = AC.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(amp, t + 0.01);
+    g.gain.linearRampToValueAtTime(amp * 0.3, t + 0.16);
+    g.gain.setValueAtTime(amp * 0.3, t + dur);
+    g.gain.linearRampToValueAtTime(0, t + dur + 0.2);
+    osc.connect(g);
+    g.connect(master);
+    osc.start(t);
+    osc.stop(t + dur + 0.25);
+    voices.push(osc);
+    t += dur;
+  });
+}
+
+function stopVoices() {
+  for (const o of voices) { try { o.stop(); } catch (e) { /* 이미 멈춤 */ } }
+  voices = [];
+}
+
+// ---------- Part 2 확인용 소리 ----------
+let toneOsc = null, toneGain = null, harmPair = null;
+
+function panNode(p) {
+  // 양쪽 귀로 나누기 (지원 안 하면 가운데로)
+  if (AC.createStereoPanner) { const n = AC.createStereoPanner(); n.pan.value = p; return n; }
+  return AC.createGain();
+}
+
+function stopTone() {
+  if (toneOsc) { try { toneOsc.stop(); } catch (e) { /* 이미 멈춤 */ } toneOsc = null; }
+}
+
+// 5 가청주파수: 10kHz → 20kHz 로 천천히 올라가는 사인파
+function playSweepTone() {
+  if (!AC) return;
+  stopTone();
+  const t0 = AC.currentTime + 0.8;
+  toneOsc = AC.createOscillator();
+  toneOsc.type = 'sine';
+  toneOsc.frequency.setValueAtTime(SWEEP_FROM * 1000, t0);
+  toneOsc.frequency.exponentialRampToValueAtTime(SWEEP_TO * 1000, t0 + SWEEP_SECONDS);
+  toneGain = AC.createGain();
+  toneGain.gain.setValueAtTime(0, AC.currentTime);
+  toneGain.gain.linearRampToValueAtTime(0.12, t0 + 0.3);
+  toneOsc.connect(toneGain);
+  toneGain.connect(master);
+  toneOsc.start(AC.currentTime);
+  toneOsc.stop(t0 + SWEEP_SECONDS + 0.2);
+}
+
+// 6 중앙패닝: 양쪽에 똑같이 나오는 짧은 노이즈 세 번
+function playPanProbe() {
+  choice.playEnd = millis() + 2600;
+  if (!AC) return;
+  stopNoise();
+  for (let k = 0; k < 3; k++) {
+    const t = AC.currentTime + 0.1 + k * 0.8;
+    const src = AC.createBufferSource();
+    src.buffer = buffers.pink;
+    const g = AC.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.4, t + 0.02);
+    g.gain.linearRampToValueAtTime(0, t + 0.5);
+    src.connect(g);
+    g.connect(master);
+    src.start(t, random(0, 2));
+    src.stop(t + 0.55);
+  }
+}
+
+// 7 우세귀: 왼쪽·오른쪽에 서로 다른 높이의 음을 동시에
+function playDichotic() {
+  choice.playEnd = millis() + 2800;
+  if (!AC) return;
+  stopNoise();
+  const freqs = { HIGH: 660, LOW: 440 };
+  for (let k = 0; k < 3; k++) {
+    const t = AC.currentTime + 0.1 + k * 0.85;
+    for (const side of ['L', 'R']) {
+      const osc = AC.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = freqs[choice.earMap[side]];
+      const g = AC.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.18, t + 0.02);
+      g.gain.linearRampToValueAtTime(0, t + 0.55);
+      const p = panNode(side === 'L' ? -1 : 1);
+      osc.connect(g); g.connect(p); p.connect(master);
+      osc.start(t); osc.stop(t + 0.6);
+      voices.push(osc);
+    }
+  }
+}
+
+// 8 배음·바탕: 바탕음은 올라가고 배음 성분은 내려가는 두 음
+//   첫 음: 바탕 f, 배음 4·5·6번 / 둘째 음: 바탕 1.25f, 배음 2·3·4번 (바탕음 자체는 소리에 없음)
+function playHarmPair() {
+  const f0 = random([180, 200, 220, 240]);
+  harmPair = [{ f: f0, h: [4, 5, 6] }, { f: f0 * 1.25, h: [2, 3, 4] }];
+  replayHarmPair();
+}
+
+function replayHarmPair() {
+  choice.playEnd = millis() + 1900;
+  if (!AC || !harmPair) return;
+  stopNoise();
+  harmPair.forEach((tone, idx) => {
+    const t = AC.currentTime + 0.15 + idx * 0.8;
+    tone.h.forEach((n) => {
+      const osc = AC.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = tone.f * n;
+      const g = AC.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.09, t + 0.02);
+      g.gain.setValueAtTime(0.09, t + 0.5);
+      g.gain.linearRampToValueAtTime(0, t + 0.62);
+      osc.connect(g); g.connect(master);
+      osc.start(t); osc.stop(t + 0.65);
+      voices.push(osc);
+    });
+  });
+}
+</script>
+</body>
+</html>

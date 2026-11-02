@@ -40,8 +40,8 @@ const STAGE_COPY = {
     en: { title: 'How high can you hear?', lines: ['A high "beep" will get softer and higher, and I will twist tighter and tighter.', 'The moment you can no longer hear it, tap anywhere on the screen. We do this twice.'] }
   },
   PART2_CENTER: {
-    ko: { title: '가운데는 어디?', lines: ['목소리가 머리 둘레 어딘가에서 들려. 좌우로 쓸면 목소리가 머리 둘레를 돌아.', '왼쪽도 오른쪽도 아닌 가운데에서 들리면 나를 꾹 눌러 줘. 내 껍질 무늬는 방향과 상관없어, 귀로만 맞춰 줘. 두 번 할게.'] },
-    en: { title: 'Where is the middle?', lines: ['A voice is somewhere around your head. Swipe left and right to move it around your head.', "When it sounds right in the middle, neither left nor right, press and hold me. My shell's pattern doesn't show the direction, so use your ears. We do this twice."] }
+    ko: { title: '가운데는 어디?', lines: ['비트가 머리 둘레 어딘가에서 들려. 좌우로 쓸면 비트가 머리 둘레를 돌아.', '왼쪽도 오른쪽도 아닌 가운데에서 들리면 나를 꾹 눌러 줘. 내 껍질 무늬는 방향과 상관없어, 귀로만 맞춰 줘. 두 번 할게.'] },
+    en: { title: 'Where is the middle?', lines: ['The beat is somewhere around your head. Swipe left and right to move it around your head.', "When it sounds right in the middle, neither left nor right, press and hold me. My shell's pattern doesn't show the direction, so use your ears. We do this twice."] }
   },
   PART2_EAR: {
     ko: { title: '높은 음은 어느 쪽?', lines: ['높은 음과 낮은 음이 양쪽 귀에서 빠르게 번갈아 나와.', '높은 음이 들린 쪽으로 껍질을 굴려 줘. 정답은 없어. 세 번 할게.'] },
@@ -74,7 +74,7 @@ const COPY = {
     'axis.high': '높은 소리',
     'hint.ready': '곧 시작해. 잘 들어 봐',
     'hint.tapGone': '안 들리게 되면 바로 화면 아무 데나 톡',
-    'hint.turn': '좌우로 쓸어서 목소리를 돌려 봐',
+    'hint.turn': '좌우로 쓸어서 비트를 돌려 봐',
     'hint.holdCenter': '가운데서 들리면 나를 꾹 눌러 줘',
     'hint.antennaOnce': '더듬이를 톡 누르면 한 번 더 들려줘',
     'note.early': '소리가 나오기 전에 눌렀어',
@@ -141,7 +141,7 @@ const COPY = {
     'axis.high': 'high',
     'hint.ready': 'Starting soon. Listen closely',
     'hint.tapGone': 'Tap anywhere as soon as it is gone',
-    'hint.turn': 'Swipe left and right to move the voice',
+    'hint.turn': 'Swipe left and right to move the beat',
     'hint.holdCenter': 'In the middle? Press and hold me',
     'hint.antennaOnce': 'Tap my antennae to hear it once more',
     'note.early': 'You tapped before the sound started',
