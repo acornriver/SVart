@@ -53,6 +53,14 @@ const hdrag = async (dx) => {
   for (let k = 1; k <= 10; k++) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + dx * k / 10, y, button: 'left', buttons: 1 }); await sleep(16); }
   await mouse('mouseReleased', x0 + dx, y); await sleep(500);
 };
+// 좌우로 끈 채 잠깐 멈춰서(mid) 고르는 중 모습을 보고 손을 뗌
+const hdragHold = async (dx, mid) => {
+  const x0 = W / 2, y = 520;
+  await mouse('mousePressed', x0, y);
+  for (let k = 1; k <= 10; k++) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + dx * k / 10, y, button: 'left', buttons: 1 }); await sleep(16); }
+  await mid();
+  await mouse('mouseReleased', x0 + dx, y); await sleep(500);
+};
 await send('Runtime.enable'); await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
 await send('Page.navigate', { url: URL });
@@ -72,6 +80,7 @@ await drag(200); await sleep(1300); await shot('02-low');
 await holdSnail(); await expect('PART1_HIGH');
 await drag(220); await sleep(1300); await shot('03-high');
 await holdSnail(); await expect('PART1_REGISTER');
+console.log('  loudness comp', await ev("JSON.stringify({ measured: Array.isArray(sourceSpectrum('HIGH')), highPlus10: +getLoudnessCompDb(sourceSpectrum('HIGH')).toFixed(1), eq: GlobalState.userEQProfile.highShelf.gain.toFixed(1) })"));
 
 // ④ 자동 재생 → 등 위 자리 톡 → 더듬이 톡(다시 듣기) → 꾹
 await sleep(1200); await shot('04-register-playing');
@@ -85,14 +94,18 @@ await sleep(11000);
 await holdSnail(); await expect('PART2_SENSITIVITY');
 console.log('  register', await ev('GlobalState.userEQProfile.registerPeak.register'));
 
-// ⑤ 고역 예민도: 삐 소리 동안 화면 아무 데나 톡. 2번째는 일부러 너무 일찍 → 마지막에 한 번 더
+// ⑤ 고역 예민도: 삐 소리 동안 화면 아무 데나 톡. 저절로 다음으로 가지 않음. 더듬이 톡 = 한 번 더, 꾹 = 다음
 const waitPhase = async (ph, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if ((await ev('GlobalState.part2.phase')) === ph) return; await sleep(80); } throw new Error('phase ' + ph + ' timeout, now ' + await ev('GlobalState.part2.phase')); };
 await sleep(800); await shot('05-sens-lead');
-await waitPhase('pressing'); await sleep(4500); await shot('05-sens-twisting'); console.log('  twist live', (await ev('part2Twist()')).toFixed(2));
+await waitPhase('pressing'); await sleep(150); await tap(600, 900); console.log('  early → note', await ev('GlobalState.part2.note'), 'phase', await ev('GlobalState.part2.phase'));
+await holdSnail(); await expect('PART2_SENSITIVITY'); // 일찍 누른 것만 있으면 꾹이 안 됨
+await sleep(1500); console.log('  after 1.5s phase', await ev('GlobalState.part2.phase'), '(choice여야 함, 저절로 안 넘어감)');
+await tapAntenna(); await waitPhase('pressing'); await sleep(4500); await shot('05-sens-twisting'); console.log('  twist live', (await ev('part2Twist()')).toFixed(2));
 await tap(100, 300); console.log('  tapped → frozen', (await ev('GlobalState.part2.frozenU')).toFixed(2), 'phase', await ev('GlobalState.part2.phase'));
 await shot('05-sens-frozen');
-await waitPhase('pressing'); await sleep(150); await tap(600, 900); console.log('  early note', await ev('GlobalState.part2.note'));
-await waitPhase('pressing'); await sleep(7000); await tap(400, 400); // 일찍 누른 2번째를 다시
+await tapAntenna(); await waitPhase('pressing'); await sleep(7000); await tap(400, 400);
+console.log('  3 listens used → can replay', await ev('canReplayPart2()'));
+await holdSnail();
 await sleep(900); await expect('PART2_CENTER');
 console.log('  sens', JSON.stringify(await ev('({ hz: GlobalState.psychoProfile.maxFreqHz, s: GlobalState.psychoProfile.sensitivity, twist: GlobalState.psychoProfile.twist })')));
 
@@ -101,7 +114,7 @@ await waitPhase('adjusting');
 await holdSnail(); console.log('  center hold before turn → phase', await ev('GlobalState.part2.phase'));
 for (let k = 0; k < 2; k++) {
   await waitPhase('adjusting');
-  await hdrag(k === 1 ? -180 : 150); if (k === 0) await shot('06-center');
+  await hdrag(k === 1 ? -180 : 150); if (k === 0) { await sleep(500); await shot('06-center'); console.log('  live color deg', (await ev('part2CenterLiveDeg()')).toFixed(1)); }
   await holdSnail();
 }
 await sleep(900); await expect('PART2_EAR');
@@ -115,7 +128,8 @@ for (let k = 0; k < 3; k++) {
     await tapAntenna(); console.log('  antenna replay → phase', await ev('GlobalState.part2.phase'), 'left', await ev('GlobalState.part2.replayLeft'));
     await waitPhase('answer');
   }
-  await hdrag(k === 2 ? -250 : 250); if (k === 0) await shot('07-ear');
+  if (k === 0) { await hdragHold(-250, async () => { await sleep(700); await shot('07-ear-live-left'); }); }
+  else await hdrag(k === 2 ? -250 : 250);
   console.log('  ear release → phase', await ev('GlobalState.part2.phase'));
 }
 await sleep(900); await expect('PART2_PITCH');
@@ -127,7 +141,8 @@ for (let k = 0; k < 7; k++) {
   await waitPhase('answer');
   const order = await ev('GlobalState.part2.trial.order');
   const dir = k % 4 === 3 ? (order === 'AB' ? 1 : -1) : (order === 'AB' ? -1 : 1);
-  await hdrag(dir * 250); if (k === 3) await shot('08-pitch');
+  if (k === 3) await hdragHold(dir * 250, async () => { await sleep(700); await shot('08-pitch-live'); }); else await hdrag(dir * 250);
+  if (k === 4) { await sleep(500); await shot('08-pitch-trail'); }
 }
 await sleep(900); await expect('RESULT');
 console.log('  psycho', JSON.stringify(await ev('GlobalState.psychoProfile')));

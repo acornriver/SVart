@@ -1,5 +1,6 @@
-// 비트 묶음(FULL / LOW / HIGH)별 RMS 측정. 북서울 녹음과 같은 -26 dBFS(0.05)가 목표.
-// 비트 소리를 바꾸면 이걸로 재고 beat.js의 BEAT_MIXES norm을 'norm for 0.05' 값에 현재 norm을 곱한 값으로 고침
+// 비트 묶음(FULL / LOW / HIGH)별 크기 확인. 11/03부터 norm은 앱이 시작할 때 직접 잼(beat.js calibrateBeat, K-가중 -26 dB, 피크 상한).
+// 이 테스트는 잰 결과(loudDb가 -26 근처인지, peakDb가 상한 -10.5 아래인지)와 실제로 울리는 소리의 단순 RMS를 보여 줌.
+// loudDb가 -26보다 많이 작으면 피크 상한에 걸린 것이니 그 묶음 소리의 크레스트(피크/평균)를 줄여야 함
 // 실행: (레포 루트에서) python3 -m http.server 8765 &   그다음   node tests/e2e/beat-level.mjs <출력폴더(절대경로)>
 // 맥의 Google Chrome을 헤드리스로 띄워 CDP(포트 9333)로 조종함. Node 22 이상(내장 WebSocket)
 import { spawn } from 'node:child_process';
@@ -51,12 +52,15 @@ await sleep(4000);
 await ev(`(() => { const i = document.querySelector('.intro input'); i.value = 'm'; document.querySelector('.intro form').requestSubmit(); })()`);
 await sleep(2500);
 await ev(`window.__an = getAudioContext().createAnalyser(); __an.fftSize = 2048; beatOut.connect(__an); setActiveSource(null); true`);
+await ev('beatCalibrated');
+console.log('calibrated', await ev("JSON.stringify(Object.fromEntries(Object.entries(BEAT_MIXES).map(([k, m]) => [k, { norm: +m.norm.toFixed(3), loudDb: m.loudDb, peakDb: m.peakDb }])))"));
+console.log('recordings gain dB', await ev("JSON.stringify(Object.fromEntries(Object.entries(sampleLevels).map(([k, v]) => [k, +(20 * Math.log10(v)).toFixed(1)])))"));
 for (const mix of ['FULL', 'LOW', 'HIGH']) {
   await ev(`(() => { startBeat('${mix}'); window.__acc = { s: 0, n: 0 }; const buf = new Float32Array(2048);
     clearInterval(window.__iv); window.__iv = setInterval(() => { __an.getFloatTimeDomainData(buf); let s = 0; for (const v of buf) s += v * v; __acc.s += s; __acc.n += buf.length; }, 40); })()`);
   await sleep(7000);
   const rms = await ev('Math.sqrt(__acc.s / __acc.n)');
-  console.log(mix, 'rms', rms.toFixed(4), 'dBFS', (20 * Math.log10(rms)).toFixed(1), 'norm for 0.05 →', (0.05 / rms).toFixed(3));
+  console.log(mix, 'live plain rms dBFS', (20 * Math.log10(rms)).toFixed(1));
 }
 console.log('errors:', errors.length ? errors : 'none');
 ws.close(); chrome.kill(); process.exit(0);

@@ -13,9 +13,9 @@
 // spectrum은 음량 보정용 대략적 기울기. 장소 이름은 copy.js의 place.<key>
 const TOUR_PLACES = [
   { key: 'water',      audio: './media/audio/water.m4a',      video: './media/video/water.mp4',      spectrum: 'pink' },  // 당현천 물소리
-  { key: 'walk-stair', audio: './media/audio/walk-stair.m4a', video: './media/video/walk-stair.mp4', spectrum: 'white' }, // 미술관 계단 발소리
-  { key: 'train-go',   audio: './media/audio/train-go.m4a',   video: './media/video/train-go.mp4',   spectrum: 'brown' }, // 7호선 하계–중계
-  { key: 'car-move',   audio: './media/audio/car-move.m4a',   video: './media/video/car-move.mp4',   spectrum: 'pink' }   // 지나가는 차 (장소 미확정)
+  { key: 'walk-stair', audio: './media/audio/walk-stair.m4a', video: './media/video/walk-stair.mp4', spectrum: 'white' }, // 중계역 계단 발소리
+  { key: 'train-go',   audio: './media/audio/train-go.m4a',   video: './media/video/train-go.mp4',   spectrum: 'brown' }, // 중계역 지하철
+  { key: 'car-move',   audio: './media/audio/car-move.m4a',   video: './media/video/car-move.mp4',   spectrum: 'pink' }   // 북서울미술관 앞 지나가는 차
 ];
 const TOUR_SECONDS = 15;
 const TOUR_FADE = 1.2;          // 장소 사이 소리 크로스페이드 (초)

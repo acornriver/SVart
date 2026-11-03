@@ -36,20 +36,20 @@ const STAGE_COPY = {
     }
   },
   PART2_SENSITIVITY: {
-    ko: { title: '어디까지 들려?', lines: ['높은 "삐" 소리가 점점 작아지고 높아질 거야. 그동안 나는 점점 더 꼬여.', '안 들리게 되는 순간 화면 아무 데나 톡 눌러 줘. 두 번 할게.'] },
-    en: { title: 'How high can you hear?', lines: ['A high "beep" will get softer and higher, and I will twist tighter and tighter.', 'The moment you can no longer hear it, tap anywhere on the screen. We do this twice.'] }
+    ko: { title: '어디까지 들려?', lines: ['높은 "삐" 소리가 점점 작아지고 높아질 거야. 그동안 나는 점점 더 꼬여.', '안 들리게 되는 순간 화면 아무 데나 톡 눌러 줘. 한 번 더 듣고 싶으면 더듬이를 톡.'] },
+    en: { title: 'How high can you hear?', lines: ['A high "beep" will get softer and higher, and I will twist tighter and tighter.', 'The moment you can no longer hear it, tap anywhere on the screen. Tap my antennae to hear it once more.'] }
   },
   PART2_CENTER: {
-    ko: { title: '가운데는 어디?', lines: ['비트가 머리 둘레 어딘가에서 들려. 좌우로 쓸면 비트가 머리 둘레를 돌아.', '왼쪽도 오른쪽도 아닌 가운데에서 들리면 나를 꾹 눌러 줘. 내 껍질 무늬는 방향과 상관없어, 귀로만 맞춰 줘. 두 번 할게.'] },
-    en: { title: 'Where is the middle?', lines: ['The beat is somewhere around your head. Swipe left and right to move it around your head.', "When it sounds right in the middle, neither left nor right, press and hold me. My shell's pattern doesn't show the direction, so use your ears. We do this twice."] }
+    ko: { title: '가운데는 어디?', lines: ['비트가 머리 둘레 어딘가에서 들려. 좌우로 쓸면 비트가 머리 둘레를 돌아.', '왼쪽도 오른쪽도 아닌 가운데에서 들리면 나를 꾹 눌러 줘. 내 색이 바뀌는 건 신경 쓰지 말고 귀로만 맞춰 줘. 두 번 할게.'] },
+    en: { title: 'Where is the middle?', lines: ['The beat is somewhere around your head. Swipe left and right to move it around your head.', "When it sounds right in the middle, neither left nor right, press and hold me. Don't mind my color changing, just use your ears. We do this twice."] }
   },
   PART2_EAR: {
-    ko: { title: '높은 음은 어느 쪽?', lines: ['높은 음과 낮은 음이 양쪽 귀에서 빠르게 번갈아 나와.', '높은 음이 들린 쪽으로 껍질을 굴려 줘. 정답은 없어. 세 번 할게.'] },
-    en: { title: 'Where is the high note?', lines: ['A high note and a low note quickly take turns in your two ears.', 'Roll my shell toward the side where you hear the high note. There is no right answer. Three times.'] }
+    ko: { title: '높은 음은 어느 쪽?', lines: ['높은 음과 낮은 음이 양쪽 귀에서 빠르게 번갈아 나와.', '높은 음이 들린 쪽으로 나를 보내 줘. 그쪽 더듬이가 쭉 늘어날 거야. 정답은 없어. 세 번 할게.'] },
+    en: { title: 'Where is the high note?', lines: ['A high note and a low note quickly take turns in your two ears.', 'Send me toward the side where you hear the high note, and that antenna will stretch out. There is no right answer. Three times.'] }
   },
   PART2_PITCH: {
-    ko: { title: '올라갔어? 내려갔어?', lines: ['두 음이 이어서 나와. 정답은 없으니 처음 느낌대로 골라 줘.', '올라갔으면 오른쪽, 내려갔으면 왼쪽으로 껍질을 굴려 줘. 연습 한 번, 이어서 여섯 번이야.'] },
-    en: { title: 'Up or down?', lines: ['Two notes play one after the other. There is no right answer, go with your first feeling.', 'If it went up, roll my shell right. If down, roll left. One practice round, then six.'] }
+    ko: { title: '올라갔어? 내려갔어?', lines: ['두 음이 이어서 나와. 정답은 없으니 처음 느낌대로 골라 줘.', '올라갔으면 오른쪽, 내려갔으면 왼쪽으로 나를 보내 줘. 연습 한 번, 이어서 여섯 번이야.'] },
+    en: { title: 'Up or down?', lines: ['Two notes play one after the other. There is no right answer, go with your first feeling.', 'If it went up, send me right. If down, send me left. One practice round, then six.'] }
   }
 };
 
@@ -62,7 +62,9 @@ const COPY = {
 
     'hint.swipe': '화면 아무 곳이나 위아래로 쓸어 봐',
     'hint.hold': '마음에 들면 나를 꾹 눌러 줘',
-    'hint.roll': '좌우로 쓸어서 껍질을 굴려 봐',
+    'hint.roll': '좌우로 쓸어서 나를 기어가게 해 봐',
+    'hint.sensNext': '다 됐으면 나를 꾹 눌러 줘',
+    'hint.sensAgain': '더듬이를 톡 누르면 한 번 더 들려줘',
     'hint.listening': '잘 들어 봐…',
     'hint.spot': '편한 높이 자리를 내 등 위에서 톡',
     'hint.antenna': '더듬이를 톡 누르면 다시 들려줘',
@@ -77,8 +79,7 @@ const COPY = {
     'hint.turn': '좌우로 쓸어서 비트를 돌려 봐',
     'hint.holdCenter': '가운데서 들리면 나를 꾹 눌러 줘',
     'hint.antennaOnce': '더듬이를 톡 누르면 한 번 더 들려줘',
-    'note.early': '소리가 나오기 전에 눌렀어',
-    'note.earlyAgain': '소리가 나오기 전에 눌렀어. 마지막에 한 번 더 할게',
+    'note.early': '소리가 나오기 전에 눌렀어. 더듬이를 톡 해서 다시 들어 줘',
     'p2.practice': '연습',
     'ear.L': '왼쪽',
     'ear.R': '오른쪽',
@@ -96,9 +97,9 @@ const COPY = {
     'tour.line': '이 귀로 북서울미술관 주변을 걸어 볼게',
     'tour.now': '지금 걷는 곳',
     'place.water': '당현천',
-    'place.walk-stair': '미술관 계단',
-    'place.train-go': '7호선 하계–중계',
-    'place.car-move': '동네 찻길',
+    'place.walk-stair': '중계역 계단',
+    'place.train-go': '중계역 지하철',
+    'place.car-move': '북서울미술관 앞',
     'sent.title': '청감타워로 갔어',
     'sent.sub': '다음 귀를 기다릴게',
     'word.low': '저음',
@@ -129,7 +130,9 @@ const COPY = {
 
     'hint.swipe': 'Swipe up and down anywhere',
     'hint.hold': 'Like it? Press and hold me',
-    'hint.roll': 'Swipe left and right to roll my shell',
+    'hint.roll': 'Swipe left and right to make me crawl',
+    'hint.sensNext': 'Done? Press and hold me',
+    'hint.sensAgain': 'Tap my antennae to hear it once more',
     'hint.listening': 'Listen…',
     'hint.spot': 'Tap the comfortable height on my back',
     'hint.antenna': 'Tap my antennae to hear it again',
@@ -144,8 +147,7 @@ const COPY = {
     'hint.turn': 'Swipe left and right to move the beat',
     'hint.holdCenter': 'In the middle? Press and hold me',
     'hint.antennaOnce': 'Tap my antennae to hear it once more',
-    'note.early': 'You tapped before the sound started',
-    'note.earlyAgain': "You tapped before the sound started. We'll do it once more at the end",
+    'note.early': 'You tapped before the sound started. Tap my antennae to listen again',
     'p2.practice': 'practice',
     'ear.L': 'Left',
     'ear.R': 'Right',
@@ -163,9 +165,9 @@ const COPY = {
     'tour.line': 'Let me walk around the Buk-Seoul Museum of Art with these ears',
     'tour.now': 'Now walking',
     'place.water': 'Danghyeoncheon Stream',
-    'place.walk-stair': 'Museum stairs',
-    'place.train-go': 'Line 7, Hagye–Junggye',
-    'place.car-move': 'Street nearby',
+    'place.walk-stair': 'Junggye Station stairs',
+    'place.train-go': 'Junggye Station subway',
+    'place.car-move': 'In front of Buk-Seoul Museum of Art',
     'sent.title': 'Off to the Hearing Tower',
     'sent.sub': 'Waiting for the next ear',
     'word.low': 'low',

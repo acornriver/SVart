@@ -7,9 +7,9 @@
  * - 버튼 없이 손짓으로 조작. 손가락 하나를 짧게 누르기(톡) / 끌기 / 꾹 누르기로 나눔
  *     Part 1 ①②③ : 위아래로 끌기 = 조절,      달팽이 꾹 = 확정
  *     ④ 음역       : 등 위 자리 톡 = 고르기,     더듬이 톡 = 다시 듣기, 달팽이 꾹 = 확정
- *     ⑤ 고역 예민도 : 안 들리게 되는 순간 화면 아무 데나 톡 (손가락이 닿는 순간 바로)
+ *     ⑤ 고역 예민도 : 안 들리게 되는 순간 화면 아무 데나 톡 (손가락이 닿는 순간 바로). 다 들은 뒤 더듬이 톡 = 한 번 더, 달팽이 꾹 = 다음
  *     ⑥ 중앙        : 좌우로 끌기 = 비트를 머리 둘레로 돌리기, 달팽이 꾹 = 여기가 가운데
- *     ⑦⑧           : 좌우로 끌어 껍질을 굴리고 손을 떼면 바로 답(왼쪽/오른쪽), 더듬이 톡 = 한 번 더 듣기
+ *     ⑦⑧           : 좌우로 끌어 달팽이를 기어가게 하고 손을 떼면 바로 답(왼쪽/오른쪽), 더듬이 톡 = 한 번 더 듣기
  *     결과          : 빈 곳을 누르고 있는 동안 = 원래 소리, 달팽이를 오른쪽으로 밀기 = 청감타워로 보내기
  *     어느 단계든 IDLE_RESET_SECONDS 동안 아무도 안 만지면 첫 화면으로
  * - 모바일 기본 스크롤 및 바운스 제스처 차단 (이름 입력 화면만 예외)
@@ -219,7 +219,7 @@ function canHoldConfirm() {
   const stage = gs.currentStage;
   if (PART1_ADJUST[stage]) return gs.part1.hasMoved;
   if (stage === 'PART1_REGISTER') return gs.part1.register.selectedCard >= 0 && !gs.part1.register.isAutoPlaying;
-  if (stage === 'PART2_CENTER') return canConfirmPart2(); // ⑦⑧은 손을 떼면 답 (releaseRoll)
+  if (stage === 'PART2_CENTER' || stage === 'PART2_SENSITIVITY') return canConfirmPart2(); // ⑦⑧은 손을 떼면 답 (releaseRoll)
   return false;
 }
 

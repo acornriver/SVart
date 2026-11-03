@@ -28,18 +28,17 @@ const FLOW_STAGES = [
 const EAR_RESULT_KEY = 'svart.earProfile'; // 청감 클라우드 연결용으로 결과를 남겨 두는 자리
 
 // ①②③ 검사 소리: 직접 만든 비트의 묶음 크기 (beat.js의 BEAT_MIXES).
-// spectrum은 음량 보정 계산에 쓰는 대략적인 스펙트럼 기울기 ('white' | 'pink' | 'brown')
-// 결과 화면의 북서울 녹음은 tour.js의 TOUR_PLACES. 불러온 뒤 RMS를 SAMPLE_TARGET_RMS로 맞춤
+// spectrum은 음량 보정 계산에 쓰는 대략적인 스펙트럼 기울기 ('white' | 'pink' | 'brown'). 잰 스펙트럼이 있으면 그걸 씀(loudness.js)
+// 결과 화면의 북서울 녹음은 tour.js의 TOUR_PLACES. 불러온 뒤 K-가중 크기를 LOUD_TARGET으로 맞춤
 const PART1_SOURCES = {
   VOLUME: { beat: 'FULL', spectrum: 'pink' },
   LOW:    { beat: 'LOW',  spectrum: 'brown' },
   HIGH:   { beat: 'HIGH', spectrum: 'white' }
 };
 
-// 녹음마다 크기가 달라 ①에서 맞춘 볼륨이 다음 단계에서 어긋나지 않도록 RMS를 맞춤.
+// 녹음마다 크기가 달라 ①에서 맞춘 볼륨이 다음 단계에서 어긋나지 않도록 크기를 맞춤 (비트와 같은 K-가중 기준, LOUD_TARGET).
 // 원본이 -53 ~ -37 dBFS로 작아 크게 키우는데, 발소리처럼 피크가 큰 녹음은 피크가 상한을 넘지 않는 데까지만 키움
-const SAMPLE_TARGET_RMS = 0.05;   // -26 dBFS
-const SAMPLE_PEAK_CEILING = 0.9;
+const SAMPLE_PEAK_CEILING = 0.7;  // p5.sound 최종 리미터(-3 dBFS) 바로 아래
 
 // 조절 단계 설정 (값 단위는 모두 dB). span: 화면 높이만큼 쓸었을 때 바뀌는 양
 const PART1_ADJUST = {
@@ -83,7 +82,8 @@ let highShelfFilter = null;
 let loudnessComp = null;
 let masterGain = null;
 let sampleSources = {};    // { 장소 key: p5.SoundFile } 북서울 녹음
-let sampleLevels = {};     // { 장소 key: RMS를 맞춘 재생 볼륨 }
+let sampleLevels = {};     // { 장소 key: 크기를 맞춘 재생 볼륨 }
+let sampleSpectra = {};    // { 장소 key: 잰 스펙트럼 (음량 보정용) }
 let activeSourceKey = null;
 let sourceWatchTimer = 0;
 
@@ -182,8 +182,10 @@ function setupAudioPipeline() {
   Object.entries(sampleSources).forEach(([key, s]) => {
     s.disconnect();
     s.connect(lowShelfFilter);
-    const { rms, peak } = getBufferStats(s.buffer);
-    sampleLevels[key] = Math.min(SAMPLE_TARGET_RMS / rms, SAMPLE_PEAK_CEILING / peak);
+    const ch = bufferChannels(s.buffer);
+    const { kRms, peak } = measureLoudness(ch, s.buffer.sampleRate);
+    sampleLevels[key] = Math.min(LOUD_TARGET / kRms, SAMPLE_PEAK_CEILING / peak);
+    sampleSpectra[key] = measureSpectrum(ch, s.buffer.sampleRate);
   });
 
   const fft = new p5.FFT(0.8, 512);
@@ -226,28 +228,12 @@ function setActiveSource(key, fade = 0.3) {
   activeSourceKey = key;
 }
 
+// 잰 스펙트럼(48칸 배열)이 있으면 그것, 없으면 대략적인 기울기 이름
 function sourceSpectrum(key) {
+  if (PART1_SOURCES[key] && beatSpectrum(PART1_SOURCES[key].beat)) return beatSpectrum(PART1_SOURCES[key].beat);
+  if (sampleSpectra[key]) return sampleSpectra[key];
   const src = PART1_SOURCES[key] || TOUR_PLACES.find((p) => p.key === key);
   return src ? src.spectrum : 'pink';
-}
-
-/**
- * 녹음 전체의 RMS(모든 채널 평균)와 피크. 무음 파일이어도 0으로 나누지 않도록 바닥값을 둠
- */
-function getBufferStats(buffer) {
-  let sum = 0;
-  let count = 0;
-  let peak = 0;
-  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
-    const data = buffer.getChannelData(ch);
-    for (let i = 0; i < data.length; i++) {
-      const v = data[i];
-      sum += v * v;
-      if (Math.abs(v) > peak) peak = Math.abs(v);
-    }
-    count += data.length;
-  }
-  return { rms: Math.max(1e-6, Math.sqrt(sum / count)), peak: Math.max(1e-6, peak) };
 }
 
 /**
@@ -460,10 +446,10 @@ function getLoudnessCompDb(spectrum) {
   let before = 0;
   let after = 0;
 
-  for (let i = 0; i < 48; i++) {
-    const f = 20 * Math.pow(1000, i / 47); // 20Hz ~ 20kHz 로그 간격
-    // 로그 간격 한 칸에 들어있는 파워: white ∝ f, pink 일정, brown ∝ 1/f
-    const s = spectrum === 'white' ? f : spectrum === 'brown' ? 1 / f : 1;
+  for (let i = 0; i < SPECTRUM_BANDS; i++) {
+    const f = spectrumBandFreq(i); // 20Hz ~ 20kHz 로그 간격
+    // 로그 간격 한 칸에 들어있는 파워: 잰 값, 아니면 white ∝ f, pink 일정, brown ∝ 1/f
+    const s = Array.isArray(spectrum) ? spectrum[i] : spectrum === 'white' ? f : spectrum === 'brown' ? 1 / f : 1;
     const w = s * Math.pow(aWeighting(f), 2);
     const eqDb = getEQResponseDb(f, profile);
     before += w;

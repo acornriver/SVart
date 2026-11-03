@@ -2,10 +2,12 @@
  * 청각 다변기 (Sound Variator) - Part 2 검사 (ref/part2 (1).html 을 옮김)
  *
  * 검사 설계·소리·횟수·채점은 ref 그대로이고, 답하는 방식만 이 앱의 손짓(톡 · 쓸기 · 껍질 굴리기 · 달팽이 꾹)으로 바꿨습니다.
- * ⑤ 고역 예민도 : 8→16 kHz로 높아지며 작아지는 "삐" (2번). 안 들리게 되는 순간 화면 아무 데나 톡 → maxFreqHz, sensitivity
+ * ⑤ 고역 예민도 : 8→16 kHz로 높아지며 작아지는 "삐". 안 들리게 되는 순간 화면 아무 데나 톡 → maxFreqHz, sensitivity
+ *               저절로 반복하지 않음: 듣고 나면 더듬이 톡 = 한 번 더(평균, 모두 3번까지), 달팽이 꾹 = 다음 (사용자 지시 11/03)
  * ⑥ 중앙       : 머리 둘레의 비트(HRIR 68번 귀). 좌우로 쓸면 소리가 머리 둘레를 돎. 가운데면 달팽이 꾹 (2번) → centerDeg, centerImage
- * ⑦ 우세 귀     : 옥타브 착청(Deutsch 1974). 높은 음이 들린 쪽으로 껍질을 굴려 손을 떼면 바로 답 (3번) → dominantEar
- * ⑧ 바탕음·배음 : 바탕음 없는 복합음 두 개. 올라감 = 오른쪽, 내려감 = 왼쪽으로 굴려 손을 떼면 바로 답 (연습 1 + 6번) → pitchMode
+ * ⑦ 우세 귀     : 옥타브 착청(Deutsch 1974). 높은 음이 들린 쪽으로 달팽이를 기어가게 하고 손을 떼면 바로 답 (3번) → dominantEar
+ * ⑧ 바탕음·배음 : 바탕음 없는 복합음 두 개. 올라감 = 오른쪽, 내려감 = 왼쪽으로 달팽이를 보내고 손을 떼면 바로 답 (연습 1 + 6번) → pitchMode
+ *   ⑦⑧은 껍질이 아니라 달팽이가 직접 몸을 돌려 기어감 (사용자 지시 11/03). roll = 달팽이 자리
  *
  * 시행 횟수는 ref보다 줄였음(사용자 지시 11/02, 25번 → 12번쯤): ⑥ 3→2, ⑦ 6→3, ⑧ 연습 2+12 → 1+6.
  * ⑧에서 남길 쌍(2·6·7번, 바탕음 프로필 a·b·c 하나씩)은 Claude가 고름
@@ -158,20 +160,21 @@ function p2AddHat(buf, at, spl) {
 const SENS = {
   f0: 8000, f1: 16000, l0: 60, l1: 15, sweepSec: 10,
   onMs: 200, offMs: 50, rampMs: 20, preSec: P2_BEAT_SEC,
-  trials: 2, rtSec: 0.5, unsteadyGap: 0.25, maxRepeats: 2
+  maxListens: 3, rtSec: 0.5, unsteadyGap: 0.25
 };
 const sensFreqAt = (u) => SENS.f0 * Math.pow(SENS.f1 / SENS.f0, u);
 const sensLevelAt = (u) => SENS.l0 + (SENS.l1 - SENS.l0) * u;
 
+// 한 번 듣고 고르기 (사용자 지시 11/03): 삐 소리는 저절로 다시 나오지 않음. 듣고 나면 더듬이 톡 = 한 번 더 듣기(평균에 들어감),
+// 달팽이 꾹 = 다음. 너무 일찍 눌렀으면 꾹이 안 되고 다시 들어야 함. 모두 합쳐 SENS.maxListens번까지
 function sensLogic() {
-  const queue = Array.from({ length: SENS.trials }, () => 'fade');
   const res = [];
-  let i = 0, n = 0, repeats = 0;
+  let n = 0;
   return {
     next() {
-      if (i >= queue.length) return null;
-      i++; n++;
-      return { index: n, total: queue.length };
+      if (n >= SENS.maxListens) return null;
+      n++;
+      return { index: n, total: SENS.maxListens };
     },
     // key: 'P' 누름 · 'none' 끝까지 안 누름. at: 소리 시작부터 누른 순간까지 (초)
     answer(tr, key, at) {
@@ -185,14 +188,11 @@ function sensLogic() {
         r.u = 1;
       }
       res.push(r);
-      if (r.early && repeats < SENS.maxRepeats) {
-        repeats++;
-        queue.push('fade');
-        return 'note.earlyAgain';
-      }
-      if (r.early) return 'note.early';
-      return null;
+      return r.early ? 'note.early' : null;
     },
+    canMore() { return n < SENS.maxListens; },
+    // 하나라도 제대로 들었으면 넘어갈 수 있음. 다 써 버렸으면 그냥 넘어감 (결과는 Hx)
+    canFinish() { return res.some((r) => r.u != null) || n >= SENS.maxListens; },
     result() {
       const us = res.filter((r) => r.u != null).map((r) => r.u);
       const base = { trials: res, early: res.filter((r) => r.early).length };
@@ -205,7 +205,7 @@ function sensLogic() {
         sensitivity: Math.round(u * 100), code: 'H' + Math.round(u * 100)
       };
     },
-    progress() { return `${Math.min(n, queue.length)} / ${queue.length}`; }
+    progress() { return ''; }
   };
 }
 
@@ -233,7 +233,7 @@ function sensBuffer() {
  * 앞뒤는 묻지 않음: 결과는 좌우 치우침(°, + 오른쪽). 껍질은 제자리에서 돌기만 해서 방향을 알려 주지 않음.
  * ===================================================================== */
 
-const CENTER = {
+const CENTER_TEST = {
   trials: 2, minValid: 2, minMoveDeg: 3, spl: 65,
   hrirFile: 'media/part2/ear068.f32', voiceFile: 'media/part2/voice.wav',
   nDir: 36, taps: 256, irRate: 48000, rampSec: 0.02, fadeInSec: 1.0
@@ -245,11 +245,11 @@ function centerLogic() {
   let i = 0;
   return {
     next() {
-      if (i >= CENTER.trials) return null;
+      if (i >= CENTER_TEST.trials) return null;
       i++;
       const side = Math.random() < 0.5 ? -1 : 1, lat = 45 + Math.random() * 45;
       const off = wrap180(Math.random() < 0.5 ? side * lat : side * (180 - lat));
-      return { index: i, total: CENTER.trials, off };
+      return { index: i, total: CENTER_TEST.trials, off };
     },
     answer(tr, key, st) {
       const rad = st.angle * Math.PI / 180;
@@ -260,11 +260,12 @@ function centerLogic() {
     result() {
       const ok = finals.filter((f) => f.ok);
       const base = { trials: finals, validN: ok.length };
-      if (ok.length < CENTER.minValid) return { ...base, valid: false, code: 'Rx' };
+      if (ok.length < CENTER_TEST.minValid) return { ...base, valid: false, code: 'Rx' };
       const deg = round1(ok.reduce((s, f) => s + f.lat, 0) / ok.length);
       return { ...base, valid: true, deg, code: `R${Math.round(deg)}` };
     },
-    progress() { return `${Math.min(i, CENTER.trials)} / ${CENTER.trials}`; }
+    soFar() { return finals.length ? finals.reduce((s, f) => s + f.lat, 0) / finals.length : null; },
+    progress() { return `${Math.min(i, CENTER_TEST.trials)} / ${CENTER_TEST.trials}`; }
   };
 }
 
@@ -273,27 +274,27 @@ function prepareCenter() {
   if (centerAssets) return centerAssets;
   const ctx = p2Ctx();
   centerAssets = (async () => {
-    const raw = new Float32Array(await (await fetch(CENTER.hrirFile)).arrayBuffer());
-    const n = Math.round(CENTER.taps * ctx.sampleRate / CENTER.irRate);
+    const raw = new Float32Array(await (await fetch(CENTER_TEST.hrirFile)).arrayBuffer());
+    const n = Math.round(CENTER_TEST.taps * ctx.sampleRate / CENTER_TEST.irRate);
     const tap = (k) => {
-      const src = raw.subarray(k * CENTER.taps, (k + 1) * CENTER.taps);
-      if (n === CENTER.taps) return src;
-      const out = new Float32Array(n), r = CENTER.taps / n;
+      const src = raw.subarray(k * CENTER_TEST.taps, (k + 1) * CENTER_TEST.taps);
+      if (n === CENTER_TEST.taps) return src;
+      const out = new Float32Array(n), r = CENTER_TEST.taps / n;
       for (let i = 0; i < n; i++) { const x = i * r, j = Math.floor(x), f = x - j; out[i] = (src[j] || 0) * (1 - f) + (src[j + 1] || 0) * f; }
       return out;
     };
     const irs = [];
-    for (let k = 0; k < CENTER.nDir; k++) {
+    for (let k = 0; k < CENTER_TEST.nDir; k++) {
       const b = ctx.createBuffer(2, n, ctx.sampleRate);
       b.getChannelData(0).set(tap(k));
-      b.getChannelData(1).set(tap((CENTER.nDir - k) % CENTER.nDir));
+      b.getChannelData(1).set(tap((CENTER_TEST.nDir - k) % CENTER_TEST.nDir));
       irs.push(b);
     }
     let voice;
     try {
       voice = await renderBeatLoop(P2_GROOVE.bpm, 'FULL');
     } catch (e) {
-      const ab = await (await fetch(CENTER.voiceFile)).arrayBuffer();
+      const ab = await (await fetch(CENTER_TEST.voiceFile)).arrayBuffer();
       voice = await new Promise((res, rej) => {
         const p = ctx.decodeAudioData(ab, res, rej);
         if (p && p.then) p.then(res, rej);
@@ -305,7 +306,7 @@ function prepareCenter() {
     const v = voice.getChannelData(0);
     let vs = 0;
     for (let i = 0; i < v.length; i++) vs += v[i] * v[i];
-    const gain = splToAmp(CENTER.spl) / Math.SQRT2 / (Math.sqrt(vs / v.length) * g0);
+    const gain = splToAmp(CENTER_TEST.spl) / Math.SQRT2 / (Math.sqrt(vs / v.length) * g0);
     return { irs, voice, gain };
   })();
   centerAssets.catch(() => { centerAssets = null; }); // 실패하면 다음에 다시 읽음
@@ -314,7 +315,7 @@ function prepareCenter() {
 
 // 소리(비트)를 각도 a 에 놓는 장치 (ref와 같음: 두 칸의 컨볼버를 섞고, 램프를 취소하지 않아 돌릴 때 지지직이 없음)
 function startCenter(tr, A) {
-  const ctx = p2Ctx(), bus = p2Out(), N = CENTER.nDir;
+  const ctx = p2Ctx(), bus = p2Out(), N = CENTER_TEST.nDir;
   const src = ctx.createBufferSource();
   src.buffer = A.voice;
   src.loop = true;
@@ -367,18 +368,18 @@ function startCenter(tr, A) {
       return pump();
     }
     frac = Math.min(1, Math.max(0, frac + d));
-    const tS = now, tE = tS + CENTER.rampSec;
+    const tS = now, tE = tS + CENTER_TEST.rampSec;
     [[slotOf(cell), 1 - frac], [slotOf((cell + 1) % N), frac]].forEach(([s, v]) => {
       s.g.gain.setValueAtTime(s.wt, tS);
       s.g.gain.linearRampToValueAtTime(v, tE);
       s.wt = v;
     });
     endAt = tE;
-    later(CENTER.rampSec);
+    later(CENTER_TEST.rampSec);
   }
   const tF = ctx.currentTime; // 갑자기 귀에 붙지 않게 천천히 들어옴
   level.gain.setValueAtTime(0, tF);
-  level.gain.linearRampToValueAtTime(A.gain, tF + CENTER.fadeInSec);
+  level.gain.linearRampToValueAtTime(A.gain, tF + CENTER_TEST.fadeInSec);
   src.start();
   return {
     turn(deltaDeg) {
@@ -394,7 +395,7 @@ function startCenter(tr, A) {
       if (stopped) return;
       stopped = true;
       if (timer) { clearTimeout(timer); timer = null; }
-      const now = ctx.currentTime, v = A.gain * Math.min(1, Math.max(0, (now - tF) / CENTER.fadeInSec));
+      const now = ctx.currentTime, v = A.gain * Math.min(1, Math.max(0, (now - tF) / CENTER_TEST.fadeInSec));
       level.gain.cancelScheduledValues(now);
       level.gain.setValueAtTime(v, now);
       level.gain.linearRampToValueAtTime(0, now + 0.05);
@@ -511,6 +512,7 @@ function f0Logic() {
       const cat = idx >= 50 ? 'f0' : idx <= -50 ? 'spectral' : 'both';
       return { ...base, valid: true, idx, cat, code: 'B' + idx };
     },
+    soFar() { return { F: resp.filter((x) => x.mode === 'F0').length, S: resp.filter((x) => x.mode === 'SP').length }; },
     progress() {
       const x = plan[i - 1];
       return x && x.warm ? `practice ${warmN} / ${F0_WARM.length}` : `${counted} / ${main.length}`;
@@ -609,7 +611,12 @@ function part2Present(tr) {
     p2.phase = 'pressing';
     const v = p2Play(tr._buf);
     p2.voice = v;
-    v.onEnd = () => { if (tok === p2.token) part2AfterAnswer('none', null); };
+    v.onEnd = () => {
+      if (tok !== p2.token) return;
+      p2.frozenU = 1; // 끝까지 들렸으면 가장 꼬인 채로
+      p2.voice = null;
+      part2AfterAnswer('none', null);
+    };
     return;
   }
 
@@ -647,6 +654,11 @@ function part2AfterAnswer(key, value) {
   p2.phase = 'wait';
   const note = p2.logic.answer(p2.trial, key, value);
   p2.note = note;
+  // ⑤는 저절로 다음으로 가지 않고 고르기를 기다림 (더듬이 톡 = 한 번 더, 달팽이 꾹 = 다음)
+  if (window.GlobalState.currentStage === 'PART2_SENSITIVITY') {
+    p2.phase = 'choice';
+    return;
+  }
   part2Later(note ? P2_TIMING.noteMs : P2_TIMING.gapMs, part2Next);
 }
 
@@ -779,7 +791,8 @@ function rollSide(roll) {
 function canConfirmPart2() {
   const p2 = part2State();
   const stage = window.GlobalState.currentStage;
-  if (stage === 'PART2_CENTER') return p2.phase === 'adjusting' && p2.moved >= CENTER.minMoveDeg;
+  if (stage === 'PART2_SENSITIVITY') return p2.phase === 'choice' && p2.logic.canFinish();
+  if (stage === 'PART2_CENTER') return p2.phase === 'adjusting' && p2.moved >= CENTER_TEST.minMoveDeg;
   if (stage === 'PART2_EAR' || stage === 'PART2_PITCH') return p2.phase === 'answer' && p2.moved >= PART2_MOVE_THRESHOLD && rollSide(p2.roll) !== null;
   return false;
 }
@@ -791,6 +804,11 @@ function confirmPart2() {
   if (!canConfirmPart2()) return;
   const p2 = part2State();
   const stage = window.GlobalState.currentStage;
+  if (stage === 'PART2_SENSITIVITY') {
+    p2.token++;
+    finishPart2Stage();
+    return;
+  }
   if (stage === 'PART2_CENTER') {
     const st = part2Ctrl.state();
     part2Ctrl.stop();
@@ -803,16 +821,22 @@ function confirmPart2() {
   part2AfterAnswer(key, millis() - p2.answerAt);
 }
 
-// 더듬이 톡 = 한 번 더 듣기 (⑦⑧, 시행마다 한 번)
+// 더듬이 톡 = 한 번 더 듣기 (⑦⑧ 시행마다 한 번, ⑤ 다 들은 뒤 모두 합쳐 SENS.maxListens번까지)
 function canReplayPart2() {
   const p2 = part2State();
   const stage = window.GlobalState.currentStage;
+  if (stage === 'PART2_SENSITIVITY') return p2.phase === 'choice' && p2.logic.canMore();
   return (stage === 'PART2_EAR' || stage === 'PART2_PITCH') && p2.phase === 'answer' && p2.replayLeft > 0;
 }
 
 function replayPart2() {
   if (!canReplayPart2()) return;
   const p2 = part2State();
+  if (window.GlobalState.currentStage === 'PART2_SENSITIVITY') {
+    p2.frozenU = null;
+    part2Next(); // 새로 한 번 더 (결과는 평균)
+    return;
+  }
   p2.replayLeft--;
   part2Present(p2.trial);
 }
@@ -852,4 +876,31 @@ function part2Twist() {
 // ⑥ 껍질이 제자리에서 도는 각도 (라디안). 방향과는 상관없는 회전
 function part2ShellSpin() {
   return window.GlobalState.currentStage === 'PART2_CENTER' ? part2State().spin * Math.PI / 180 : 0;
+}
+
+// 앞이든 뒤든 좌우 치우침(°, + 오른쪽)
+const lateralDeg = (a) => Math.asin(Math.sin(a * Math.PI / 180)) * 180 / Math.PI;
+
+// ⑥ 달팽이 색을 정할 치우침(°). 돌리는 동안은 지금 자리를 실시간으로, 시행 사이에는 지금까지의 평균 (사용자 지시 11/03)
+function part2CenterLiveDeg() {
+  const gs = window.GlobalState;
+  if (gs.currentStage !== 'PART2_CENTER') return null;
+  if (part2Ctrl && part2Ctrl.alive()) return lateralDeg(part2Ctrl.state().angle);
+  const p2 = part2State();
+  return p2.logic && p2.logic.soFar ? p2.logic.soFar() : null;
+}
+
+// ⑧ 점액 모양: 지금 고르려는 쪽이 바탕음(F, 네모)인지 배음(H, 동그라미)인지와 지금까지 답한 수
+// 달팽이가 가 있는 쪽(roll)으로 정함. 시행마다 순서(AB/BA)에 따라 같은 쪽도 뜻이 바뀜
+function part2PitchSlime() {
+  const gs = window.GlobalState;
+  const p2 = part2State();
+  if (gs.currentStage !== 'PART2_PITCH' || !p2.logic) return null;
+  const tally = p2.logic.soFar();
+  let live = null;
+  if ((p2.phase === 'answer' || p2.phase === 'wait') && p2.trial && Math.abs(p2.roll) > 0.05) {
+    const key = p2.roll > 0 ? 'up' : 'down';
+    live = key === (p2.trial.order === 'AB' ? 'down' : 'up') ? 'F' : 'H';
+  }
+  return { live, F: tally.F, S: tally.S };
 }
