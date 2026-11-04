@@ -114,6 +114,7 @@ function touchEnded(event) {
   // iOS는 touchend 안에서만 오디오/영상 재개를 확실히 허용
   ensureAudioRunning();
   resumeBackdrop();
+  enterFullscreen();
   return false;
 }
 

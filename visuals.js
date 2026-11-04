@@ -180,6 +180,7 @@ function setupIntro(onSubmit) {
     intro.input.classList.add('done');
     intro.hint.style.opacity = 0;
     intro.wrap.classList.add('started');
+    enterFullscreen();
     onSubmit(name);
     setTimeout(() => intro.wrap.classList.add('out'), 900);
     setTimeout(() => intro.wrap.classList.add('gone'), NAME_FADE_MS);
@@ -199,6 +200,7 @@ function refreshIntroText() {
 }
 
 function showIntro() {
+  exitFullscreen();
   intro.wrap.classList.remove('gone', 'out', 'started');
   intro.input.classList.remove('done');
   intro.input.readOnly = false;
@@ -210,6 +212,24 @@ function showIntro() {
 
 function focusIntroInput() {
   if (window.GlobalState.currentStage === 'INIT') intro.input.focus();
+}
+
+// 홈 화면 앱에서 시계·배터리 줄까지 가리기. iPad는 전체화면에서 글자를 치면 경고가 떠서 첫 화면(이름 입력)에서는 쓰지 않음
+function enterFullscreen() {
+  if (!navigator.standalone) return;
+  const root = document.documentElement;
+  if (document.fullscreenElement || document.webkitFullscreenElement) return;
+  const request = root.requestFullscreen || root.webkitRequestFullscreen;
+  if (!request) return;
+  const result = request.call(root);
+  if (result && result.catch) result.catch(() => {});
+}
+
+function exitFullscreen() {
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) return;
+  const exit = document.exitFullscreen || document.webkitExitFullscreen;
+  const result = exit.call(document);
+  if (result && result.catch) result.catch(() => {});
 }
 
 // 첫 화면에서 직접 누를 수 있는 것 (입력칸, 언어 버튼). main.js가 이 위의 터치는 그대로 둠
