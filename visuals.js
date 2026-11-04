@@ -214,9 +214,8 @@ function focusIntroInput() {
   if (window.GlobalState.currentStage === 'INIT') intro.input.focus();
 }
 
-// 홈 화면 앱에서 시계·배터리 줄까지 가리기. iPad는 전체화면에서 글자를 치면 경고가 떠서 첫 화면(이름 입력)에서는 쓰지 않음
+// Safari에서 주소창과 시계·배터리 줄까지 가리기. iPad는 전체화면에서 글자를 치면 경고가 떠서 첫 화면(이름 입력)에서는 쓰지 않음
 function enterFullscreen() {
-  if (!navigator.standalone) return;
   const root = document.documentElement;
   if (document.fullscreenElement || document.webkitFullscreenElement) return;
   const request = root.requestFullscreen || root.webkitRequestFullscreen;
