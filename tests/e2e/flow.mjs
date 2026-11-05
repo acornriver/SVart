@@ -69,35 +69,47 @@ await expect('INIT');
 if (LANG === 'en') { const b = await ev(`(() => { const r = document.querySelector('.langs [data-lang=en]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); await tap(b.x, b.y); }
 console.log('  lang', await ev('GlobalState.lang'));
 await shot('00-intro');
+console.log('  voice clips', await ev('JSON.stringify({ ko: Object.keys(voiceClips.ko).length, en: Object.keys(voiceClips.en).length })'), '(모두 50)');
+// 확성기: 끄고 켜기. 끈 모습을 찍고 다시 켜서 시작
+{ const b = await ev(`(() => { const r = document.querySelector('.spk').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+  await tap(b.x, b.y); console.log('  speaker off', await ev('GlobalState.voiceOn')); await shot('00-intro-voice-off');
+  await tap(b.x, b.y); console.log('  speaker on', await ev('GlobalState.voiceOn')); }
 await ev(`(() => { const i = document.querySelector('.intro input'); i.value = '${LANG === 'en' ? 'Mina' : '민혁'}'; i.dispatchEvent(new Event('input')); document.querySelector('.intro form').requestSubmit(); })()`);
 await sleep(2500); await expect('PART1_VOLUME');
+console.log('  subtitle', await ev('voiceLine()'), 'duck', await ev('duckGain.output.gain.value.toFixed(2)'));
+await shot('00-voice-subtitle');
 
 // ① 움직이기 전 꾹 → 확정 안 됨, 쓸고 나서 꾹 → 다음
 await holdSnail(); await expect('PART1_VOLUME');
-await drag(250); await sleep(1200);
+await drag(250); console.log('  swiped up → voice', await ev('voiceNow')); await sleep(1200);
+await drag(-120); console.log('  swiped down → voice', await ev('voiceNow')); await sleep(400);
 await holdSnail(() => shot('01-volume-holding')); await expect('PART1_LOW');
-await drag(200); await sleep(1300); await shot('02-low');
+console.log('  next stage carries confirm line', await ev('voiceNow'));
+await drag(200); console.log('  drag cuts intro → busy', await ev('voiceBusy()')); await sleep(400);
+console.log('  beat back', await ev('duckGain.output.gain.value.toFixed(2)'), 'voice', await ev('voiceNow')); await sleep(900); await shot('02-low');
 await holdSnail(); await expect('PART1_HIGH');
 await drag(220); await sleep(1300); await shot('03-high');
 await holdSnail(); await expect('PART1_REGISTER');
 console.log('  loudness comp', await ev("JSON.stringify({ measured: Array.isArray(sourceSpectrum('HIGH')), highPlus10: +getLoudnessCompDb(sourceSpectrum('HIGH')).toFixed(1), eq: GlobalState.userEQProfile.highShelf.gain.toFixed(1) })"));
 
 // ④ 자동 재생 → 등 위 자리 톡 → 더듬이 톡(다시 듣기) → 꾹
-await sleep(1200); await shot('04-register-playing');
-await sleep(10000);
+const waitUntil = async (expr, ms = 40000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await ev(expr)) return; await sleep(80); } throw new Error('timeout: ' + expr); };
+await waitUntil('GlobalState.part1.register.playingCard >= 0'); console.log('  melody after intro, voice busy', await ev('voiceBusy()')); await sleep(1200); await shot('04-register-playing');
+await waitUntil('!GlobalState.part1.register.isAutoPlaying');
 const spots = (await T()).spots;
 await tap(spots[2].x, spots[2].y); console.log('  picked card', await ev('GlobalState.part1.register.selectedCard'));
 await sleep(2400); await shot('04-register-picked');
 await tapAntenna(); console.log('  antenna replay → autoplaying', await ev('GlobalState.part1.register.isAutoPlaying'));
 await holdSnail(); await expect('PART1_REGISTER'); // 다시 듣는 중에는 확정 안 됨
-await sleep(11000);
+await waitUntil('!GlobalState.part1.register.isAutoPlaying');
 await holdSnail(); await expect('PART2_SENSITIVITY');
 console.log('  register', await ev('GlobalState.userEQProfile.registerPeak.register'));
 
 // ⑤ 고역 예민도: 삐 소리 동안 화면 아무 데나 톡. 저절로 다음으로 가지 않음. 더듬이 톡 = 한 번 더, 꾹 = 다음
-const waitPhase = async (ph, ms = 15000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if ((await ev('GlobalState.part2.phase')) === ph) return; await sleep(80); } throw new Error('phase ' + ph + ' timeout, now ' + await ev('GlobalState.part2.phase')); };
+const waitPhase = async (ph, ms = 60000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if ((await ev('GlobalState.part2.phase')) === ph) return; await sleep(80); } throw new Error('phase ' + ph + ' timeout, now ' + await ev('GlobalState.part2.phase')); };
 await sleep(800); await shot('05-sens-lead');
 await waitPhase('pressing'); await sleep(150); await tap(600, 900); console.log('  early → note', await ev('GlobalState.part2.note'), 'phase', await ev('GlobalState.part2.phase'));
+console.log('  early voice', await ev('voiceNow'));
 await holdSnail(); await expect('PART2_SENSITIVITY'); // 일찍 누른 것만 있으면 꾹이 안 됨
 await sleep(1500); console.log('  after 1.5s phase', await ev('GlobalState.part2.phase'), '(choice여야 함, 저절로 안 넘어감)');
 await tapAntenna(); await waitPhase('pressing'); await sleep(4500); await shot('05-sens-twisting'); console.log('  twist live', (await ev('part2Twist()')).toFixed(2));
@@ -120,10 +132,12 @@ for (let k = 0; k < 2; k++) {
 await sleep(900); await expect('PART2_EAR');
 console.log('  center', await ev('GlobalState.psychoProfile.centerDeg'), await ev('GlobalState.psychoProfile.centerImage'));
 
-// ⑦ 우세 귀: 덜 굴리면 답 안 됨, 더듬이로 한 번 더 듣기, 굴리고 손을 떼면 바로 답 (3번)
+// ⑦ 우세 귀: 안내 → 듣기만 하는 예시 → 안내 → 시행. 덜 굴리면 답 안 됨, 더듬이로 한 번 더 듣기, 굴리고 손을 떼면 바로 답 (3번)
+await waitPhase('example'); console.log('  ear example, answers', await ev('GlobalState.part2.trial === null')); await shot('07-ear-example');
 for (let k = 0; k < 3; k++) {
   await waitPhase('answer');
   if (k === 0) {
+    await sleep(300); await shot('07-ear-hint');
     await hdrag(60); console.log('  ear small roll → phase', await ev('GlobalState.part2.phase'), '(answer여야 함)');
     await tapAntenna(); console.log('  antenna replay → phase', await ev('GlobalState.part2.phase'), 'left', await ev('GlobalState.part2.replayLeft'));
     await waitPhase('answer');
@@ -136,19 +150,22 @@ await sleep(900); await expect('PART2_PITCH');
 console.log('  ear', await ev('GlobalState.psychoProfile.dominantEar'), await ev('GlobalState.psychoProfile.earStrength'));
 await sleep(800); await shot('07-ear-antennae');
 
-// ⑧ 바탕음·배음: 연습 1 + 6번. 순서에 따라 답이 갈리게 (AB → 내려감 = 바탕음 쪽)
-for (let k = 0; k < 7; k++) {
+// ⑧ 바탕음·배음: 예시(답 없음) + 6번. 순서에 따라 답이 갈리게 (AB → 내려감 = 바탕음 쪽)
+await waitPhase('example');
+for (let k = 0; k < 6; k++) {
   await waitPhase('answer');
   const order = await ev('GlobalState.part2.trial.order');
   const dir = k % 4 === 3 ? (order === 'AB' ? 1 : -1) : (order === 'AB' ? -1 : 1);
   if (k === 3) await hdragHold(dir * 250, async () => { await sleep(700); await shot('08-pitch-live'); }); else await hdrag(dir * 250);
   if (k === 4) { await sleep(500); await shot('08-pitch-trail'); }
 }
-await sleep(900); await expect('RESULT');
+await waitUntil("voiceNow === '8-6'"); await shot('08-pitch-outro'); await expect('PART2_PITCH');
+await waitUntil("GlobalState.currentStage === 'RESULT'", 8000); await expect('RESULT');
+console.log('  result voice', await ev('voiceNow'));
 console.log('  psycho', JSON.stringify(await ev('GlobalState.psychoProfile')));
 
 // 결과: 빈 곳을 누르고 있으면 원래 소리, 떼면 내 소리. 달팽이를 오른쪽으로 밀면 보내기
-await sleep(2500); await shot('10-result');
+await sleep(2500); await shot('10-result-subtitle'); await sleep(3000); await shot('10-result');
 console.log('  code', await ev('getFullEarCode(GlobalState.userEQProfile, GlobalState.psychoProfile)'), 'place', await ev('tourPlace().key'));
 await hold(80, 300, 1400, async () => { console.log('  holding empty → bypass', await ev('GlobalState.part1.isBypassed')); await shot('11-result-original'); });
 console.log('  released → bypass', await ev('GlobalState.part1.isBypassed'));
@@ -166,6 +183,6 @@ await ev(`(() => { const i = document.querySelector('.intro input'); i.value = '
 await sleep(2500); await expect('PART1_VOLUME');
 console.log('  2nd visitor beat on', await ev('isBeatOn()'), 'lang', await ev('GlobalState.lang'));
 await ev('lastActivity -= (IDLE_RESET_SECONDS + 1) * 1000'); await sleep(300); await expect('INIT');
-console.log('  idle reset → beat on', await ev('isBeatOn()'));
+console.log('  idle reset → beat on', await ev('isBeatOn()'), 'voice', await ev('voiceBusy()'), 'duck', await ev('duckGain.output.gain.value.toFixed(2)'));
 console.log('errors:', errors.length ? errors : 'none');
 ws.close(); chrome.kill(); process.exit(0);

@@ -14,9 +14,9 @@
  * - 결과: 다 빚은 달팽이가 북서울 주변을 걷는다 (뒤에 그 장소 영상을 고대비 흑백으로). 보내면 오른쪽으로 기어 나감
  * 조절 중에는 dB 값이나 눈금 숫자를 크게 보여주지 않는다. 값은 우상단에 작은 디버그 숫자로만 표시.
  * 섬광은 눈에 부담이 없도록 아주 옅게만 쓴다 (깜빡이는 스트로브 아님).
- * 버튼이 없다. 확정은 달팽이를 꾹 누르기, 다시 듣기는 더듬이 톡, 음역은 등 위 자리를 톡,
+ * 첫 화면의 확성기·언어 말고는 버튼이 없다. 확정은 달팽이를 꾹 누르기, 다시 듣기는 더듬이 톡, 음역은 등 위 자리를 톡,
  * 결과에서는 누르고 있는 동안 원래 소리, 달팽이를 오른쪽으로 밀면 청감타워로 (입력은 main.js)
- * 문구는 모두 copy.js의 t()로 가져온다 (한국어 / English).
+ * 문구는 모두 copy.js의 t()로 가져온다 (한국어 / English). 음성 안내가 나오는 동안은 그 자막을 위에, 조용할 때는 지금 할 일을 아래에 보여 준다.
  */
 
 const COLORS = {
@@ -139,7 +139,10 @@ function setupIntro(onSubmit) {
   const wrap = document.createElement('div');
   wrap.className = 'intro';
   wrap.innerHTML =
-    '<div class="langs"><button type="button" data-lang="ko">한국어</button><button type="button" data-lang="en">English</button></div>' +
+    '<div class="langs"><button type="button" class="spk">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9.5v5h3.5L11 18.5v-13L6.5 9.5z" fill="currentColor" stroke="none"/>' +
+    '<circle class="on" cx="18" cy="12" r="3.5"/><path class="off" d="M15 9l6 6M21 9l-6 6"/></svg></button>' +
+    '<button type="button" data-lang="ko">한국어</button><button type="button" data-lang="en">English</button></div>' +
     '<form class="title" autocomplete="off">' +
     '<span class="before"></span><span class="br">[</span>' +
     '<input class="name" name="name" maxlength="12" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">' +
@@ -155,14 +158,23 @@ function setupIntro(onSubmit) {
     hint: wrap.querySelector('.hint'),
     before: wrap.querySelector('.before'),
     after: wrap.querySelector('.after'),
-    langs: [...wrap.querySelectorAll('.langs button')]
+    speaker: wrap.querySelector('.spk'),
+    langs: [...wrap.querySelectorAll('[data-lang]')]
   };
+  intro.speaker.addEventListener('click', () => {
+    setVoiceOn(!window.GlobalState.voiceOn);
+    refreshIntroText();
+    focusIntroInput();
+  });
   intro.langs.forEach((b) => b.addEventListener('click', () => {
     window.GlobalState.lang = b.dataset.lang;
     refreshIntroText();
     focusIntroInput();
   }));
-  intro.input.addEventListener('input', fitIntroInput);
+  intro.input.addEventListener('input', () => {
+    fitIntroInput();
+    refreshIntroHint();
+  });
   // form 제출은 한글 입력이 확정된 뒤에 오므로 Enter(키보드의 '완료')를 따로 처리하지 않아도 됨
   intro.form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -193,10 +205,18 @@ function refreshIntroText() {
   intro.before.textContent = t('intro.before');
   intro.after.textContent = t('intro.after');
   intro.input.placeholder = t('intro.placeholder');
-  intro.hint.textContent = t('intro.hint');
+  refreshIntroHint();
   document.documentElement.lang = currentLang();
   intro.langs.forEach((b) => b.classList.toggle('on', b.dataset.lang === currentLang()));
+  intro.speaker.classList.toggle('muted', !window.GlobalState.voiceOn);
+  intro.speaker.setAttribute('aria-label', t('intro.voice'));
+  intro.speaker.setAttribute('aria-pressed', String(window.GlobalState.voiceOn));
   fitIntroInput();
+}
+
+// 첫 화면 안내 (0-1 ~ 0-3). 자막만, 음성 없음
+function refreshIntroHint() {
+  intro.hint.textContent = intro.input.value ? t('intro.done') : `${t('intro.headphones')}\n${t('intro.name')}`;
 }
 
 function showIntro() {
@@ -231,9 +251,9 @@ function exitFullscreen() {
   if (result && result.catch) result.catch(() => {});
 }
 
-// 첫 화면에서 직접 누를 수 있는 것 (입력칸, 언어 버튼). main.js가 이 위의 터치는 그대로 둠
+// 첫 화면에서 직접 누를 수 있는 것 (입력칸, 확성기, 언어 버튼). main.js가 이 위의 터치는 그대로 둠
 function isIntroControl(el) {
-  return !!el && (el === intro.input || intro.langs.includes(el));
+  return !!el && (el === intro.input || el === intro.speaker || intro.langs.includes(el));
 }
 
 function fitIntroInput() {
@@ -886,10 +906,8 @@ function drawHeader(L) {
   label(`${i < 4 ? 'PART 1' : 'PART 2'}   ${i + 1} / ${N_TESTS}`, L.m, L.m, { family: FONT.mono, c: COLORS.accent, valign: TOP });
   label(copy.title, L.m, L.m + 22, { size: 24, weight: 700, valign: TOP });
 
-  const reg = gs.part1.register;
-  const lines = stage === 'PART1_REGISTER' && !reg.isAutoPlaying && copy.linesAfter ? copy.linesAfter : copy.lines;
-  const wrapped = lines.flatMap((s) => wrapText(s, width - L.m * 2, 15, 400));
-  wrapped.forEach((s, k) => label(s, L.m, L.m + 62 + k * 23, { size: 15, c: COLORS.mute, valign: TOP }));
+  // 음성 안내 자막
+  wrapText(voiceLine(), width - L.m * 2, 18, 500).forEach((s, k) => label(s, L.m, L.m + 64 + k * 27, { size: 18, weight: 500, valign: TOP }));
 
   // 디버그 값 (프로토타입용)
   const p = gs.userEQProfile;
@@ -920,7 +938,7 @@ function drawGuides(L) {
       label('↑', ax, top - 14 + bob, { family: FONT.mono, size: 18, c: COLORS.accent, a: arrowA, align: CENTER });
       label('↓', ax, top + 12 - bob, { family: FONT.mono, size: 18, c: COLORS.accent, a: arrowA, align: CENTER });
     }
-    hints.push(t(gs.part1.hasMoved ? 'hint.hold' : 'hint.swipe'));
+    hints.push(voiceText(gs.part1.hasMoved ? ADJUST_VOICE[stage].confirm : '2-3'));
   } else if (stage === 'PART1_REGISTER') {
     const reg = gs.part1.register;
     // 등 위 세 자리: 점과 A/B/C. 고른 자리는 빨강
@@ -937,8 +955,8 @@ function drawGuides(L) {
     });
     if (reg.isAutoPlaying) hints.push(t('hint.listening'));
     else {
-      hints.push(t(reg.selectedCard >= 0 ? 'hint.hold' : 'hint.spot'));
-      hints.push(t('hint.antenna'));
+      hints.push(voiceText(reg.selectedCard >= 0 ? '4-5' : '4-4'));
+      hints.push(voiceText('4-7'));
     }
   } else if (stage.startsWith('PART2_')) {
     const p2 = gs.part2;
@@ -978,21 +996,24 @@ function drawGuides(L) {
       rect(3, 3, width - 6, height - 6);
     }
 
-    if (p2.note) hints.push(t(p2.note));
-    else if (p2.phase === 'lead' || p2.phase === 'loading') hints.push(t('hint.ready'));
-    else if (p2.phase === 'pressing') hints.push(t('hint.tapGone'));
+    if (p2.phase === 'pressing') hints.push(voiceText('5-2'));
     else if (p2.phase === 'choice') {
-      if (canConfirmPart2()) hints.push(t('hint.sensNext'));
-      if (canReplayPart2()) hints.push(t('hint.sensAgain'));
+      if (p2.note) hints.push(voiceText('5-8'));
+      else {
+        if (canConfirmPart2()) hints.push(voiceText('5-4'));
+        if (canReplayPart2()) hints.push(voiceText('5-3'));
+      }
     }
-    else if (p2.phase === 'playing') hints.push(t('hint.listening'));
-    else if (p2.phase === 'adjusting') hints.push(t(canConfirmPart2() ? 'hint.holdCenter' : 'hint.turn'));
+    else if (p2.phase === 'playing' || p2.phase === 'example') hints.push(t('hint.listening'));
+    else if (p2.phase === 'adjusting') hints.push(voiceText(canConfirmPart2() ? '6-3' : '6-2'));
     else if (p2.phase === 'answer') {
-      hints.push(t('hint.roll'));
-      if (canReplayPart2()) hints.push(t('hint.antennaOnce'));
+      if (stage === 'PART2_EAR') hints.push(voiceText('7-3'));
+      else hints.push(voiceText('8-2'), voiceText('8-3'));
+      if (canReplayPart2()) hints.push(voiceText('5-3'));
     }
   }
-  drawHints(L, hints);
+  // 말하는 동안은 자막만
+  drawHints(L, voiceBusy() ? [] : hints);
 }
 
 // 아래쪽 안내 문구 (첫 줄이 지금 할 일이라 밝게)
@@ -1054,7 +1075,7 @@ function drawResult(L) {
     label('→', lastShape.cx + cur.R0 * 2.9 + bob, lastShape.cy, { family: FONT.mono, size: 20, c: COLORS.accent, a: a * (0.5 + 0.4 * Math.sin(millis() / 360)), align: CENTER });
     push();
     drawingContext.globalAlpha = a / 255;
-    drawHints(L, [t(gs().part1.isBypassed ? 'result.original' : 'hint.result1'), t('hint.result2')]);
+    drawHints(L, voiceBusy() ? [voiceLine()] : [t(gs().part1.isBypassed ? 'result.original' : 'hint.result1'), t('hint.result2')]);
     pop();
   }
 

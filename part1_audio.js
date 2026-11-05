@@ -10,7 +10,8 @@
  * 결과          : 개인 EQ를 입힌 북서울 주변 녹음을 장소마다 차례로 (tour.js) ↔ 원래 소리 비교
  *
  * - 한 단계에 한 파트, 한 축(위아래 쓸기)만 조절. 시작값은 매번 무작위.
- * - 충분히 움직인 뒤 확정 버튼으로 확정.
+ * - 충분히 움직인 뒤 달팽이 꾹으로 확정.
+ * - 음성 안내(voice.js)는 지시문 순서대로. ①②③④는 관람객이 먼저 조작하면 남은 안내를 끊음 (사용자 선택 11/05)
  * - EQ를 바꿔도 체감 음량이 같도록 자동 음량 보정 (큰 소리를 고르는 편향 방지).
  *
  * 신호 흐름:
@@ -39,6 +40,17 @@ const PART1_SOURCES = {
 // 녹음마다 크기가 달라 ①에서 맞춘 볼륨이 다음 단계에서 어긋나지 않도록 크기를 맞춤 (비트와 같은 K-가중 기준, LOUD_TARGET).
 // 원본이 -53 ~ -37 dBFS로 작아 크게 키우는데, 발소리처럼 피크가 큰 녹음은 피크가 상한을 넘지 않는 데까지만 키움
 const SAMPLE_PEAK_CEILING = 0.7;  // p5.sound 최종 리미터(-3 dBFS) 바로 아래
+
+// 단계별 음성 안내 번호 (voice.js, 문구는 copy.js). 앞 단계의 확정 안내(1-6 등)가 다음 단계 맨 앞에 옴
+// intro: 들어갈 때, confirm: 확정할 수 있게 됐을 때
+const ADJUST_VOICE = {
+  PART1_VOLUME: { intro: ['1-1'], confirm: '1-5' },
+  PART1_LOW: { intro: ['1-6', '2-1', '2-2', '2-3'], confirm: '2-4' },
+  PART1_HIGH: { intro: ['2-5', '3-1', '3-2', '3-3'], confirm: '3-4' }
+};
+const REGISTER_INTRO_VOICE = ['3-5', '4-1', '4-2', '4-3'];
+const CONFIRM_VOICE_QUIET_MS = 1500; // 손을 멈춘 뒤 소리를 듣는 시간. 쓰는 중이나 멈추자마자 말해서 비트가 줄어들지 않게 (Claude가 정한 임시값)
+const VOICE_DUCK = { gain: 0.25, down: 0.15, up: 0.5 }; // 말하는 동안 비트·녹음을 -12 dB로. Claude가 정한 임시값
 
 // 조절 단계 설정 (값 단위는 모두 dB). span: 화면 높이만큼 쓸었을 때 바뀌는 양
 const PART1_ADJUST = {
@@ -81,6 +93,7 @@ let peakFilter = null;
 let highShelfFilter = null;
 let loudnessComp = null;
 let masterGain = null;
+let duckGain = null;       // 음성 안내가 나오는 동안 비트·녹음을 줄임
 let sampleSources = {};    // { 장소 key: p5.SoundFile } 북서울 녹음
 let sampleLevels = {};     // { 장소 key: 크기를 맞춘 재생 볼륨 }
 let sampleSpectra = {};    // { 장소 key: 잰 스펙트럼 (음량 보정용) }
@@ -91,6 +104,7 @@ let sourceWatchTimer = 0;
 let adjustValue = 0;       // 현재 값 (dB)
 let movedPath = 0;         // 단계 시작 후 값이 움직인 누적량 (dB)
 let stepElapsed = 0;
+let voiceCue = {};         // 이 단계에서 이미 나온 조건부 안내
 
 // 음역 고르기 내부 상태
 let registerOffsets = {};
@@ -176,7 +190,11 @@ function setupAudioPipeline() {
   peakFilter.connect(highShelfFilter);
   highShelfFilter.connect(loudnessComp);
   loudnessComp.connect(masterGain);
-  masterGain.connect();
+  duckGain = new p5.Gain();
+  duckGain.input.gain.value = 1;
+  duckGain.amp(1);
+  masterGain.connect(duckGain);
+  duckGain.connect();
 
   setupBeat(lowShelfFilter.input);
   Object.entries(sampleSources).forEach(([key, s]) => {
@@ -198,6 +216,10 @@ function setupAudioPipeline() {
   nodes.amplitude = amplitude;
   nodes.eqChainInput = lowShelfFilter;
   nodes.masterGain = masterGain;
+}
+
+function setVoiceDuck(on) {
+  if (duckGain) duckGain.amp(on ? VOICE_DUCK.gain : 1, on ? VOICE_DUCK.down : VOICE_DUCK.up);
 }
 
 /**
@@ -246,6 +268,8 @@ function goToStep(index) {
   gs.part1.stepIndex = index;
   gs.part1.hasMoved = false;
 
+  hushVoice();
+  voiceCue = {};
   stopVoice();
   leavePart2();
   registerPlayToken++;
@@ -269,6 +293,7 @@ function goToStep(index) {
     gs.part1.isBypassed = false;
     startTour(); // 북서울 산책. 장소를 바꿀 때마다 음량 보정도 그 녹음 기준으로
     saveEarResult();
+    say(['9-1']);
   }
 }
 
@@ -313,6 +338,8 @@ function restartFlow() {
   gs.part1.stepIndex = 0;
   gs.userName = '';
 
+  hushVoice();
+  setVoiceOn(true); // 다음 관람객은 음성이 켜진 채로
   stopVoice();
   leavePart2();
   stopTour();
@@ -368,6 +395,7 @@ function beginAdjust(stage) {
   movedPath = 0;
   stepElapsed = 0;
   applyAdjust(stage);
+  say(ADJUST_VOICE[stage].intro);
 }
 
 function updateAdjust(stage, dt) {
@@ -375,6 +403,31 @@ function updateAdjust(stage, dt) {
   const p1 = window.GlobalState.part1;
   stepElapsed += dt;
   p1.hasMoved = movedPath >= cfg.moveThreshold && stepElapsed >= MIN_STEP_SECONDS;
+  if (p1.hasMoved && !voiceCue.confirm && !voiceBusy() && millis() - p1.lastDragAt > CONFIRM_VOICE_QUIET_MS) {
+    voiceCue.confirm = true;
+    say([ADJUST_VOICE[stage].confirm]);
+  }
+}
+
+/**
+ * 쓰기 시작하면 ②③은 남은 안내를 끊고 소리를 듣게 함. ①은 지시문대로 위로 쓸면 1-2·1-3, 그다음 아래로 쓸면 1-4
+ */
+function voiceOnDrag(stage, dyRatio) {
+  if (stage !== 'PART1_VOLUME') {
+    if (!voiceCue.touched) {
+      voiceCue.touched = true;
+      hushVoice();
+    }
+    return;
+  }
+  if (Math.abs(dyRatio) < 0.002) return; // 손 떨림
+  if (dyRatio > 0 && !voiceCue.up) {
+    voiceCue.up = true;
+    say(['1-2', '1-3']);
+  } else if (dyRatio < 0 && voiceCue.up && !voiceCue.down && !voiceCue.confirm) {
+    voiceCue.down = true;
+    say(['1-4']);
+  }
 }
 
 /**
@@ -390,6 +443,7 @@ function dragAdjust(dyRatio) {
   movedPath += Math.abs(next - adjustValue);
   adjustValue = next;
   window.GlobalState.part1.lastDragAt = millis(); // 비주얼: 반죽을 누르는 손가락 자국
+  voiceOnDrag(stage, dyRatio);
   applyAdjust(stage);
 }
 
@@ -545,43 +599,62 @@ function startRegisterTrial() {
   reg.playOrder = shuffle([0, 1, 2]);
   reg.selectedCard = -1;
   reg.playingCard = -1;
-  playAllRegisterCards();
+  reg.isAutoPlaying = true;
+  introRegister();
 }
 
+async function introRegister() {
+  const token = ++registerPlayToken;
+  await say(REGISTER_INTRO_VOICE);
+  if (token !== registerPlayToken) return;
+  if (await playAllRegisterCards()) say(['4-4', '4-7']);
+}
+
+// 세 멜로디를 끝까지 들려줬으면 true
 async function playAllRegisterCards() {
   const reg = window.GlobalState.part1.register;
   const token = ++registerPlayToken;
   reg.isAutoPlaying = true;
 
   for (const i of reg.playOrder) {
-    if (token !== registerPlayToken) return;
+    if (token !== registerPlayToken) return false;
     reg.playingCard = i;
     playRegister(reg.order[i]);
     await wait((MELODY_LENGTH + MELODY_GAP) * 1000);
   }
-  if (token !== registerPlayToken) return;
+  if (token !== registerPlayToken) return false;
 
   reg.playingCard = -1;
   reg.isAutoPlaying = false;
+  return true;
 }
 
 async function tapRegisterCard(i) {
   const reg = window.GlobalState.part1.register;
   if (reg.isAutoPlaying) return;
 
+  hushVoice(); // 멜로디와 겹치지 않게
   reg.selectedCard = i;
   const token = ++registerPlayToken;
   reg.playingCard = i;
   playRegister(reg.order[i]);
   await wait(MELODY_LENGTH * 1000);
-  if (token === registerPlayToken) reg.playingCard = -1;
+  if (token !== registerPlayToken) return;
+  reg.playingCard = -1;
+  if (!voiceCue.picked) {
+    voiceCue.picked = true;
+    say(['4-5']);
+  }
 }
 
-function replayAllRegisterCards() {
+async function replayAllRegisterCards() {
   const reg = window.GlobalState.part1.register;
   if (reg.isAutoPlaying) return;
   stopVoice();
-  playAllRegisterCards();
+  reg.isAutoPlaying = true;
+  const token = ++registerPlayToken;
+  await say(['4-8']);
+  if (token === registerPlayToken) playAllRegisterCards();
 }
 
 function confirmRegister() {

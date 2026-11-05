@@ -6,10 +6,10 @@
  *               저절로 반복하지 않음: 듣고 나면 더듬이 톡 = 한 번 더(평균, 모두 3번까지), 달팽이 꾹 = 다음 (사용자 지시 11/03)
  * ⑥ 중앙       : 머리 둘레의 비트(HRIR 68번 귀). 좌우로 쓸면 소리가 머리 둘레를 돎. 가운데면 달팽이 꾹 (2번) → centerDeg, centerImage
  * ⑦ 우세 귀     : 옥타브 착청(Deutsch 1974). 높은 음이 들린 쪽으로 달팽이를 기어가게 하고 손을 떼면 바로 답 (3번) → dominantEar
- * ⑧ 바탕음·배음 : 바탕음 없는 복합음 두 개. 올라감 = 오른쪽, 내려감 = 왼쪽으로 달팽이를 보내고 손을 떼면 바로 답 (연습 1 + 6번) → pitchMode
+ * ⑧ 바탕음·배음 : 바탕음 없는 복합음 두 개. 올라감 = 오른쪽, 내려감 = 왼쪽으로 달팽이를 보내고 손을 떼면 바로 답 (예시 + 6번) → pitchMode
  *   ⑦⑧은 껍질이 아니라 달팽이가 직접 몸을 돌려 기어감 (사용자 지시 11/03). roll = 달팽이 자리
  *
- * 시행 횟수는 ref보다 줄였음(사용자 지시 11/02, 25번 → 12번쯤): ⑥ 3→2, ⑦ 6→3, ⑧ 연습 2+12 → 1+6.
+ * 시행 횟수는 ref보다 줄였음(사용자 지시 11/02, 25번 → 12번쯤): ⑥ 3→2, ⑦ 6→3, ⑧ 연습 2+12 → 듣기만 하는 예시 + 6.
  * ⑧에서 남길 쌍(2·6·7번, 바탕음 프로필 a·b·c 하나씩)은 Claude가 고름
  *
  * 음악처럼 (사용자 지시 11/02 "적극적으로 음악 소리 바꿔도 됨" → 측정은 살리는 쪽을 고름). 박자는 120 BPM(P2_GROOVE):
@@ -22,12 +22,14 @@
  *
  * 소리 크기는 ① 볼륨과 무관한 고정값입니다(ref와 같음, 명목 dB SPL, P2_CAL 기준). 그래서 masterGain을 거치지 않고
  * 따로 만든 part2Bus로 바로 출력합니다. 달팽이 파형이 움직이도록 FFT 분석기에도 곁가지로 잇습니다.
- * ref와 다른 점: [모르겠어요]·[못 찾겠어요] 답은 모두 없앰(사용자 지시 11/02). 음성 안내(TTS)는 아직 안 넣음.
+ * ref와 다른 점: [모르겠어요]·[못 찾겠어요] 답은 모두 없앰(사용자 지시 11/02).
+ * 음성 안내(voice.js)는 지시문 순서대로. 검사 소리 앞 안내는 끊지 않고, 끝난 뒤 1초 뒤에 소리를 냄.
+ * ⑦⑧은 안내 사이에 듣기만 하는 예시를 한 번 들려줌. ⑧의 답하는 연습은 이것으로 바뀜 (사용자 선택 11/05)
  * ⑤에서 삐 소리가 높아지는 동안 달팽이 선이 점점 더 꼬이고, 톡 하는 순간의 꼬임이 남음(사용자 지시, visuals.js helix)
  */
 
 const P2_CAL = 90;                 // 0 dBFS 사인파가 헤드폰에서 몇 dB SPL인가 (ref의 임시값. 실기기 측정 전)
-const P2_TIMING = { leadMs: 1500, sensLeadMs: 3000, gapMs: 600, noteMs: 2200 };
+const P2_TIMING = { leadMs: 1000, gapMs: 600 }; // leadMs: 안내가 끝나고 검사 소리까지 (지시문: 1초 뒤)
 const PART2_ROLL_SPAN = 2.4;       // 화면 너비만큼 굴렸을 때 바뀌는 양 (-1 ~ 1 전체가 2)
 const PART2_SNAP = 0.85;          // 손을 떼면 껍질이 자리 잡는 곳 (왼쪽 -, 오른쪽 +)
 const PART2_SIDE_THRESHOLD = 0.3; // 이보다 덜 굴리면 아직 고르지 않은 것
@@ -188,7 +190,7 @@ function sensLogic() {
         r.u = 1;
       }
       res.push(r);
-      return r.early ? 'note.early' : null;
+      return r.early ? 'early' : null;
     },
     canMore() { return n < SENS.maxListens; },
     // 하나라도 제대로 들었으면 넘어갈 수 있음. 다 써 버렸으면 그냥 넘어감 (결과는 Hx)
@@ -463,7 +465,7 @@ function octBuffer(tr) {
 
 /* =====================================================================
  * ⑧ 바탕음 귀 · 배음 귀 (ref js/tests/f0.js, Seither-Preisler 외 2007 AAT 줄인 판)
- * AB: 실제 배음은 올라가고 귀가 채우는 바탕음은 내려감. 3쌍 × 두 순서 = 6번, 앞에 연습 1번. 다시 듣기 한 번.
+ * AB: 실제 배음은 올라가고 귀가 채우는 바탕음은 내려감. 3쌍 × 두 순서 = 6번, 앞에 듣기만 하는 예시 1번. 다시 듣기 한 번.
  * ===================================================================== */
 
 const F0 = { toneMs: 500, gapMs: 250, rampMs: 10, spl: 60, pairIds: [2, 6, 7], replay: 1 };
@@ -474,27 +476,21 @@ const F0_PAIRS = [
   { id: 7, p: 'c', iv: '완전4도', hi: 160, lo: 120 }, { id: 8, p: 'c', iv: '완전5도', hi: 180, lo: 120 },
   { id: 9, p: 'a', iv: '장2도', hi: 270, lo: 240 }, { id: 10, p: 'b', iv: '장2도', hi: 225, lo: 200 }
 ];
-const F0_WARM = [
-  { id: 'w1', p: 'a', iv: '완전4도', hi: 360, lo: 270, order: 'AB' }
-];
+const F0_EXAMPLE = { id: 'w1', p: 'a', iv: '완전4도', hi: 360, lo: 270, order: 'AB' }; // 듣기만 하는 예시 (답을 받지 않음)
 
 function f0Logic() {
   const pairs = F0_PAIRS.filter((x) => F0.pairIds.includes(x.id));
   let main;
   do { main = p2Shuffle(pairs.flatMap((x) => [{ ...x, order: 'AB' }, { ...x, order: 'BA' }]), Math.random); }
   while (main.some((x, k) => k > 0 && main[k - 1].id === x.id)); // 같은 쌍이 붙어 나오지 않게
-  const plan = [...F0_WARM.map((w) => ({ ...w, warm: true })), ...main];
   const resp = [];
-  let i = 0, counted = 0, warmN = 0;
+  let i = 0;
   return {
     next() {
-      if (i >= plan.length) return null;
-      const x = plan[i++];
-      if (x.warm) warmN++; else counted++;
-      return { ...x, index: x.warm ? 0 : counted, total: main.length };
+      if (i >= main.length) return null;
+      return { ...main[i++], index: i, total: main.length };
     },
     answer(tr, key, rtMs) {
-      if (tr.warm) return null;
       const f0dir = tr.order === 'AB' ? 'down' : 'up';
       resp.push({ id: tr.id, iv: tr.iv, p: tr.p, order: tr.order, key, rtMs: Math.round(rtMs),
         mode: key === 'unsure' ? null : key === f0dir ? 'F0' : 'SP' });
@@ -513,10 +509,7 @@ function f0Logic() {
       return { ...base, valid: true, idx, cat, code: 'B' + idx };
     },
     soFar() { return { F: resp.filter((x) => x.mode === 'F0').length, S: resp.filter((x) => x.mode === 'SP').length }; },
-    progress() {
-      const x = plan[i - 1];
-      return x && x.warm ? `practice ${warmN} / ${F0_WARM.length}` : `${counted} / ${main.length}`;
-    }
+    progress() { return `${i} / ${main.length}`; }
   };
 }
 
@@ -549,16 +542,23 @@ function f0Buffer(tr) {
 
 /* =====================================================================
  * 단계 진행
- * phase: 'lead'(설명 읽는 시간) → 시행마다
- *   ⑤ 'pressing'(소리 나는 동안 톡)  ⑥ 'adjusting'(쓸어서 돌리고 꾹)  ⑦⑧ 'playing'(답 잠김) → 'answer'(굴리고 꾹)
- *   → 'wait'(다음 시행까지, note가 있으면 잠깐 보여 줌) → … → 다음 단계
+ * phase: 'lead'(안내) → ⑦⑧ 'example'(듣기만 하는 예시) · 'lead' → 시행마다
+ *   ⑤ 'pressing'(소리 나는 동안 톡) → 'choice'(더듬이 톡 또는 꾹)  ⑥ 'adjusting'(쓸어서 돌리고 꾹)  ⑦⑧ 'playing'(답 잠김) → 'answer'(끌고 손 떼기)
+ *   → 'wait'(다음 시행까지) → … → 다음 단계
  * ===================================================================== */
 
+// voice: 시작 안내(앞 단계의 확정 안내가 맨 앞), example: 듣기만 하는 예시 소리, voiceAfter: 예시 뒤 안내
 const PART2_TESTS = {
-  PART2_SENSITIVITY: { logic: sensLogic, lead: () => P2_TIMING.sensLeadMs },
-  PART2_CENTER: { logic: centerLogic, lead: () => P2_TIMING.leadMs },
-  PART2_EAR: { logic: octLogic, lead: () => P2_TIMING.leadMs, buffer: octBuffer, replay: OCT.replay },
-  PART2_PITCH: { logic: f0Logic, lead: () => P2_TIMING.leadMs, buffer: f0Buffer, replay: F0.replay }
+  PART2_SENSITIVITY: { logic: sensLogic, voice: ['4-6', '5-1', '5-2'] },
+  PART2_CENTER: { logic: centerLogic, voice: ['5-5', '6-1', '6-2', '6-3'] },
+  PART2_EAR: {
+    logic: octLogic, buffer: octBuffer, replay: OCT.replay, voice: ['6-5', '7-1'],
+    example: () => octBuffer({ startHigh: Math.random() < 0.5 ? 'L' : 'R' }), voiceAfter: ['7-2', '7-3', '7-4', '7-5']
+  },
+  PART2_PITCH: {
+    logic: f0Logic, buffer: f0Buffer, replay: F0.replay, voice: ['7-6', '8-1'],
+    example: () => f0Buffer(F0_EXAMPLE), voiceAfter: ['8-2', '8-3', '8-4', '8-5']
+  }
 };
 
 function isPart2Stage(stage) {
@@ -587,7 +587,24 @@ function beginPart2Stage(stage) {
   p2.spin = 0;
   p2.frozenU = null;
   prepareCenter().catch(() => {}); // ⑥ 소리를 미리 읽어 둠
-  part2Later(PART2_TESTS[stage].lead(), part2Next);
+  part2Intro(PART2_TESTS[stage]);
+}
+
+// 시작 안내 → (⑦⑧ 1초 뒤 예시 → 안내) → 1초 뒤 첫 시행
+async function part2Intro(test) {
+  const p2 = part2State();
+  const tok = p2.token;
+  await say(test.voice);
+  if (tok !== p2.token) return;
+  if (test.example) {
+    await new Promise((res) => part2Later(P2_TIMING.leadMs, res));
+    p2.phase = 'example';
+    await new Promise((res) => { p2Play(test.example()).onEnd = res; });
+    p2.phase = 'lead';
+    await say(test.voiceAfter);
+    if (tok !== p2.token) return;
+  }
+  part2Later(P2_TIMING.leadMs, part2Next);
 }
 
 function part2Next() {
@@ -595,7 +612,17 @@ function part2Next() {
   const tr = p2.logic.next();
   if (!tr) return finishPart2Stage();
   p2.trial = tr;
-  p2.replayLeft = PART2_TESTS[window.GlobalState.currentStage].replay || 0;
+  const stage = window.GlobalState.currentStage;
+  p2.replayLeft = PART2_TESTS[stage].replay || 0;
+  if (stage === 'PART2_CENTER' && tr.index > 1) {
+    // 두 번째 검사음 전 안내
+    const tok = p2.token;
+    p2.phase = 'lead';
+    say(['6-4']).then(() => {
+      if (tok === p2.token) part2Later(P2_TIMING.leadMs, () => part2Present(tr));
+    });
+    return;
+  }
   part2Present(tr);
 }
 
@@ -647,7 +674,7 @@ function part2Present(tr) {
   };
 }
 
-// 답한 뒤: 검사가 돌려준 말(note 키)이 있으면 조금 더 기다림
+// 답한 뒤. ⑤는 note가 'early'면 소리 전에 누른 것
 function part2AfterAnswer(key, value) {
   const p2 = part2State();
   p2.token++;
@@ -657,16 +684,26 @@ function part2AfterAnswer(key, value) {
   // ⑤는 저절로 다음으로 가지 않고 고르기를 기다림 (더듬이 톡 = 한 번 더, 달팽이 꾹 = 다음)
   if (window.GlobalState.currentStage === 'PART2_SENSITIVITY') {
     p2.phase = 'choice';
+    if (note) say(['5-7', '5-8']);
+    else say([...(p2.logic.canMore() ? ['5-3'] : []), ...(p2.logic.canFinish() ? ['5-4'] : [])]);
     return;
   }
-  part2Later(note ? P2_TIMING.noteMs : P2_TIMING.gapMs, part2Next);
+  part2Later(P2_TIMING.gapMs, part2Next);
 }
 
-function finishPart2Stage() {
+async function finishPart2Stage() {
   const stage = window.GlobalState.currentStage;
-  const res = part2State().logic.result();
+  const p2 = part2State();
+  const res = p2.logic.result();
   storePart2Result(stage, res);
   stopPart2Sounds();
+  if (stage === 'PART2_PITCH') {
+    // 결과 화면으로 넘어가기 전 마지막 안내
+    p2.phase = 'wait';
+    const tok = p2.token;
+    await say(['8-6']);
+    if (tok !== p2.token) return;
+  }
   confirmStep();
 }
 
@@ -722,7 +759,7 @@ function leavePart2() {
 
 function isPart2Playing() {
   const ph = part2State().phase;
-  return ph === 'playing' || ph === 'lead' || ph === 'loading';
+  return ph === 'playing' || ph === 'lead' || ph === 'example' || ph === 'loading';
 }
 
 // 매 프레임 (part1_audio.js의 updateFlow()에서 호출). 지금은 할 일 없음
@@ -834,7 +871,12 @@ function replayPart2() {
   const p2 = part2State();
   if (window.GlobalState.currentStage === 'PART2_SENSITIVITY') {
     p2.frozenU = null;
-    part2Next(); // 새로 한 번 더 (결과는 평균)
+    p2.note = null;
+    p2.phase = 'lead';
+    const tok = p2.token;
+    say(['5-6']).then(() => { // 새로 한 번 더 (결과는 평균)
+      if (tok === p2.token) part2Later(P2_TIMING.leadMs, part2Next);
+    });
     return;
   }
   p2.replayLeft--;
@@ -845,12 +887,11 @@ function replayPart2() {
  * 비주얼용
  * ===================================================================== */
 
-// 이 검사 안에서 몇 번째인지 (예: "3 / 12", "연습 1 / 2")
+// 이 검사 안에서 몇 번째인지 (예: "3 / 6")
 function getPart2Progress() {
   const p2 = part2State();
   if (!p2.trial || !p2.logic) return '';
-  const s = p2.logic.progress();
-  return s.startsWith('practice') ? s.replace('practice', t('p2.practice')) : s;
+  return p2.logic.progress();
 }
 
 // ⑤ 지금 울리는 삐 소리의 경로 위치 u (0 = 8 kHz, 1 = 16 kHz). 울리지 않으면 null

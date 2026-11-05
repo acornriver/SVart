@@ -2,55 +2,77 @@
  * 청각 다변기 (Sound Variator) - 화면 문구 (한국어 / English)
  *
  * 모든 안내 문구를 여기 한곳에 키로 모읍니다. 화면은 t('키')로만 문구를 가져옵니다.
- * - 말투: 달팽이가 관람객에게 직접 말하는 반말 (영어도 1인칭 "I / my")
- * - 소리 안내(TTS, 일레븐랩스로 제작 중)는 아직 넣지 않았습니다. 단계 안내 키(STAGE_COPY의 단계 이름)를
- *   음성 파일 이름으로 쓰면 바로 연결할 수 있게 해 두었습니다. 파일 위치와 이름 규칙은 미확정입니다.
+ * - 말투: 차민휘 지시문의 존댓말 안내 (11/05부터. 예전의 달팽이 반말은 없앰)
+ * - 음성 안내 자막은 VOICE_COPY에 번호로 모으고, 그 번호가 곧 media/voice의 파일 번호입니다.
  */
 
 const LANGS = ['ko', 'en'];
 
-// 단계 안내: title + lines. 음역 단계는 멜로디를 다 들려준 뒤 linesAfter로 바뀜
+// 단계 이름 (안내는 VOICE_COPY의 음성·자막)
 const STAGE_COPY = {
-  PART1_VOLUME: {
-    ko: { title: '편한 크기', lines: ['비트가 흘러나오고 있어. 나를 위아래로 쓸면 커졌다 작아졌다 해.', '듣기 편한 크기에서 멈춰 줘.'] },
-    en: { title: 'Comfortable volume', lines: ["Hear the beat? Swipe me up and down to make it louder or softer.", 'Stop where it feels comfortable.'] }
-  },
-  PART1_LOW: {
-    ko: { title: '꼬리 빚기', lines: ['이제 내 꼬리를 빚어 줘. 위아래로 쓸면 쿵쿵 낮은 소리가 늘었다 줄었다 해.', '더 좋게 들릴 때 멈춰 줘.'] },
-    en: { title: 'Shape my tail', lines: ['Now shape my tail. Swipe up and down and the boom-boom low sounds grow and shrink.', 'Stop when it sounds better to you.'] }
-  },
-  PART1_HIGH: {
-    ko: { title: '머리 빚기', lines: ['이번엔 머리야. 위아래로 쓸면 치키치키 높은 소리가 늘었다 줄었다 해.', '더 좋게 들릴 때 멈춰 줘.'] },
-    en: { title: 'Shape my head', lines: ['Now my head. Swipe up and down and the tss-tss high sounds grow and shrink.', 'Stop when it sounds better to you.'] }
-  },
-  PART1_REGISTER: {
-    ko: {
-      title: '껍질 얹기',
-      lines: ['같은 노래를 세 가지 높이로 불러 볼게. 잘 들어 줘.'],
-      linesAfter: ['어느 높이가 제일 편했어?', '내 등 위에서 그 자리를 톡 눌러 줘. 더듬이를 누르면 다시 불러 줄게.']
-    },
-    en: {
-      title: 'Place my shell',
-      lines: ["I'll sing the same tune at three heights. Listen closely."],
-      linesAfter: ['Which height felt the most comfortable?', "Tap that spot on my back. Tap my antennae to hear it again."]
-    }
-  },
-  PART2_SENSITIVITY: {
-    ko: { title: '어디까지 들려?', lines: ['높은 "삐" 소리가 점점 작아지고 높아질 거야. 그동안 나는 점점 더 꼬여.', '안 들리게 되는 순간 화면 아무 데나 톡 눌러 줘. 한 번 더 듣고 싶으면 더듬이를 톡.'] },
-    en: { title: 'How high can you hear?', lines: ['A high "beep" will get softer and higher, and I will twist tighter and tighter.', 'The moment you can no longer hear it, tap anywhere on the screen. Tap my antennae to hear it once more.'] }
-  },
-  PART2_CENTER: {
-    ko: { title: '가운데는 어디?', lines: ['비트가 머리 둘레 어딘가에서 들려. 좌우로 쓸면 비트가 머리 둘레를 돌아.', '왼쪽도 오른쪽도 아닌 가운데에서 들리면 나를 꾹 눌러 줘. 내 색이 바뀌는 건 신경 쓰지 말고 귀로만 맞춰 줘. 두 번 할게.'] },
-    en: { title: 'Where is the middle?', lines: ['The beat is somewhere around your head. Swipe left and right to move it around your head.', "When it sounds right in the middle, neither left nor right, press and hold me. Don't mind my color changing, just use your ears. We do this twice."] }
-  },
-  PART2_EAR: {
-    ko: { title: '높은 음은 어느 쪽?', lines: ['높은 음과 낮은 음이 양쪽 귀에서 빠르게 번갈아 나와.', '높은 음이 들린 쪽으로 나를 보내 줘. 그쪽 더듬이가 쭉 늘어날 거야. 정답은 없어. 세 번 할게.'] },
-    en: { title: 'Where is the high note?', lines: ['A high note and a low note quickly take turns in your two ears.', 'Send me toward the side where you hear the high note, and that antenna will stretch out. There is no right answer. Three times.'] }
-  },
-  PART2_PITCH: {
-    ko: { title: '올라갔어? 내려갔어?', lines: ['두 음이 이어서 나와. 정답은 없으니 처음 느낌대로 골라 줘.', '올라갔으면 오른쪽, 내려갔으면 왼쪽으로 나를 보내 줘. 연습 한 번, 이어서 여섯 번이야.'] },
-    en: { title: 'Up or down?', lines: ['Two notes play one after the other. There is no right answer, go with your first feeling.', 'If it went up, send me right. If down, send me left. One practice round, then six.'] }
-  }
+  PART1_VOLUME: { ko: { title: '편한 크기' }, en: { title: 'Comfortable volume' } },
+  PART1_LOW: { ko: { title: '꼬리 빚기' }, en: { title: 'Shape the tail' } },
+  PART1_HIGH: { ko: { title: '머리 빚기' }, en: { title: 'Shape the head' } },
+  PART1_REGISTER: { ko: { title: '껍질 얹기' }, en: { title: 'Place the shell' } },
+  PART2_SENSITIVITY: { ko: { title: '어디까지 들리나요?' }, en: { title: 'How high can you hear?' } },
+  PART2_CENTER: { ko: { title: '가운데는 어디인가요?' }, en: { title: 'Where is the middle?' } },
+  PART2_EAR: { ko: { title: '높은 음은 어느 쪽인가요?' }, en: { title: 'Where is the high note?' } },
+  PART2_PITCH: { ko: { title: '올라갔나요? 내려갔나요?' }, en: { title: 'Up or down?' } }
+};
+
+// 음성 안내의 자막 (차민휘 지시문 그대로, media/voice 파일과 번호가 같음). 재생 시점은 part1_audio.js · part2_audio.js
+// 7-3만 측정 뜻을 살리려고 자막을 '높은 음'으로 바꿈. 음성은 '그 소리'이고 재녹음 여부는 미확정 (사용자 선택 11/05)
+const VOICE_COPY = {
+  '1-1': { ko: '손가락으로 화면을 위로 쓸어 올려보세요.', en: 'Swipe up on the screen with your finger.' },
+  '1-2': { ko: '달팽이의 몸이 쭉 늘어나요.', en: 'Watch the snail’s body stretch.' },
+  '1-3': { ko: '아래로 쓸어 내리면 몸이 줄어들어요.', en: 'Swipe down to make its body shrink.' },
+  '1-4': { ko: '소리도 함께 커지고 작아지는 걸 들어보세요.', en: 'Listen as the sound gets louder and softer, too.' },
+  '1-5': { ko: '편안하게 들리면 달팽이를 길게 눌러주세요.', en: 'When the sound feels comfortable, press and hold the snail.' },
+  '1-6': { ko: '선택하신 소리에 맞춰 몸의 크기가 정해졌어요.', en: 'The snail’s body size is now set to match the sound you chose.' },
+  '2-1': { ko: '달팽이가 조금씩 모습을 갖춰가고 있어요.', en: 'The snail is taking shape, little by little.' },
+  '2-2': { ko: '이번에는 편안하게 들리는 소리에 맞춰 꼬리를 다듬어볼게요.', en: 'Now, let’s adjust its tail to match a sound that feels comfortable to you.' },
+  '2-3': { ko: '손가락으로 화면을 위아래로 쓸며 소리의 변화를 들어보세요.', en: 'Swipe up and down on the screen with your finger, and listen to how the sound changes.' },
+  '2-4': { ko: '가장 편안하게 들리는 소리를 찾으셨다면, 달팽이를 길게 눌러주세요.', en: 'Once you find the sound that feels most comfortable, press and hold the snail.' },
+  '2-5': { ko: '선택하신 소리에 맞춰 꼬리 모양이 정해졌어요.', en: 'The tail’s shape is now set to match the sound you chose.' },
+  '3-1': { ko: '꼬리에 이어, 이번에는 머리를 다듬어볼게요.', en: 'Now that we’ve adjusted the tail, let’s shape the head.' },
+  '3-2': { ko: '손가락으로 화면을 위아래로 쓸며 소리의 변화를 들어보세요.', en: 'Swipe up and down on the screen with your finger, and listen to how the sound changes.' },
+  '3-3': { ko: '가장 편안하게 들리는 소리를 찾아보세요.', en: 'Find the sound that feels most comfortable to you.' },
+  '3-4': { ko: '편안하게 들리면 달팽이를 길게 눌러주세요.', en: 'When the sound feels comfortable, press and hold the snail.' },
+  '3-5': { ko: '선택하신 소리에 맞춰 머리 모양이 정해졌어요.', en: 'The head’s shape is now set to match the sound you chose.' },
+  '4-1': { ko: '이제 등껍질의 자리를 정해볼게요.', en: 'Now, let’s choose where the shell will sit.' },
+  '4-2': { ko: '같은 멜로디를 세 가지 소리로 들려드릴게요.', en: 'You’ll hear the same melody played with three different sounds.' },
+  '4-3': { ko: '소리가 나오는 동안 표시되는 자리를 함께 살펴보세요.', en: 'As each sound plays, look at the position marked on the screen.' },
+  '4-4': { ko: '세 자리를 하나씩 눌러 멜로디를 다시 들어보세요.', en: 'Tap each of the three positions to hear the melody again.' },
+  '4-5': { ko: '가장 편안하게 들리는 자리를 고른 뒤, 달팽이를 길게 눌러주세요.', en: 'Choose the position where the sound feels most comfortable, then press and hold the snail.' },
+  '4-6': { ko: '선택하신 소리에 맞춰 등껍질의 자리가 정해졌어요.', en: 'The shell’s position is now set to match the sound you chose.' },
+  '4-7': { ko: '더듬이를 누르면 세 가지 소리를 다시 들을 수 있어요.', en: 'Tap the feelers to hear the three sounds again.' },
+  '4-8': { ko: '세 가지 소리를 차례로 다시 들려드릴게요.', en: 'You’ll hear the three sounds again, one at a time.' },
+  '5-1': { ko: '이번에는 소리가 언제 사라지는지 들어볼게요.', en: 'This time, listen for the moment the sound disappears.' },
+  '5-2': { ko: '소리가 더 이상 들리지 않을 때, 화면 아무 곳이나 한 번 눌러주세요.', en: 'When you can no longer hear the sound, tap anywhere on the screen once.' },
+  '5-3': { ko: '한 번 더 들어보시려면 더듬이를 눌러주세요.', en: 'To listen again, tap the feelers.' },
+  '5-4': { ko: '다음으로 넘어가려면 달팽이를 길게 눌러주세요.', en: 'To continue, press and hold the snail.' },
+  '5-5': { ko: '소리를 듣는 동안, 달팽이의 선이 감겼어요.', en: 'As you listened, the snail’s line coiled up.' },
+  '5-6': { ko: '같은 방법으로 한 번 더 들어볼게요.', en: 'Let’s listen once more in the same way.' },
+  '5-7': { ko: '아직 소리가 시작되기 전이에요.', en: 'The sound hasn’t started yet.' },
+  '5-8': { ko: '더듬이를 눌러 다시 들어보세요.', en: 'Tap the feelers to listen again.' },
+  '6-1': { ko: '이번에는 소리가 가운데에서 들리도록 맞춰볼게요.', en: 'This time, let’s adjust the sound so you hear it in the center.' },
+  '6-2': { ko: '손가락으로 화면을 왼쪽이나 오른쪽으로 쓸어보세요.', en: 'Swipe left or right on the screen with your finger.' },
+  '6-3': { ko: '소리가 가운데에서 들리면, 달팽이를 길게 눌러주세요.', en: 'When you hear the sound in the center, press and hold the snail.' },
+  '6-4': { ko: '한 번 더 가운데를 찾아볼게요.', en: 'Let’s find the center once more.' },
+  '6-5': { ko: '달팽이의 색이 정해졌어요.', en: 'The snail’s color is now set.' },
+  '7-1': { ko: '이번에는 소리가 들리는 방향을 찾아볼게요.', en: 'This time, let’s find which side the sound is coming from.' },
+  '7-2': { ko: '방금 들은 소리가 어느 쪽 귀에서 들리는지 들어보세요.', en: 'Notice which ear you heard the sound in.' },
+  '7-3': { ko: '높은 음이 들린 쪽으로 달팽이를 밀어주세요.', en: 'Slide the snail toward the side where you heard the high note.' },
+  '7-4': { ko: '손을 떼면 선택이 완료돼요.', en: 'Lift your finger to confirm your choice.' },
+  '7-5': { ko: '세 번 진행할게요.', en: 'We’ll do this three times.' },
+  '7-6': { ko: '달팽이의 더듬이 길이가 정해졌어요.', en: 'The length of the snail’s feelers is now set.' },
+  '8-1': { ko: '마지막으로, 두 소리를 듣고 달팽이를 움직여볼게요.', en: 'Finally, let’s listen to two sounds and move the snail.' },
+  '8-2': { ko: '뒤의 소리가 앞의 소리보다 올라가는 느낌이면, 달팽이를 오른쪽으로 밀어주세요.', en: 'If the second sound seems to go up from the first, slide the snail to the right.' },
+  '8-3': { ko: '내려가는 느낌이면, 왼쪽으로 밀어주세요.', en: 'If it seems to go down, slide the snail to the left.' },
+  '8-4': { ko: '손을 떼면 선택이 완료돼요.', en: 'Lift your finger to confirm your choice.' },
+  '8-5': { ko: '여섯 번 진행할게요.', en: 'We’ll do this six times.' },
+  '8-6': { ko: '선택에 따라 달팽이가 움직이며, 흔적을 남겼어요.', en: 'As you made your choices, the snail moved and left a trail.' },
+  '9-1': { ko: '지금까지 고른 소리가 모여, 한 마리의 달팽이가 완성됐어요.', en: 'All the sounds you’ve chosen have come together, and your snail is now complete.' }
 };
 
 const COPY = {
@@ -58,33 +80,22 @@ const COPY = {
     'intro.before': '모든 귀는 ',
     'intro.after': ' 이다',
     'intro.placeholder': '이름',
-    'intro.hint': '헤드폰을 쓰고, [ ] 안에 이름을 써 줘',
+    'intro.headphones': '헤드폰을 착용해주세요.',
+    'intro.name': '괄호 안에 이름을 입력해주세요.',
+    'intro.done': '입력을 마치면 키보드의 완료를 눌러주세요.',
+    'intro.voice': '음성 안내',
 
-    'hint.swipe': '화면 아무 곳이나 위아래로 쓸어 봐',
-    'hint.hold': '마음에 들면 나를 꾹 눌러 줘',
-    'hint.roll': '좌우로 쓸어서 나를 기어가게 해 봐',
-    'hint.sensNext': '다 됐으면 나를 꾹 눌러 줘',
-    'hint.sensAgain': '더듬이를 톡 누르면 한 번 더 들려줘',
-    'hint.listening': '잘 들어 봐…',
-    'hint.spot': '편한 높이 자리를 내 등 위에서 톡',
-    'hint.antenna': '더듬이를 톡 누르면 다시 들려줘',
+    'hint.listening': '잘 들어보세요…',
     'hint.result1': '화면을 누르고 있는 동안은 원래 소리',
-    'hint.result2': '나를 오른쪽으로 밀면 청감타워로 가',
+    'hint.result2': '달팽이를 오른쪽으로 밀면 청감타워로 가요',
 
 
     'axis.low': '낮은 소리',
     'axis.high': '높은 소리',
-    'hint.ready': '곧 시작해. 잘 들어 봐',
-    'hint.tapGone': '안 들리게 되면 바로 화면 아무 데나 톡',
-    'hint.turn': '좌우로 쓸어서 비트를 돌려 봐',
-    'hint.holdCenter': '가운데서 들리면 나를 꾹 눌러 줘',
-    'hint.antennaOnce': '더듬이를 톡 누르면 한 번 더 들려줘',
-    'note.early': '소리가 나오기 전에 눌렀어. 더듬이를 톡 해서 다시 들어 줘',
-    'p2.practice': '연습',
     'ear.L': '왼쪽',
     'ear.R': '오른쪽',
-    'pitch.L': '내려갔어',
-    'pitch.R': '올라갔어',
+    'pitch.L': '내려갔어요',
+    'pitch.R': '올라갔어요',
     'center.L': '왼쪽으로 치우친 가운데',
     'center.C': '한가운데',
     'center.R': '오른쪽으로 치우친 가운데',
@@ -94,14 +105,14 @@ const COPY = {
     'result.before': '모든 귀는 ',
     'result.after': ' 이다',
     'result.original': '원래 소리를 듣는 중',
-    'tour.line': '이 귀로 북서울미술관 주변을 걸어 볼게',
+    'tour.line': '이 귀로 북서울미술관 주변을 걸어 볼게요',
     'tour.now': '지금 걷는 곳',
     'place.water': '당현천',
     'place.walk-stair': '중계역 계단',
     'place.train-go': '중계역 지하철',
     'place.car-move': '북서울미술관 앞',
-    'sent.title': '청감타워로 갔어',
-    'sent.sub': '다음 귀를 기다릴게',
+    'sent.title': '청감타워로 갔어요',
+    'sent.sub': '다음 귀를 기다릴게요',
     'word.low': '저음',
     'word.high': '고음',
     'row.volume': '크기',
@@ -126,29 +137,18 @@ const COPY = {
     'intro.before': 'Every ear is ',
     'intro.after': '',
     'intro.placeholder': 'name',
-    'intro.hint': 'Put on the headphones and write your name in [ ]',
+    'intro.headphones': 'Please put on your headphones.',
+    'intro.name': 'Please enter your name inside the brackets.',
+    'intro.done': 'When you’re finished, tap Done on the keyboard.',
+    'intro.voice': 'Voice guide',
 
-    'hint.swipe': 'Swipe up and down anywhere',
-    'hint.hold': 'Like it? Press and hold me',
-    'hint.roll': 'Swipe left and right to make me crawl',
-    'hint.sensNext': 'Done? Press and hold me',
-    'hint.sensAgain': 'Tap my antennae to hear it once more',
     'hint.listening': 'Listen…',
-    'hint.spot': 'Tap the comfortable height on my back',
-    'hint.antenna': 'Tap my antennae to hear it again',
     'hint.result1': 'Hold the screen to hear the original',
-    'hint.result2': 'Push me to the right to send me to the Hearing Tower',
+    'hint.result2': 'Push the snail to the right to send it to the Hearing Tower',
 
 
     'axis.low': 'low',
     'axis.high': 'high',
-    'hint.ready': 'Starting soon. Listen closely',
-    'hint.tapGone': 'Tap anywhere as soon as it is gone',
-    'hint.turn': 'Swipe left and right to move the beat',
-    'hint.holdCenter': 'In the middle? Press and hold me',
-    'hint.antennaOnce': 'Tap my antennae to hear it once more',
-    'note.early': 'You tapped before the sound started. Tap my antennae to listen again',
-    'p2.practice': 'practice',
     'ear.L': 'Left',
     'ear.R': 'Right',
     'pitch.L': 'Down',
@@ -162,7 +162,7 @@ const COPY = {
     'result.before': 'Every ear is ',
     'result.after': '',
     'result.original': 'Playing the original',
-    'tour.line': 'Let me walk around the Buk-Seoul Museum of Art with these ears',
+    'tour.line': 'Let’s walk around the Buk-Seoul Museum of Art with these ears',
     'tour.now': 'Now walking',
     'place.water': 'Danghyeoncheon Stream',
     'place.walk-stair': 'Junggye Station stairs',
@@ -201,6 +201,11 @@ function t(key) {
   const lang = currentLang();
   const v = COPY[lang][key] !== undefined ? COPY[lang][key] : COPY.ko[key];
   return v !== undefined ? v : key;
+}
+
+// 음성 안내 번호 → 지금 언어의 자막
+function voiceText(id) {
+  return VOICE_COPY[id][currentLang()];
 }
 
 function stageCopy(stage) {

@@ -15,6 +15,7 @@ window.GlobalState = {
   isAudioInitialized: false,
   userName: '',
   lang: 'ko',              // 'ko' | 'en' 첫 화면에서 고름 (문구는 copy.js)
+  voiceOn: true,           // 음성 안내. 첫 화면 확성기 버튼. 꺼도 자막은 나옴 (voice.js)
 
   // Part 1 진행 상태 (UI 렌더링용)
   part1: {
@@ -34,11 +35,11 @@ window.GlobalState = {
 
   // Part 2 진행 상태 (part2_audio.js, 검사 내용은 ref/part2 (1).html)
   part2: {
-    phase: 'lead',         // 'lead' | 'pressing' | 'loading' | 'adjusting' | 'playing' | 'answer' | 'wait'
+    phase: 'lead',         // 'lead' | 'example' | 'pressing' | 'choice' | 'loading' | 'adjusting' | 'playing' | 'answer' | 'wait'
     token: 0,              // 단계·시행이 바뀌면 늘어남 (늦게 도는 타이머 무시용)
     logic: null,           // 검사 진행·채점 (sensLogic 등)
     trial: null,           // 지금 시행
-    note: null,            // 잠깐 보여 줄 말 (copy.js 키)
+    note: null,            // ⑤ 소리 전에 눌렀으면 'early'
     roll: 0,               // ⑦⑧ 껍질 위치 -1(왼쪽) ~ 1(오른쪽)
     moved: 0,              // ⑦⑧ 굴린 누적량, ⑥ 돌린 각도 누적
     spin: 0,               // ⑥ 껍질이 제자리에서 돈 각도(°)
