@@ -51,6 +51,7 @@ const FONT = {
 const SIZE_MIN = 0.72;      // ① 가장 작게 골랐을 때 덩어리 크기 배율
 const SIZE_MAX = 1.28;      // ① 가장 크게 골랐을 때
 const NAME_FADE_MS = 1900;  // 이름을 넣고 첫 검사로 넘어가기까지
+const VOICE_SLIDER = { width: 120, hit: 26 }; // 음성 크기 슬라이더: 길이, 손끝 판정 여유 (Claude가 정함)
 const RESULT_TEXT_DELAY = 1200;
 const BACKDROP_WASH = 110;  // 결과 화면 영상 위에 덮는 검정 (0~255). 글자 자리는 따로 더 어둡게
 const OUTLINE_POINTS = 160;
@@ -78,6 +79,7 @@ let antennaTips = [];
 let shellAt = null;         // { x, y, r }
 let pulse = { kick: 0, snare: 0, hat: 0 };
 let snailInk = COLORS.ink.slice(); // 지금 달팽이 선 색 (정해진 색을 천천히 따라감)
+let snailGlow = COLORS.accent.slice(); // 선 밑의 잔광. ⑥ 전에는 빨강, 색이 정해지면 그 색 (빨강이 깔리면 파란 선이 보라로 보임, 차민휘 전달사항 11/06)
 let slime = [];             // 점액 파티클 { x, y, vx, vy, born, life, size, sq }
 let slimeAcc = 0;
 
@@ -389,6 +391,7 @@ function getTouchTargets() {
 // 지금 더듬이를 누르면 다시 들려줄 수 있는지
 function canReplay() {
   const stage = window.GlobalState.currentStage;
+  if (inputLocked()) return false;
   if (stage === 'PART1_REGISTER') return !window.GlobalState.part1.register.isAutoPlaying;
   return canReplayPart2();
 }
@@ -566,7 +569,7 @@ function topYAt(shape, x) {
  * ===================================================================== */
 
 /**
- * 선 하나를 오실로스코프처럼: 넓고 옅은 빨간 잔광 → 가는 흰 선
+ * 선 하나를 오실로스코프처럼: 넓고 옅은 잔광 → 가는 선
  */
 function scopeStroke(ctx, tracePts, closed, weight = 1) {
   const draw = () => {
@@ -578,7 +581,7 @@ function scopeStroke(ctx, tracePts, closed, weight = 1) {
   ctx.save();
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
-  ctx.strokeStyle = rgba(COLORS.accent, 0.22 + 0.3 * pulse.kick);
+  ctx.strokeStyle = rgba(snailGlow, 0.22 + 0.3 * pulse.kick);
   ctx.lineWidth = (5 + 7 * pulse.kick) * weight;
   draw();
   ctx.strokeStyle = rgba(snailInk, 1);
@@ -641,7 +644,10 @@ function drawSnail() {
   // ⑥ 동안은 돌리는 자리의 색을 실시간으로 (사용자 지시 11/03), 그 밖에는 정해진 색을 천천히 따라감
   const live = part2CenterLiveDeg();
   const target = centerColor(live !== null ? live : window.GlobalState.psychoProfile.centerDeg);
-  snailInk = snailInk.map((v, k) => lerp(v, target[k], live !== null ? 0.2 : 0.04));
+  const glow = target === COLORS.ink ? COLORS.accent : target;
+  const follow = live !== null ? 0.2 : 0.04;
+  snailInk = snailInk.map((v, k) => lerp(v, target[k], follow));
+  snailGlow = snailGlow.map((v, k) => lerp(v, glow[k], follow));
   const shape = bodyShape();
   lastShape = shape;
   const ctx = drawingContext;
@@ -918,6 +924,48 @@ function drawHeader(L) {
     PART2_SENSITIVITY: gs.part2.phase // ⑥은 각도를 보여 주면 답이 드러나서 숫자 없음
   }[stage];
   if (debug) label(debug, width - L.m, L.m, { family: FONT.mono, size: 9, c: COLORS.mute, a: 160, align: RIGHT, valign: TOP });
+  drawVoiceSlider();
+}
+
+/* 음성 안내 크기 슬라이더: 오른쪽 위. 음성을 끄면 없음 (차민휘 전달사항 11/06) */
+function voiceSliderBox() {
+  const L = calculateUILayout();
+  const w = VOICE_SLIDER.width;
+  return { x0: width - L.m - w, x1: width - L.m, y: L.m + 34 };
+}
+
+function voiceSliderShown() {
+  const gs = window.GlobalState;
+  return gs.voiceOn && stageIndex(gs.currentStage) >= 0 && gs.currentStage !== 'RESULT';
+}
+
+function hitVoiceSlider(px, py) {
+  if (!voiceSliderShown()) return false;
+  const b = voiceSliderBox();
+  return px > b.x0 - VOICE_SLIDER.hit && px < b.x1 + VOICE_SLIDER.hit && Math.abs(py - b.y) < VOICE_SLIDER.hit;
+}
+
+function voiceSliderLevelAt(px) {
+  const b = voiceSliderBox();
+  return (px - b.x0) / (b.x1 - b.x0);
+}
+
+function drawVoiceSlider() {
+  if (!voiceSliderShown()) return;
+  const b = voiceSliderBox();
+  const x = lerp(b.x0, b.x1, window.GlobalState.voiceLevel);
+  const glyph = b.x0 - 14;
+  stroke(...COLORS.line);
+  strokeWeight(2);
+  line(b.x0, b.y, b.x1, b.y);
+  stroke(...COLORS.ink);
+  line(b.x0, b.y, x, b.y);
+  noStroke();
+  fill(...COLORS.ink);
+  circle(x, b.y, 12);
+  // 확성기 표시
+  rect(glyph - 7, b.y - 3, 5, 6);
+  triangle(glyph - 4, b.y, glyph + 4, b.y - 7, glyph + 4, b.y + 7);
 }
 /**
  * 조작 안내: 화살표와 아래쪽 안내 문구. Part 1은 누를 곳 위아래 화살표, Part 2는 껍질 옆 좌우 화살표와 바닥의 답 자리,
@@ -932,13 +980,13 @@ function drawGuides(L) {
   const hints = [];
 
   if (PART1_ADJUST[stage]) {
-    if (!gs.part1.hasMoved) {
+    if (!gs.part1.hasMoved && !inputLocked()) {
       const ax = stage === 'PART1_LOW' ? cur.cx - R0 * 1.6 : stage === 'PART1_HIGH' ? cur.cx + R0 * 1.4 : cur.cx;
       const top = cur.groundY - R0 * (stage === 'PART1_VOLUME' ? 1.9 : 1.5);
       label('↑', ax, top - 14 + bob, { family: FONT.mono, size: 18, c: COLORS.accent, a: arrowA, align: CENTER });
       label('↓', ax, top + 12 - bob, { family: FONT.mono, size: 18, c: COLORS.accent, a: arrowA, align: CENTER });
     }
-    hints.push(voiceText(gs.part1.hasMoved ? ADJUST_VOICE[stage].confirm : '2-3'));
+    hints.push(voiceText(canConfirmAdjust() ? ADJUST_VOICE[stage].confirm : '2-3'));
   } else if (stage === 'PART1_REGISTER') {
     const reg = gs.part1.register;
     // 등 위 세 자리: 점과 A/B/C. 고른 자리는 빨강
@@ -1012,8 +1060,8 @@ function drawGuides(L) {
       if (canReplayPart2()) hints.push(voiceText('5-3'));
     }
   }
-  // 말하는 동안은 자막만
-  drawHints(L, voiceBusy() ? [] : hints);
+  // 말하는 동안은 자막만. 잠긴 동안에는 듣는 중이라는 안내만
+  drawHints(L, voiceBusy() || (inputLocked() && hints[0] !== t('hint.listening')) ? [] : hints);
 }
 
 // 아래쪽 안내 문구 (첫 줄이 지금 할 일이라 밝게)

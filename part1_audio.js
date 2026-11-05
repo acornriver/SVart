@@ -269,6 +269,7 @@ function goToStep(index) {
   gs.part1.hasMoved = false;
 
   hushVoice();
+  unlockInput(0);
   voiceCue = {};
   stopVoice();
   leavePart2();
@@ -339,7 +340,9 @@ function restartFlow() {
   gs.userName = '';
 
   hushVoice();
+  unlockInput(0);
   setVoiceOn(true); // 다음 관람객은 음성이 켜진 채로
+  resetVoiceLevel();
   stopVoice();
   leavePart2();
   stopTour();
@@ -395,7 +398,7 @@ function beginAdjust(stage) {
   movedPath = 0;
   stepElapsed = 0;
   applyAdjust(stage);
-  say(ADJUST_VOICE[stage].intro);
+  sayGuide(ADJUST_VOICE[stage].intro);
 }
 
 function updateAdjust(stage, dt) {
@@ -409,17 +412,16 @@ function updateAdjust(stage, dt) {
   }
 }
 
+// 확정 안내까지 다 들은 뒤에만 꾹으로 확정
+function canConfirmAdjust() {
+  return window.GlobalState.part1.hasMoved && !!voiceCue.confirm;
+}
+
 /**
- * 쓰기 시작하면 ②③은 남은 안내를 끊고 소리를 듣게 함. ①은 지시문대로 위로 쓸면 1-2·1-3, 그다음 아래로 쓸면 1-4
+ * ①은 지시문대로 위로 쓸면 1-2·1-3, 그다음 아래로 쓸면 1-4
  */
 function voiceOnDrag(stage, dyRatio) {
-  if (stage !== 'PART1_VOLUME') {
-    if (!voiceCue.touched) {
-      voiceCue.touched = true;
-      hushVoice();
-    }
-    return;
-  }
+  if (stage !== 'PART1_VOLUME') return;
   if (Math.abs(dyRatio) < 0.002) return; // 손 떨림
   if (dyRatio > 0 && !voiceCue.up) {
     voiceCue.up = true;
@@ -605,9 +607,10 @@ function startRegisterTrial() {
 
 async function introRegister() {
   const token = ++registerPlayToken;
+  lockInput();
   await say(REGISTER_INTRO_VOICE);
   if (token !== registerPlayToken) return;
-  if (await playAllRegisterCards()) say(['4-4', '4-7']);
+  if (await playAllRegisterCards()) sayGuide(['4-4', '4-7']);
 }
 
 // 세 멜로디를 끝까지 들려줬으면 true

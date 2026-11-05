@@ -16,6 +16,7 @@ window.GlobalState = {
   userName: '',
   lang: 'ko',              // 'ko' | 'en' 첫 화면에서 고름 (문구는 copy.js)
   voiceOn: true,           // 음성 안내. 첫 화면 확성기 버튼. 꺼도 자막은 나옴 (voice.js)
+  voiceLevel: 0.63,        // 음성 안내 크기 슬라이더 자리 0.0 ~ 1.0 (voice.js의 VOICE_LEVEL_START)
 
   // Part 1 진행 상태 (UI 렌더링용)
   part1: {

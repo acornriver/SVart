@@ -21,7 +21,6 @@ const STAGE_COPY = {
 };
 
 // 음성 안내의 자막 (차민휘 지시문 그대로, media/voice 파일과 번호가 같음). 재생 시점은 part1_audio.js · part2_audio.js
-// 7-3만 측정 뜻을 살리려고 자막을 '높은 음'으로 바꿈. 음성은 '그 소리'이고 재녹음 여부는 미확정 (사용자 선택 11/05)
 const VOICE_COPY = {
   '1-1': { ko: '손가락으로 화면을 위로 쓸어 올려보세요.', en: 'Swipe up on the screen with your finger.' },
   '1-2': { ko: '달팽이의 몸이 쭉 늘어나요.', en: 'Watch the snail’s body stretch.' },
@@ -51,7 +50,7 @@ const VOICE_COPY = {
   '5-2': { ko: '소리가 더 이상 들리지 않을 때, 화면 아무 곳이나 한 번 눌러주세요.', en: 'When you can no longer hear the sound, tap anywhere on the screen once.' },
   '5-3': { ko: '한 번 더 들어보시려면 더듬이를 눌러주세요.', en: 'To listen again, tap the feelers.' },
   '5-4': { ko: '다음으로 넘어가려면 달팽이를 길게 눌러주세요.', en: 'To continue, press and hold the snail.' },
-  '5-5': { ko: '소리를 듣는 동안, 달팽이의 선이 감겼어요.', en: 'As you listened, the snail’s line coiled up.' },
+  '5-5': { ko: '소리를 듣는 동안 달팽이의 선이 돌돌 말렸어요.', en: 'As you listened, the snail’s line coiled up.' },
   '5-6': { ko: '같은 방법으로 한 번 더 들어볼게요.', en: 'Let’s listen once more in the same way.' },
   '5-7': { ko: '아직 소리가 시작되기 전이에요.', en: 'The sound hasn’t started yet.' },
   '5-8': { ko: '더듬이를 눌러 다시 들어보세요.', en: 'Tap the feelers to listen again.' },
@@ -62,7 +61,7 @@ const VOICE_COPY = {
   '6-5': { ko: '달팽이의 색이 정해졌어요.', en: 'The snail’s color is now set.' },
   '7-1': { ko: '이번에는 소리가 들리는 방향을 찾아볼게요.', en: 'This time, let’s find which side the sound is coming from.' },
   '7-2': { ko: '방금 들은 소리가 어느 쪽 귀에서 들리는지 들어보세요.', en: 'Notice which ear you heard the sound in.' },
-  '7-3': { ko: '높은 음이 들린 쪽으로 달팽이를 밀어주세요.', en: 'Slide the snail toward the side where you heard the high note.' },
+  '7-3': { ko: '높은 음이 들린 쪽으로 달팽이를 밀어주세요.', en: 'Slide the snail toward the side where you heard the higher note.' },
   '7-4': { ko: '손을 떼면 선택이 완료돼요.', en: 'Lift your finger to confirm your choice.' },
   '7-5': { ko: '세 번 진행할게요.', en: 'We’ll do this three times.' },
   '7-6': { ko: '달팽이의 더듬이 길이가 정해졌어요.', en: 'The length of the snail’s feelers is now set.' },

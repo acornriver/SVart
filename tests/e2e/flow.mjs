@@ -78,27 +78,44 @@ await ev(`(() => { const i = document.querySelector('.intro input'); i.value = '
 await sleep(2500); await expect('PART1_VOLUME');
 console.log('  subtitle', await ev('voiceLine()'), 'duck', await ev('duckGain.output.gain.value.toFixed(2)'));
 await shot('00-voice-subtitle');
+const waitUntil = async (expr, ms = 40000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await ev(expr)) return; await sleep(80); } throw new Error('timeout: ' + expr); };
+const unlocked = () => waitUntil('!inputLocked()');
+const canHold = () => waitUntil('canHoldConfirm()');
+const control = () => ev('GlobalState.part1.control.toFixed(4)');
 
-// ① 움직이기 전 꾹 → 확정 안 됨, 쓸고 나서 꾹 → 다음
+// 안내 잠금: 말하는 동안 쓸어도 값이 안 바뀜. 슬라이더는 잠겨 있어도 움직이고 값(control)을 건드리지 않음
+{ const c0 = await control(); await drag(150); console.log('  locked', await ev('inputLocked()'), 'swipe ignored', c0 === await control());
+  const b = await ev('voiceSliderBox()');
+  await tap(b.x1, b.y); console.log('  slider max → level', (await ev('GlobalState.voiceLevel')).toFixed(2), 'gain', (await ev('voiceBus ? voiceBus.gain.value : -1')).toFixed(2));
+  await tap(b.x0 + (b.x1 - b.x0) * 0.63, b.y); console.log('  slider back → level', (await ev('GlobalState.voiceLevel')).toFixed(2), 'value kept', c0 === await control());
+  // 잠긴 동안 누른 손가락은 풀린 뒤 움직여도 무시
+  await mouse('mousePressed', W / 2, 500); await unlocked();
+  for (let k = 1; k <= 10; k++) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: W / 2, y: 500 - k * 15, button: 'left', buttons: 1 }); await sleep(16); }
+  await mouse('mouseReleased', W / 2, 350); await sleep(100); console.log('  finger from lock ignored', c0 === await control()); }
+
+// ① 움직이기 전 꾹 → 확정 안 됨, 쓸고 나서도 확정 안내 전에는 꾹 → 안 됨, 안내를 들은 뒤 꾹 → 다음
 await holdSnail(); await expect('PART1_VOLUME');
 await drag(250); console.log('  swiped up → voice', await ev('voiceNow')); await sleep(1200);
 await drag(-120); console.log('  swiped down → voice', await ev('voiceNow')); await sleep(400);
-await holdSnail(() => shot('01-volume-holding')); await expect('PART1_LOW');
+await holdSnail(); await expect('PART1_VOLUME');
+await canHold(); await holdSnail(() => shot('01-volume-holding')); await expect('PART1_LOW');
 console.log('  next stage carries confirm line', await ev('voiceNow'));
-await drag(200); console.log('  drag cuts intro → busy', await ev('voiceBusy()')); await sleep(400);
-console.log('  beat back', await ev('duckGain.output.gain.value.toFixed(2)'), 'voice', await ev('voiceNow')); await sleep(900); await shot('02-low');
+{ const c0 = await control(); await drag(200); console.log('  intro not cut → busy', await ev('voiceBusy()'), 'swipe ignored', c0 === await control()); }
+await unlocked(); await drag(200); await canHold(); await shot('02-low');
 await holdSnail(); await expect('PART1_HIGH');
-await drag(220); await sleep(1300); await shot('03-high');
+await unlocked(); await drag(220); await canHold(); await shot('03-high');
 await holdSnail(); await expect('PART1_REGISTER');
 console.log('  loudness comp', await ev("JSON.stringify({ measured: Array.isArray(sourceSpectrum('HIGH')), highPlus10: +getLoudnessCompDb(sourceSpectrum('HIGH')).toFixed(1), eq: GlobalState.userEQProfile.highShelf.gain.toFixed(1) })"));
 
 // ④ 자동 재생 → 등 위 자리 톡 → 더듬이 톡(다시 듣기) → 꾹
-const waitUntil = async (expr, ms = 40000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await ev(expr)) return; await sleep(80); } throw new Error('timeout: ' + expr); };
 await waitUntil('GlobalState.part1.register.playingCard >= 0'); console.log('  melody after intro, voice busy', await ev('voiceBusy()')); await sleep(1200); await shot('04-register-playing');
 await waitUntil('!GlobalState.part1.register.isAutoPlaying');
 const spots = (await T()).spots;
+await tap(spots[0].x, spots[0].y); console.log('  tap during task voice → card', await ev('GlobalState.part1.register.selectedCard'), '(-1이어야 함)');
+await unlocked();
 await tap(spots[2].x, spots[2].y); console.log('  picked card', await ev('GlobalState.part1.register.selectedCard'));
-await sleep(2400); await shot('04-register-picked');
+await holdSnail(); await expect('PART1_REGISTER'); // 4-5 안내 전에는 확정 안 됨
+await canHold(); await shot('04-register-picked');
 await tapAntenna(); console.log('  antenna replay → autoplaying', await ev('GlobalState.part1.register.isAutoPlaying'));
 await holdSnail(); await expect('PART1_REGISTER'); // 다시 듣는 중에는 확정 안 됨
 await waitUntil('!GlobalState.part1.register.isAutoPlaying');
@@ -112,12 +129,14 @@ await waitPhase('pressing'); await sleep(150); await tap(600, 900); console.log(
 console.log('  early voice', await ev('voiceNow'));
 await holdSnail(); await expect('PART2_SENSITIVITY'); // 일찍 누른 것만 있으면 꾹이 안 됨
 await sleep(1500); console.log('  after 1.5s phase', await ev('GlobalState.part2.phase'), '(choice여야 함, 저절로 안 넘어감)');
-await tapAntenna(); await waitPhase('pressing'); await sleep(4500); await shot('05-sens-twisting'); console.log('  twist live', (await ev('part2Twist()')).toFixed(2));
+await unlocked(); await tapAntenna(); await waitPhase('pressing'); await sleep(4500); await shot('05-sens-twisting'); console.log('  twist live', (await ev('part2Twist()')).toFixed(2));
+{ const b = await ev('voiceSliderBox()'); await tap(b.x0 + 60, b.y); console.log('  slider while beeping → phase', await ev('GlobalState.part2.phase'), '(pressing이어야 함)'); }
 await tap(100, 300); console.log('  tapped → frozen', (await ev('GlobalState.part2.frozenU')).toFixed(2), 'phase', await ev('GlobalState.part2.phase'));
 await shot('05-sens-frozen');
-await tapAntenna(); await waitPhase('pressing'); await sleep(7000); await tap(400, 400);
+await unlocked(); await tapAntenna(); await waitPhase('pressing'); await sleep(7000); await tap(400, 400);
 console.log('  3 listens used → can replay', await ev('canReplayPart2()'));
-await holdSnail();
+await holdSnail(); await expect('PART2_SENSITIVITY'); // 안내(5-4) 도중 꾹 → 안 됨
+await canHold(); await holdSnail();
 await sleep(900); await expect('PART2_CENTER');
 console.log('  sens', JSON.stringify(await ev('({ hz: GlobalState.psychoProfile.maxFreqHz, s: GlobalState.psychoProfile.sensitivity, twist: GlobalState.psychoProfile.twist })')));
 
@@ -133,7 +152,7 @@ await sleep(900); await expect('PART2_EAR');
 console.log('  center', await ev('GlobalState.psychoProfile.centerDeg'), await ev('GlobalState.psychoProfile.centerImage'));
 
 // ⑦ 우세 귀: 안내 → 듣기만 하는 예시 → 안내 → 시행. 덜 굴리면 답 안 됨, 더듬이로 한 번 더 듣기, 굴리고 손을 떼면 바로 답 (3번)
-await waitPhase('example'); console.log('  ear example, answers', await ev('GlobalState.part2.trial === null')); await shot('07-ear-example');
+await waitPhase('example'); console.log('  ear example, answers', await ev('GlobalState.part2.trial === null'), 'locked', await ev('inputLocked()')); await shot('07-ear-example');
 for (let k = 0; k < 3; k++) {
   await waitPhase('answer');
   if (k === 0) {
@@ -184,5 +203,12 @@ await sleep(2500); await expect('PART1_VOLUME');
 console.log('  2nd visitor beat on', await ev('isBeatOn()'), 'lang', await ev('GlobalState.lang'));
 await ev('lastActivity -= (IDLE_RESET_SECONDS + 1) * 1000'); await sleep(300); await expect('INIT');
 console.log('  idle reset → beat on', await ev('isBeatOn()'), 'voice', await ev('voiceBusy()'), 'duck', await ev('duckGain.output.gain.value.toFixed(2)'));
+console.log('  level reset', (await ev('GlobalState.voiceLevel')).toFixed(2), 'voice on', await ev('GlobalState.voiceOn'));
+
+// 음성을 꺼도 자막 시간만큼 잠기고, 슬라이더는 없음
+await ev(`(() => { setVoiceOn(false); const i = document.querySelector('.intro input'); i.value = 'three'; document.querySelector('.intro form').requestSubmit(); })()`);
+await sleep(2500); await expect('PART1_VOLUME');
+console.log('  voice off → subtitle', await ev('voiceLine()'), 'locked', await ev('inputLocked()'), 'slider', await ev('voiceSliderShown()'));
+await ev('lastActivity -= (IDLE_RESET_SECONDS + 1) * 1000'); await sleep(300); await expect('INIT');
 console.log('errors:', errors.length ? errors : 'none');
 ws.close(); chrome.kill(); process.exit(0);

@@ -11,7 +11,9 @@
  *     ⑥ 중앙        : 좌우로 끌기 = 비트를 머리 둘레로 돌리기, 달팽이 꾹 = 여기가 가운데
  *     ⑦⑧           : 좌우로 끌어 달팽이를 기어가게 하고 손을 떼면 바로 답(왼쪽/오른쪽), 더듬이 톡 = 한 번 더 듣기
  *     결과          : 빈 곳을 누르고 있는 동안 = 원래 소리, 달팽이를 오른쪽으로 밀기 = 청감타워로 보내기
+ *     검사 화면 오른쪽 위 슬라이더 : 음성 안내 크기. 잠겨 있어도 움직이고 검사 입력으로 치지 않음
  *     어느 단계든 IDLE_RESET_SECONDS 동안 아무도 안 만지면 첫 화면으로
+ * - 안내 잠금(voice.js): 잠긴 동안 시작한 터치는 버리고, 풀린 뒤 새로 시작한 터치부터 반영
  * - 모바일 기본 스크롤 및 바운스 제스처 차단 (이름 입력 화면만 예외)
  */
 
@@ -22,7 +24,7 @@ const IDLE_RESET_SECONDS = 120; // 관람객이 자리를 떠나면 첫 화면�
 
 let lastTouchTime = 0;
 let lastActivity = 0;
-let pointer = null; // 지금 누르고 있는 손가락 { x0, y0, x, y, lastX, lastY, t0, onSnail, mode: 'pending' | 'drag' | 'done' }
+let pointer = null; // 지금 누르고 있는 손가락 { x0, y0, x, y, lastX, lastY, t0, onSnail, canHold, mode: 'pending' | 'drag' | 'done' | 'voice' }
 
 function preload() {
   preloadPart1();
@@ -151,12 +153,18 @@ function pointerDown(px, py) {
   resumeBackdrop();
   lastActivity = millis();
   if (window.GlobalState.currentStage === 'RESULT' && tourState().sendAt !== null) return;
+  if (hitVoiceSlider(px, py)) {
+    pointer = { mode: 'voice' };
+    setVoiceLevel(voiceSliderLevelAt(px));
+    return;
+  }
+  if (inputLocked()) return;
 
   // ⑤ 누른 시각이 답이라 손가락이 닿는 순간 바로 처리
   if (part2Tap()) return;
 
   const onSnail = hitSnail(px, py);
-  pointer = { x0: px, y0: py, x: px, y: py, lastX: px, lastY: py, t0: millis(), onSnail, mode: 'pending' };
+  pointer = { x0: px, y0: py, x: px, y: py, lastX: px, lastY: py, t0: millis(), onSnail, canHold: canHoldConfirm(), mode: 'pending' };
 
   // 결과: 달팽이가 아닌 곳을 누르면 누르고 있는 동안 원래 소리
   if (window.GlobalState.currentStage === 'RESULT' && !onSnail) setResultBypass(true);
@@ -165,6 +173,10 @@ function pointerDown(px, py) {
 function pointerMove(px, py) {
   if (!pointer) return;
   lastActivity = millis();
+  if (pointer.mode === 'voice') {
+    setVoiceLevel(voiceSliderLevelAt(px));
+    return;
+  }
   pointer.x = px;
   pointer.y = py;
   if (pointer.mode === 'pending' && Math.hypot(px - pointer.x0, py - pointer.y0) > TAP_MOVE_PX) {
@@ -219,14 +231,20 @@ function tapAt(px, py) {
 function canHoldConfirm() {
   const gs = window.GlobalState;
   const stage = gs.currentStage;
-  if (PART1_ADJUST[stage]) return gs.part1.hasMoved;
-  if (stage === 'PART1_REGISTER') return gs.part1.register.selectedCard >= 0 && !gs.part1.register.isAutoPlaying;
+  if (voiceBusy() || inputLocked()) return false; // 말이 끝나기 전에 닿아 있던 손가락으로 넘어가지 않게
+  if (PART1_ADJUST[stage]) return canConfirmAdjust();
+  if (stage === 'PART1_REGISTER') return gs.part1.register.selectedCard >= 0 && !gs.part1.register.isAutoPlaying && !!voiceCue.picked;
   if (stage === 'PART2_CENTER' || stage === 'PART2_SENSITIVITY') return canConfirmPart2(); // ⑦⑧은 손을 떼면 답 (releaseRoll)
   return false;
 }
 
+function holdReady() {
+  return !!pointer && pointer.mode === 'pending' && pointer.onSnail && pointer.canHold && canHoldConfirm();
+}
+
 function updateHold() {
-  if (!pointer || pointer.mode !== 'pending' || !pointer.onSnail || !canHoldConfirm()) return;
+  if (pointer && pointer.mode !== 'voice' && inputLocked()) pointer = null; // 잠금이 시작되면 누르던 손가락도 버림
+  if (!holdReady()) return;
   if (millis() - pointer.t0 < HOLD_MS) return;
   pointer.mode = 'done';
   const stage = window.GlobalState.currentStage;
@@ -237,7 +255,7 @@ function updateHold() {
 
 // 비주얼용: 꾹 누르는 중이면 { x, y, progress 0~1 }
 function getHold() {
-  if (!pointer || pointer.mode !== 'pending' || !pointer.onSnail || !canHoldConfirm()) return null;
+  if (!holdReady()) return null;
   const elapsed = millis() - pointer.t0;
   if (elapsed < 120) return null; // 톡과 구분: 잠깐 누를 때는 고리를 안 보임
   return { x: pointer.x0, y: pointer.y0, progress: Math.min(1, (elapsed - 120) / (HOLD_MS - 120)) };

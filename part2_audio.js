@@ -594,6 +594,7 @@ function beginPart2Stage(stage) {
 async function part2Intro(test) {
   const p2 = part2State();
   const tok = p2.token;
+  lockInput();
   await say(test.voice);
   if (tok !== p2.token) return;
   if (test.example) {
@@ -604,7 +605,10 @@ async function part2Intro(test) {
     await say(test.voiceAfter);
     if (tok !== p2.token) return;
   }
-  part2Later(P2_TIMING.leadMs, part2Next);
+  part2Later(P2_TIMING.leadMs, () => {
+    unlockInput(0);
+    part2Next();
+  });
 }
 
 function part2Next() {
@@ -618,8 +622,13 @@ function part2Next() {
     // 두 번째 검사음 전 안내
     const tok = p2.token;
     p2.phase = 'lead';
+    lockInput();
     say(['6-4']).then(() => {
-      if (tok === p2.token) part2Later(P2_TIMING.leadMs, () => part2Present(tr));
+      if (tok !== p2.token) return;
+      part2Later(P2_TIMING.leadMs, () => {
+        unlockInput(0);
+        part2Present(tr);
+      });
     });
     return;
   }
@@ -684,8 +693,8 @@ function part2AfterAnswer(key, value) {
   // ⑤는 저절로 다음으로 가지 않고 고르기를 기다림 (더듬이 톡 = 한 번 더, 달팽이 꾹 = 다음)
   if (window.GlobalState.currentStage === 'PART2_SENSITIVITY') {
     p2.phase = 'choice';
-    if (note) say(['5-7', '5-8']);
-    else say([...(p2.logic.canMore() ? ['5-3'] : []), ...(p2.logic.canFinish() ? ['5-4'] : [])]);
+    if (note) sayGuide(['5-7', '5-8']);
+    else sayGuide([...(p2.logic.canMore() ? ['5-3'] : []), ...(p2.logic.canFinish() ? ['5-4'] : [])]);
     return;
   }
   part2Later(P2_TIMING.gapMs, part2Next);
@@ -874,8 +883,13 @@ function replayPart2() {
     p2.note = null;
     p2.phase = 'lead';
     const tok = p2.token;
+    lockInput();
     say(['5-6']).then(() => { // 새로 한 번 더 (결과는 평균)
-      if (tok === p2.token) part2Later(P2_TIMING.leadMs, part2Next);
+      if (tok !== p2.token) return;
+      part2Later(P2_TIMING.leadMs, () => {
+        unlockInput(0);
+        part2Next();
+      });
     });
     return;
   }
