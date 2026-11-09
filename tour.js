@@ -88,7 +88,10 @@ function sendToTower() {
   if (tour.sendAt !== null) return;
   tour.sendAt = millis();
   MemeFX.depart();
-  if (window.svartCloud && window.EAR_RESULT) window.svartCloud.sendEar(window.EAR_RESULT); // 뒤에서 전송. 화면 흐름을 막지 않음
+  if (window.svartCloud && window.EAR_RESULT) {
+    try { tour.earId = window.svartCloud.sendEar(window.EAR_RESULT); }
+    catch (error) { console.warn('[cloud] unable to persist outbox:', error.message); }
+  } // 뒤에서 전송. 화면 흐름을 막지 않음
   sendTimers.push(setTimeout(() => {
     setActiveSource(null, 1.5);
     showBackdrop(null);

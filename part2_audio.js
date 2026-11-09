@@ -576,21 +576,13 @@ function beginPart2Stage(stage) {
   part2Intro(PART2_TESTS[stage]);
 }
 
-// 시작 안내 → (⑦⑧ 1초 뒤 예시 → 안내) → 1초 뒤 첫 시행
+// 새 한/영 지시문: 시작 안내 → 1초 뒤 첫 시행 (⑦⑧ 예시 없음)
 async function part2Intro(test) {
   const p2 = part2State();
   const tok = p2.token;
   lockInput();
   await say(voicePlan(test.voice));
   if (tok !== p2.token) return;
-  if (test.example && currentLang() !== 'ko') {
-    await new Promise((res) => part2Later(P2_TIMING.leadMs, res));
-    p2.phase = 'example';
-    await new Promise((res) => { p2Play(test.example()).onEnd = res; });
-    p2.phase = 'lead';
-    await say(test.voiceAfter);
-    if (tok !== p2.token) return;
-  }
   part2Later(P2_TIMING.leadMs, () => {
     unlockInput(0);
     part2Next();

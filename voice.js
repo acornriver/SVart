@@ -1,7 +1,7 @@
 /**
  * 청각 다변기 (Sound Variator) - 음성 안내 (차민휘 제작, 일레븐랩스)
  *
- * 한국어: media/voice/memesound/m<번호>.mp3 (voiceMemesound.js), 영어: media/voice/e/e<번호>.mp3 (copy.js).
+ * 한국어: media/voice/memesound/m<번호>.mp3 (voiceMemesound.js), 영어: media/voice/memesound/en/m<번호>.mp3 (voiceMemesound.js).
  * iPad는 첫 터치 전에 소리를 못 내서 첫 화면은 글자로만 보여 줌 (사용자 선택 11/05).
  *
  * 줄을 넘기는 것은 재생 끝 이벤트가 아니라 타이머입니다. 오디오가 멈추거나 파일을 못 읽어도 안내가 흐름을 막으면 안 되기 때문입니다.
@@ -12,7 +12,6 @@
  * 잠긴 동안 시작한 터치는 풀린 뒤에도 무시하고, 풀린 뒤 새로 시작한 터치부터 반영합니다 (main.js).
  */
 
-const VOICE_FILES = { en: 'media/voice/e/e' };
 const VOICE_LEVEL_START = 0.63; // 슬라이더 시작 자리. 소리는 자리의 제곱이라 -8 dB. 원본이 말소리 구간 K-가중 -27 dB로 ①의 최대(-26 dB)만큼 커서 낮춤. Claude가 정한 임시값
 const VOICE_GAP_MS = 200;       // 줄 사이 숨 고르기
 const VOICE_FALLBACK_SEC = 0.09; // 파일을 못 읽었을 때 글자당 자막을 보여 줄 시간

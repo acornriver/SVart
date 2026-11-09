@@ -1123,8 +1123,7 @@ function drawGuides(L) {
     });
     if (reg.isAutoPlaying) hints.push(t('hint.listening'));
     else {
-      if (currentLang() === 'ko') hints.push(MEME_VOICE_COPY['m4-4']);
-      else { hints.push(voiceText(reg.selectedCard >= 0 ? '4-5' : '4-4')); hints.push(voiceText('4-7')); }
+      hints.push(memeText('m4-4'));
     }
   } else if (stage.startsWith('PART2_')) {
     const p2 = gs.part2;
@@ -1163,7 +1162,7 @@ function drawGuides(L) {
       rect(3, 3, width - 6, height - 6);
     }
 
-    if (stage === 'PART2_SENSITIVITY' && p2.phase === 'adjusting') hints.push(currentLang() === 'ko' ? MEME_VOICE_COPY[canConfirmPart2() ? 'm5-4' : 'm5-2'] : voiceText('5-2'));
+    if (stage === 'PART2_SENSITIVITY' && p2.phase === 'adjusting') hints.push(memeText(canConfirmPart2() ? 'm5-4' : 'm5-2'));
     else if (p2.phase === 'pressing') hints.push(voiceText('5-2'));
     else if (p2.phase === 'choice') {
       if (p2.note) hints.push(voiceText('5-8'));
@@ -1173,16 +1172,10 @@ function drawGuides(L) {
       }
     }
     else if (p2.phase === 'playing' || p2.phase === 'example') hints.push(t('hint.listening'));
-    else if (p2.phase === 'adjusting') hints.push(currentLang() === 'ko' ? MEME_VOICE_COPY[canConfirmPart2() ? 'm6-3' : 'm6-2'] : voiceText(canConfirmPart2() ? '6-3' : '6-2'));
+    else if (p2.phase === 'adjusting') hints.push(memeText(canConfirmPart2() ? 'm6-3' : 'm6-2'));
     else if (p2.phase === 'answer') {
-      if (currentLang() === 'ko') {
-        if (stage === 'PART2_EAR') hints.push(MEME_VOICE_COPY['m7-2']);
-        else hints.push(MEME_VOICE_COPY['m8-1'], MEME_VOICE_COPY['m8-2']);
-      } else {
-        if (stage === 'PART2_EAR') hints.push(voiceText('7-3'));
-        else hints.push(voiceText('8-2'), voiceText('8-3'));
-        if (canReplayPart2()) hints.push(voiceText('5-3'));
-      }
+      if (stage === 'PART2_EAR') hints.push(memeText('m7-2'));
+      else hints.push(memeText('m8-1'), memeText('m8-2'));
     }
   }
   // 말하는 동안은 자막만. 잠긴 동안에는 듣는 중이라는 안내만

@@ -1,5 +1,5 @@
-/** 한국어 밈사운드 안내 (2026-11-09). 원본·구간표: source/voice/memesound/.
- * 영어는 기존 음성과 진행을 유지합니다. m 접두어는 새 한국어 녹음 전용입니다.
+/** 한/영 밈사운드 안내 (2026-11-09). 원본·구간표: source/voice/memesound/.
+ * 한/영 모두 m 접두어의 새 녹음을 사용합니다. 영어 원본·구간표는 en/에 보관합니다.
  */
 const MEME_VOICE_COPY = {
   "m1-1": "여러분, 저 커졌다 작아졌다 할 수 있대요! 손가락으로 화면을 위아래로 쓸어보세요.",
@@ -32,13 +32,44 @@ const MEME_VOICE_COPY = {
   "m9-2": "지금까지 검사해 주셔서 감사합니다!",
   "m9-3": "아, 여기서 작가님들이 만든 소리도 들어볼 수 있어요! 화면에서 듣고 싶은 소리를 하나씩 골라보세요."
 };
+const MEME_VOICE_COPY_EN = {
+  "m1-1": "Hey, everyone! I can grow and shrink! Swipe your finger up and down on the screen.",
+  "m1-2": "Oh! When I get bigger, the sound gets louder. When I get smaller, it gets quieter. Can you hear it change?",
+  "m1-3": "When the volume feels comfortable, press and hold me on the screen.",
+  "m2-1": "Now it’s my tail’s turn! Swipe up and down on the screen and listen to how the sound changes.",
+  "m2-2": "When you find the sound that feels most comfortable, press and hold me on the screen!",
+  "m3-1": "But wait! My head can get longer and shorter, too! Just like before, swipe up and down and listen to how the sound changes.",
+  "m3-2": "When you find the sound that feels most comfortable, press and hold me on the screen. I’ll go with that one!",
+  "m4-1": "Hey, everyone! I’ve got a tune for you! I’ll play the same tune three times, with a different sound each time.",
+  "m4-2": "As each sound plays, a spot will be marked on the screen. Watch for it!",
+  "m4-3": "Want to hear one of those sounds again? Tap its spot on the screen.",
+  "m4-4": "Listen to all three sounds, one at a time. Choose the spot for the sound that feels most comfortable. Then press and hold me on the screen.",
+  "m4-5": "Look, everyone! I’m changing little by little. What am I turning into?",
+  "m5-1": "Hey, everyone! This time, the sound is going to disappear. Let’s find the moment you stop hearing it.",
+  "m5-2": "Slide me slowly to the right. When you can’t hear the sound anymore, stop right there.",
+  "m5-4": "Ready to move on? Press and hold me on the screen!",
+  "m5-5": "Oh! While you were listening, the line on the screen curled up!",
+  "m6-1": "Now let’s move the sound so you hear it right in the middle!",
+  "m6-2": "Swipe left or right on the screen. The sound moves with your finger!",
+  "m6-3": "When you hear the sound in the middle, press and hold me on the screen.",
+  "m6-4": "We’ll do this twice!",
+  "m7-1": "Hey, everyone! Which way should I go this time? Let’s find out which side the higher note comes from.",
+  "m7-2": "Slide me toward the side where you hear the higher note.",
+  "m7-3": "All right, let’s do this three times!",
+  "m8-1": "Hey, everyone! I made it to the last one! Listen to the two sounds, one after the other. If the second one sounds higher than the first, slide me to the right.",
+  "m8-2": "What if the second one sounds lower? Then slide me to the left.",
+  "m8-3": "Let’s do this six times. Then I’ll finally be complete!",
+  "m9-1": "Everyone, I did it! I’m a snail!",
+  "m9-2": "Thanks for taking the listening test with me!",
+  "m9-3": "Oh, you can listen to sounds made by the artists here, too! Pick the ones you’d like to hear from the screen, one at a time."
+};
 const VOICE_PLANS = {
   "adjustVolumeIntro": {
     "ko": [
       "m1-1"
     ],
     "en": [
-      "1-1"
+      "m1-1"
     ]
   },
   "adjustVolumeConfirm": {
@@ -46,7 +77,7 @@ const VOICE_PLANS = {
       "m1-3"
     ],
     "en": [
-      "1-5"
+      "m1-3"
     ]
   },
   "adjustVolumeDrag": {
@@ -54,7 +85,7 @@ const VOICE_PLANS = {
       "m1-2"
     ],
     "en": [
-      "1-2"
+      "m1-2"
     ]
   },
   "adjustLowIntro": {
@@ -62,10 +93,7 @@ const VOICE_PLANS = {
       "m2-1"
     ],
     "en": [
-      "1-6",
-      "2-1",
-      "2-2",
-      "2-3"
+      "m2-1"
     ]
   },
   "adjustLowConfirm": {
@@ -73,7 +101,7 @@ const VOICE_PLANS = {
       "m2-2"
     ],
     "en": [
-      "2-4"
+      "m2-2"
     ]
   },
   "adjustHighIntro": {
@@ -81,10 +109,7 @@ const VOICE_PLANS = {
       "m3-1"
     ],
     "en": [
-      "2-5",
-      "3-1",
-      "3-2",
-      "3-3"
+      "m3-1"
     ]
   },
   "adjustHighConfirm": {
@@ -92,7 +117,7 @@ const VOICE_PLANS = {
       "m3-2"
     ],
     "en": [
-      "3-4"
+      "m3-2"
     ]
   },
   "registerIntro": {
@@ -101,10 +126,8 @@ const VOICE_PLANS = {
       "m4-2"
     ],
     "en": [
-      "3-5",
-      "4-1",
-      "4-2",
-      "4-3"
+      "m4-1",
+      "m4-2"
     ]
   },
   "registerAfter": {
@@ -113,8 +136,8 @@ const VOICE_PLANS = {
       "m4-4"
     ],
     "en": [
-      "4-4",
-      "4-7"
+      "m4-3",
+      "m4-4"
     ]
   },
   "sensitivityIntro": {
@@ -124,9 +147,9 @@ const VOICE_PLANS = {
       "m5-2"
     ],
     "en": [
-      "4-6",
-      "5-1",
-      "5-2"
+      "m4-5",
+      "m5-1",
+      "m5-2"
     ]
   },
   "sensitivityConfirm": {
@@ -134,7 +157,7 @@ const VOICE_PLANS = {
       "m5-4"
     ],
     "en": [
-      "5-4"
+      "m5-4"
     ]
   },
   "centerIntro": {
@@ -146,10 +169,11 @@ const VOICE_PLANS = {
       "m6-3"
     ],
     "en": [
-      "5-5",
-      "6-1",
-      "6-2",
-      "6-3"
+      "m5-5",
+      "m6-1",
+      "m6-2",
+      "m6-4",
+      "m6-3"
     ]
   },
   "earIntro": {
@@ -159,8 +183,9 @@ const VOICE_PLANS = {
       "m7-3"
     ],
     "en": [
-      "6-5",
-      "7-1"
+      "m7-1",
+      "m7-2",
+      "m7-3"
     ]
   },
   "pitchIntro": {
@@ -170,8 +195,9 @@ const VOICE_PLANS = {
       "m8-3"
     ],
     "en": [
-      "7-6",
-      "8-1"
+      "m8-1",
+      "m8-2",
+      "m8-3"
     ]
   },
   "result": {
@@ -180,15 +206,24 @@ const VOICE_PLANS = {
       "m9-2"
     ],
     "en": [
-      "9-1"
+      "m9-1",
+      "m9-2"
+    ]
+  },
+  "music": {
+    "ko": [
+      "m9-3"
+    ],
+    "en": [
+      "m9-3"
     ]
   }
 };
-VOICE_PLANS.music = { ko: ['m9-3'], en: [] };
 function voicePlan(key) { return VOICE_PLANS[key][currentLang()]; }
 function guideText(key) { return voicePlan(key).map(voiceText).join(' '); }
-function voiceIds(lang) { return Object.keys(lang === 'ko' ? MEME_VOICE_COPY : VOICE_COPY); }
-function voiceFile(lang, id) {
-  return lang === 'ko' ? `media/voice/memesound/${id}.mp3` : `${VOICE_FILES.en}${id}.mp3`;
+function memeText(id, lang = currentLang()) {
+  return (lang === 'ko' ? MEME_VOICE_COPY : MEME_VOICE_COPY_EN)[id];
 }
+function voiceIds(lang) { return Object.keys(lang === 'ko' ? MEME_VOICE_COPY : MEME_VOICE_COPY_EN); }
+function voiceFile(lang, id) { return `media/voice/memesound/${lang === 'en' ? 'en/' : ''}${id}.mp3`; }
 function registerLetters() { return REGISTER_LETTERS; }

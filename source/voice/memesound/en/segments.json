@@ -1,0 +1,274 @@
+{
+  "source": "snail_m_002.flac",
+  "originalFile": "snail_m_002.wav",
+  "originalSha256": "344a5ec212e294c3dfcd5b4090e43c497519ddd80cb758fe9a038edb5f8b282f",
+  "instructions": "instructions.pdf",
+  "language": "en",
+  "targetLufs": -27,
+  "method": "PDF dialogue and local Whisper word timestamps; cuts inside measured silence. 7-2 text transcribed from recording because PDF text is blank.",
+  "segments": [
+    {
+      "id": "m1-1",
+      "text": "Hey, everyone! I can grow and shrink! Swipe your finger up and down on the screen.",
+      "start": 0,
+      "end": 4.945182,
+      "sourceLufs": -13.8,
+      "sourceTruePeakDbfs": -0.7,
+      "gainDb": -12.8
+    },
+    {
+      "id": "m1-2",
+      "text": "Oh! When I get bigger, the sound gets louder. When I get smaller, it gets quieter. Can you hear it change?",
+      "start": 4.945182,
+      "end": 11.012358,
+      "sourceLufs": -15.5,
+      "sourceTruePeakDbfs": -1.0,
+      "gainDb": -11.1
+    },
+    {
+      "id": "m1-3",
+      "text": "When the volume feels comfortable, press and hold me on the screen.",
+      "start": 11.243311,
+      "end": 14.754218,
+      "sourceLufs": -16.5,
+      "sourceTruePeakDbfs": -1.0,
+      "gainDb": -10.1
+    },
+    {
+      "id": "m2-1",
+      "text": "Now it’s my tail’s turn! Swipe up and down on the screen and listen to how the sound changes.",
+      "start": 14.855986,
+      "end": 20.308231,
+      "sourceLufs": -16.8,
+      "sourceTruePeakDbfs": -0.8,
+      "gainDb": -9.8
+    },
+    {
+      "id": "m2-2",
+      "text": "When you find the sound that feels most comfortable, press and hold me on the screen!",
+      "start": 20.471066,
+      "end": 24.974308,
+      "sourceLufs": -17.9,
+      "sourceTruePeakDbfs": -1.2,
+      "gainDb": -8.7
+    },
+    {
+      "id": "m3-1",
+      "text": "But wait! My head can get longer and shorter, too! Just like before, swipe up and down and listen to how the sound changes.",
+      "start": 25.174082,
+      "end": 32.282404,
+      "sourceLufs": -16.3,
+      "sourceTruePeakDbfs": -1.5,
+      "gainDb": -10.3
+    },
+    {
+      "id": "m3-2",
+      "text": "When you find the sound that feels most comfortable, press and hold me on the screen. I’ll go with that one!",
+      "start": 32.724603,
+      "end": 38.810816,
+      "sourceLufs": -15.8,
+      "sourceTruePeakDbfs": -0.8,
+      "gainDb": -10.8
+    },
+    {
+      "id": "m4-1",
+      "text": "Hey, everyone! I’ve got a tune for you! I’ll play the same tune three times, with a different sound each time.",
+      "start": 38.969615,
+      "end": 45.372721,
+      "sourceLufs": -16.3,
+      "sourceTruePeakDbfs": -1.1,
+      "gainDb": -10.2
+    },
+    {
+      "id": "m4-2",
+      "text": "As each sound plays, a spot will be marked on the screen. Watch for it!",
+      "start": 45.6439,
+      "end": 50.170431,
+      "sourceLufs": -14.5,
+      "sourceTruePeakDbfs": -1.2,
+      "gainDb": -12.1
+    },
+    {
+      "id": "m4-3",
+      "text": "Want to hear one of those sounds again? Tap its spot on the screen.",
+      "start": 50.329138,
+      "end": 53.949116,
+      "sourceLufs": -15.8,
+      "sourceTruePeakDbfs": -1.1,
+      "gainDb": -10.8
+    },
+    {
+      "id": "m4-4",
+      "text": "Listen to all three sounds, one at a time. Choose the spot for the sound that feels most comfortable. Then press and hold me on the screen.",
+      "start": 54.336621,
+      "end": 62.120646,
+      "sourceLufs": -17.2,
+      "sourceTruePeakDbfs": -1.2,
+      "gainDb": -9.3
+    },
+    {
+      "id": "m4-5",
+      "text": "Look, everyone! I’m changing little by little. What am I turning into?",
+      "start": 62.14746,
+      "end": 66.074649,
+      "sourceLufs": -16.8,
+      "sourceTruePeakDbfs": -1.0,
+      "gainDb": -9.7
+    },
+    {
+      "id": "m5-1",
+      "text": "Hey, everyone! This time, the sound is going to disappear. Let’s find the moment you stop hearing it.",
+      "start": 66.241451,
+      "end": 71.401361,
+      "sourceLufs": -16.2,
+      "sourceTruePeakDbfs": -1.1,
+      "gainDb": -10.4
+    },
+    {
+      "id": "m5-2",
+      "text": "Slide me slowly to the right. When you can’t hear the sound anymore, stop right there.",
+      "start": 71.937778,
+      "end": 76.701825,
+      "sourceLufs": -16.9,
+      "sourceTruePeakDbfs": -1.3,
+      "gainDb": -9.6
+    },
+    {
+      "id": "m5-4",
+      "text": "Ready to move on? Press and hold me on the screen!",
+      "start": 76.701825,
+      "end": 79.39474,
+      "sourceLufs": -14.7,
+      "sourceTruePeakDbfs": -1.3,
+      "gainDb": -11.8
+    },
+    {
+      "id": "m5-5",
+      "text": "Oh! While you were listening, the line on the screen curled up!",
+      "start": 79.39474,
+      "end": 82.56483,
+      "sourceLufs": -14.6,
+      "sourceTruePeakDbfs": -1.5,
+      "gainDb": -12.0
+    },
+    {
+      "id": "m6-1",
+      "text": "Now let’s move the sound so you hear it right in the middle!",
+      "start": 82.84195,
+      "end": 85.674308,
+      "sourceLufs": -13.8,
+      "sourceTruePeakDbfs": -1.1,
+      "gainDb": -12.7
+    },
+    {
+      "id": "m6-2",
+      "text": "Swipe left or right on the screen. The sound moves with your finger!",
+      "start": 85.75093,
+      "end": 89.35576,
+      "sourceLufs": -15.1,
+      "sourceTruePeakDbfs": -1.6,
+      "gainDb": -11.5
+    },
+    {
+      "id": "m6-3",
+      "text": "When you hear the sound in the middle, press and hold me on the screen.",
+      "start": 89.546553,
+      "end": 92.774921,
+      "sourceLufs": -14.9,
+      "sourceTruePeakDbfs": -1.6,
+      "gainDb": -11.6
+    },
+    {
+      "id": "m6-4",
+      "text": "We’ll do this twice!",
+      "start": 92.857415,
+      "end": 94.278231,
+      "sourceLufs": -15.4,
+      "sourceTruePeakDbfs": -1.9,
+      "gainDb": -11.2
+    },
+    {
+      "id": "m7-1",
+      "text": "Hey, everyone! Which way should I go this time? Let’s find out which side the higher note comes from.",
+      "start": 94.401451,
+      "end": 99.87034,
+      "sourceLufs": -15.3,
+      "sourceTruePeakDbfs": -1.1,
+      "gainDb": -11.2
+    },
+    {
+      "id": "m7-2",
+      "text": "Slide me toward the side where you hear the higher note.",
+      "start": 99.949955,
+      "end": 102.629796,
+      "sourceLufs": -15.9,
+      "sourceTruePeakDbfs": -1.7,
+      "gainDb": -10.6
+    },
+    {
+      "id": "m7-3",
+      "text": "All right, let’s do this three times!",
+      "start": 105.396349,
+      "end": 107.316553,
+      "sourceLufs": -16.3,
+      "sourceTruePeakDbfs": -1.2,
+      "gainDb": -10.3
+    },
+    {
+      "id": "m8-1",
+      "text": "Hey, everyone! I made it to the last one! Listen to the two sounds, one after the other. If the second one sounds higher than the first, slide me to the right.",
+      "start": 107.48712,
+      "end": 116.751973,
+      "sourceLufs": -15.6,
+      "sourceTruePeakDbfs": -0.5,
+      "gainDb": -11.0
+    },
+    {
+      "id": "m8-2",
+      "text": "What if the second one sounds lower? Then slide me to the left.",
+      "start": 117.188662,
+      "end": 120.848844,
+      "sourceLufs": -17.0,
+      "sourceTruePeakDbfs": -1.6,
+      "gainDb": -9.5
+    },
+    {
+      "id": "m8-3",
+      "text": "Let’s do this six times. Then I’ll finally be complete!",
+      "start": 120.97288,
+      "end": 124.02966,
+      "sourceLufs": -17.6,
+      "sourceTruePeakDbfs": -1.1,
+      "gainDb": -8.9
+    },
+    {
+      "id": "m9-1",
+      "text": "Everyone, I did it! I’m a snail!",
+      "start": 124.167279,
+      "end": 126.353288,
+      "sourceLufs": -11.5,
+      "sourceTruePeakDbfs": -1.0,
+      "gainDb": -15.0
+    },
+    {
+      "id": "m9-2",
+      "text": "Thanks for taking the listening test with me!",
+      "start": 126.578345,
+      "end": 128.578413,
+      "sourceLufs": -16.2,
+      "sourceTruePeakDbfs": -1.2,
+      "gainDb": -10.3
+    },
+    {
+      "id": "m9-3",
+      "text": "Oh, you can listen to sounds made by the artists here, too! Pick the ones you’d like to hear from the screen, one at a time.",
+      "start": 128.701655,
+      "end": 135.205465,
+      "sourceLufs": -16.6,
+      "sourceTruePeakDbfs": -0.9,
+      "gainDb": -9.9
+    }
+  ],
+  "decodedPcmSha256": "0cb82dd774bd4e8549e5f313e35482d8610c35ad3b3dc08c44a9ecf22d77e1fb",
+  "instructionsSha256": "aabf5a08630d339113d89f15620afd93c2132da265811d8fb517b635f69e31ec"
+}

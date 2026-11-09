@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate Korean meme guides from the lossless source and reviewed segment manifest.
+"""Regenerate meme guides from the lossless source and reviewed segment manifest.
 Requires ffmpeg/ffprobe; uses gain only (no stretching or dynamic compression).
 """
 import argparse
@@ -19,13 +19,16 @@ def run(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--verify-only', action='store_true')
+    parser.add_argument('--lang', choices=['ko', 'en'], default='ko')
     args = parser.parse_args()
-    manifest = json.loads((SOURCE / 'segments.json').read_text())
-    TARGET.mkdir(parents=True, exist_ok=True)
+    source = SOURCE / 'en' if args.lang == 'en' else SOURCE
+    target = TARGET / 'en' if args.lang == 'en' else TARGET
+    manifest = json.loads((source / 'segments.json').read_text())
+    target.mkdir(parents=True, exist_ok=True)
     for segment in manifest['segments']:
-        dest = TARGET / (segment['id'] + '.mp3')
+        dest = target / (segment['id'] + '.mp3')
         if not args.verify_only:
-            run(['ffmpeg', '-v', 'error', '-y', '-ss', str(segment['start']), '-i', str(SOURCE / manifest['source']),
+            run(['ffmpeg', '-v', 'error', '-y', '-ss', str(segment['start']), '-i', str(source / manifest['source']),
                  '-t', str(round(segment['end'] - segment['start'], 6)), '-ac', '1', '-ar', '44100',
                  '-af', f"volume={segment['gainDb']}dB", '-c:a', 'libmp3lame', '-b:a', '128k',
                  '-metadata', 'title=' + segment['id'], str(dest)])
@@ -36,7 +39,7 @@ def main():
             raise ValueError(f"{segment['id']}: unexpected duration {duration} (expected {expected})")
         run(['ffmpeg', '-v', 'error', '-i', str(dest), '-f', 'null', '-'])
         print(f"{segment['id']}: {duration:.3f}s / gain {segment['gainDb']:+.2f}dB")
-    actual = {p.stem for p in TARGET.glob('*.mp3')}
+    actual = {p.stem for p in target.glob('*.mp3')}
     expected = {s['id'] for s in manifest['segments']}
     if actual != expected:
         raise ValueError(f'Unexpected/missing clips: {actual ^ expected}')

@@ -26,7 +26,7 @@ const STAGE_COPY = {
 // 녹음이 아직 없는 줄. 녹음이 오면 media/voice에 넣고 여기서 지움. 그 전까지는 소리 없이 자막만 나옴
 const VOICE_PENDING = {
   ko: [],
-  en: ['5-2']
+  en: []
 };
 
 const VOICE_COPY = {
@@ -214,7 +214,7 @@ function t(key) {
 
 // 음성 안내 번호 → 지금 언어의 자막
 function voiceText(id) {
-  return MEME_VOICE_COPY[id] !== undefined ? MEME_VOICE_COPY[id] : VOICE_COPY[id][currentLang()];
+  return memeText(id) !== undefined ? memeText(id) : VOICE_COPY[id][currentLang()];
 }
 
 function stageCopy(stage) {

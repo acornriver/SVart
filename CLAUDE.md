@@ -8,6 +8,23 @@
 
 ## 0. 지금 상태 (새 세션은 여기부터)
 
+### 0-0cloud. 최신 백엔드 기준 — SVart 우선 (2026-11-09)
+- **사용자 결정: 현재 SVart 규칙이 최신입니다. SVartTower·SVartSoft의 예전 전송 규칙보다 우선합니다.** 현재 코드를 기준으로 `cloud/schema.js`와 `firestore.rules`를 작성했습니다. 자세한 규약·실행법은 `cloud/README.md`입니다.
+- 새 문서는 `v: 2`, `codeVersion: 2`, 코드 `IWS-RLF(13.2k/6)`입니다. 고역은 실제 **8000~20000Hz**, 연속 EQ·꼬임·중앙각은 정밀도 그대로 보냅니다. 타워의 예전 8~16k→8~20k 재변환은 제거했습니다. 검사 순서는 그대로입니다.
+- `index.html`에서 schema/config/firebase/send를 불러옵니다. 보내기는 v2 로컬 대기열에 보관하고 재시도합니다. 이름은 기본 미저장, 일반 localhost/dev는 전송하지 않습니다. 예전 대기열은 자동 삭제·변환하지 않습니다.
+- `../SVartTower`도 이 기준으로 수정했습니다. 공통 schema/config/firebase/feed의 원본은 **SVart/cloud**입니다. `python3 scripts/sync-tower-cloud.py`로 복사하고 `--check`로 차이를 확인합니다. 타워의 별도 mapping은 실제 Hz를 보존합니다. SVartSoft는 수정하지 않았습니다.
+- 로컬 Firestore 에뮬레이터에서 규약·권한·실제 SDK 송신→타워 피드→매핑·오프라인/중복 방지 **26개 검증 통과**. 한국어 빠른 전체 flow도 60.7초 `errors: none`, 청감 코드 4,860개 왕복 검증 통과. 테스트: `npm ci --prefix tests/cloud`, 에뮬레이터 8181 실행 후 `npm test --prefix tests/cloud`.
+- **운영 Firebase 규칙/인덱스 배포·커밋·푸시는 하지 않았습니다.** 운영 연결 전 새 규칙/인덱스 배포가 필요합니다. v2 규칙은 과거 앱의 v1 생성을 거부하므로 공개 시점을 함께 맞춥니다.
+
+### 0-0en. 현재 작업 — 새 영어 밈 안내 연결 (2026-11-09)
+- `media/update/`로 받은 영어 통합 WAV를 대사별 29개로 나눠 `media/voice/memesound/en/m<번호>.mp3`에 연결했습니다. 무음 안에서 분할하고 개별 음성을 다시 전사해 대사를 대조했으며, 인코딩 후 약 −27 LUFS로 검증했습니다. 속도·음정은 바꾸지 않았습니다.
+- 원본 FLAC·영어 PDF·구간/자막/gain 표는 `source/voice/memesound/en/`에 보존합니다. 영어 7-2는 PDF가 비어 있지만 녹음에 있어 그 문장을 사용합니다. 재생성은 `python3 scripts/split-memesound.py --lang en`, 파일 검증은 같은 명령에 `--verify-only`입니다.
+- `voiceMemesound.js`의 `MEME_VOICE_COPY_EN`과 언어별 파일 경로를 사용합니다. 한/영 모두 새 m 번호 29개와 같은 안내 순서입니다. ⑤의 영어 안내도 이제 자막뿐 아니라 녹음이 나옵니다. ⑥은 6-1→6-2→6-4→6-3 뒤 검사, ⑦⑧은 예시 없이 안내 뒤 3회·6회입니다.
+- **검증 완료**: 영어 29개 개별 재전사·길이·디코딩·약 −27 LUFS 검증, 원본 WAV/FLAC PCM 및 PDF 사본 동일성 확인. 한/영 빠른 flow, 영어 정상 속도 전체 flow, 영상·오디오 멈춤/오프라인 복구 모두 `errors: none`.
+- **사용자 선택: 효과음은 현재 배치 유지.** 이번 영어 PDF에 추가 표기된 헉·두구두구·팡파르·박수 배치는 도입하지 않습니다. 기존 size/shell/reveal/depart와 밈 자막은 그대로입니다. 방향/ABC/코드/분석→음악 흐름도 유지합니다.
+- 예전 영어 `e/` 53개는 새 녹음으로 대체하고 제거했습니다. 원본 PCM·PDF 동일성과 WAV 해시를 확인한 뒤 `media/update/`도 제거했습니다. 이번 작업은 기존 `experiment/meme-sfx-captions`에서 진행하며 새 커밋·푸시는 별도 요청 전까지 하지 않습니다.
+
+
 ### 0-0x. 현재 작업 브랜치 — 밈 효과음 실험
 - 사용자 요청으로 현재 상태에서 **`experiment/meme-sfx-captions`** 브랜치를 만들었습니다. 기존 달팽이 오른쪽 고정, A·B·C 배치/B·A·C 재생, 분석→음악 흐름은 유지합니다. 사용자 요청으로 이 브랜치의 변경 전체(이전 미커밋 작업 포함)를 커밋하고 `origin/experiment/meme-sfx-captions`로 푸시합니다. main 병합은 별도 요청 전까지 하지 않습니다.
 - 효과음 원본 12개는 `source/sfx/memes/`에 보관하고, 사용하는 4개만 `media/sfx/memes/`에 짧게 편집·음량 보정했습니다. 매핑·편집 구간·해시·미사용 파일은 그 폴더의 README/JSON을 봅니다. `update/`는 원본 12개 해시·바이트 동일성을 확인한 뒤 제거했습니다.

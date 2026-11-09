@@ -164,21 +164,17 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   await check('GlobalState.psychoProfile.raw.center.validN === 2 && GlobalState.psychoProfile.raw.octave.answers.length === 3 && GlobalState.psychoProfile.raw.f0.answers.length === 6', 'Wrong trial counts');
   await check("!!window.EAR_RESULT && !!localStorage.getItem('svart.earProfile')", 'Result was not saved');
   await ready();
-  if (lang === 'ko') {
-    await check("__fastFlow.voices.every(x => x.id.startsWith('m'))", 'Old Korean guide played');
-    await check("JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'PART2_CENTER').map(x => x.id)) === JSON.stringify(['m5-5','m6-1','m6-2','m6-4','m6-3'])", 'Wrong center guide order');
-    await check("!__fastFlow.buffers.some(x => x.phase === 'example')", 'Unexpected Korean example');
-    await check("JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'RESULT').map(x => x.id)) === JSON.stringify(['m9-1','m9-2'])", 'Wrong result guides');
-  } else {
-    await check("__fastFlow.buffers.filter(x => x.phase === 'example').length === 2", 'English examples were lost');
-  }
+  await check("__fastFlow.voices.every(x => x.id.startsWith('m'))", 'Legacy guide played');
+  await check("JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'PART2_CENTER').map(x => x.id)) === JSON.stringify(['m5-5','m6-1','m6-2','m6-4','m6-3'])", 'Wrong center guide order');
+  await check("!__fastFlow.buffers.some(x => x.phase === 'example')", 'Unexpected legacy example');
+  await check("JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'RESULT').map(x => x.id)) === JSON.stringify(['m9-1','m9-2'])", 'Wrong result guides');
   await shot('fast-09-analysis');
   await send('Emulation.setDeviceMetricsOverride', { width: 1133, height: 744, deviceScaleFactor: 1, mobile: false });
   await sleep(500); await shot('fast-09-analysis-landscape');
   await send('Emulation.setDeviceMetricsOverride', { width: 744, height: 1133, deviceScaleFactor: 1, mobile: false });
   await sleep(500);
   await confirm(); await stage('MUSIC'); await ready();
-  if (lang === 'ko') await check("__fastFlow.voices.some(x => x.stage === 'MUSIC' && x.id === 'm9-3')", 'Missing music guide');
+  await check("__fastFlow.voices.some(x => x.stage === 'MUSIC' && x.id === 'm9-3')", 'Missing music guide');
   for (const i of [2, 0, 1]) {
     await tap((await targets()).tracks[i]);
     await check(`GlobalState.tour.index === ${i} && GlobalState.tour.pinned`, 'Track selection failed');

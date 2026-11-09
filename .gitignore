@@ -2,3 +2,8 @@ render/
 media/img/
 .DS_Store
 CLAUDE.md
+
+node_modules/
+.firebase/
+firestore-debug.log
+firebase-debug.log

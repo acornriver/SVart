@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function numberIn(value, low, high) {
+      return (value is int || value is float) && value >= low && value <= high;
+    }
+    function nullableNumber(value, low, high) {
+      return value == null || numberIn(value, low, high);
+    }
+    function nullableEnum(value, values) { return value == null || value in values; }
+    function validProfile(p) {
+      let fields = ['volDb', 'lowDb', 'highDb', 'register', 'maxFreqHz', 'sensitivity', 'twistAmount', 'centerDeg', 'centerImage', 'dominantEar', 'earStrength', 'pitchMode', 'pitchIndex'];
+      return p is map && p.keys().hasAll(fields) && p.keys().hasOnly(fields)
+        && numberIn(p.volDb, -40, 0)
+        && numberIn(p.lowDb, -10, 10) && numberIn(p.highDb, -10, 10)
+        && nullableEnum(p.register, ['LOW', 'MID', 'HIGH'])
+        && nullableNumber(p.maxFreqHz, 8000, 20000)
+        && nullableNumber(p.sensitivity, 0, 100)
+        && nullableNumber(p.twistAmount, 0, 1)
+        && nullableNumber(p.centerDeg, -180, 180)
+        && nullableEnum(p.centerImage, ['L', 'C', 'R'])
+        && nullableEnum(p.dominantEar, ['LEFT', 'RIGHT'])
+        && nullableNumber(p.earStrength, 0, 100)
+        && nullableEnum(p.pitchMode, ['F', 'B', 'H'])
+        && nullableNumber(p.pitchIndex, -100, 100);
+    }
+    function validEar(d, earId) {
+      let fields = ['v', 'earId', 'code', 'codeVersion', 'profile', 'name', 'lang', 'seat', 'createdAt', 'clientAt', 'hidden', 'app'];
+      return d.keys().hasAll(fields) && d.keys().hasOnly(fields)
+        && earId.matches('^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{10}$') && d.earId == earId
+        && d.v == 2 && d.codeVersion == 2
+        && d.code is string && d.code.size() <= 40
+        && d.code.matches('^[OAI][TEW][VES]-[LCR·][LR·][FBH·][(]([0-9]{1,2}[.][0-9]|–)k/[0-9][)]$')
+        && validProfile(d.profile)
+        && (d.name == null || (d.name is string && d.name.size() >= 1 && d.name.size() <= 12))
+        && d.lang in ['ko', 'en']
+        && (d.seat == null || (d.seat is int && d.seat >= 1 && d.seat <= 6))
+        && d.createdAt == request.time
+        && d.clientAt is int && d.clientAt >= 0
+        && d.hidden == false
+        && d.app is string && d.app.size() <= 20;
+    }
+    match /ears/{earId} {
+      // Existing v1 records remain readable. Only newly created documents use the v2 contract.
+      allow get: if resource == null || resource.data.hidden == false;
+      allow list: if resource.data.hidden == false;
+      allow create: if validEar(request.resource.data, earId);
+      allow update, delete: if false;
+    }
+  }
+}

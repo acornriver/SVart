@@ -333,6 +333,7 @@ function saveEarResult() {
   const gs = window.GlobalState;
   const out = {
     name: gs.userName,
+    lang: gs.lang,
     code: getFullEarCode(gs.userEQProfile, gs.psychoProfile),
     userEQProfile: JSON.parse(JSON.stringify(gs.userEQProfile)),
     psychoProfile: JSON.parse(JSON.stringify(gs.psychoProfile)),

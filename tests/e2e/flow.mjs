@@ -103,7 +103,7 @@ await expect('INIT');
 if (LANG === 'en') { const b = await ev(`(() => { const r = document.querySelector('.langs [data-lang=en]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); await tap(b.x, b.y); }
 console.log('  lang', await ev('GlobalState.lang'));
 await shot('00-intro');
-console.log('  voice clips', await ev('JSON.stringify({ ko: Object.keys(voiceClips.ko).length, en: Object.keys(voiceClips.en).length })'), '(한국어 29개, 영어 기존 녹음)');
+console.log('  voice clips', await ev('JSON.stringify({ ko: Object.keys(voiceClips.ko).length, en: Object.keys(voiceClips.en).length })'), '(한국어 29개, 영어 29개)');
 // 확성기: 끄고 켜기. 끈 모습을 찍고 다시 켜서 시작
 { const b = await ev(`(() => { const r = document.querySelector('.spk').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
   await tap(b.x, b.y); console.log('  speaker off', await ev('GlobalState.voiceOn')); await shot('00-intro-voice-off');
@@ -173,8 +173,8 @@ for (let k = 0; k < 2; k++) {
 await sleep(900); await expect('PART2_EAR');
 console.log('  center', await ev('GlobalState.psychoProfile.centerDeg'), await ev('GlobalState.psychoProfile.centerImage'));
 
-// ⑦ 우세 귀: 안내 → 듣기만 하는 예시 → 안내 → 시행. 덜 굴리면 답 안 됨, 더듬이로 한 번 더 듣기, 굴리고 손을 떼면 바로 답 (3번)
-if (LANG === 'en') { await waitPhase('example'); await shot('07-ear-example'); }
+// ⑦ 우세 귀: 새 한/영 안내 → 시행. 덜 굴리면 답 안 됨, 더듬이로 한 번 더 듣기, 굴리고 손을 떼면 바로 답 (3번)
+// 새 한/영 지시문: 예시 없이 안내 후 본 시행.
 for (let k = 0; k < 3; k++) {
   await waitPhase('answer');
   if (k === 0) {
@@ -191,8 +191,8 @@ await sleep(900); await expect('PART2_PITCH');
 console.log('  ear', await ev('GlobalState.psychoProfile.dominantEar'), await ev('GlobalState.psychoProfile.earStrength'));
 await sleep(800); await shot('07-ear-antennae');
 
-// ⑧ 바탕음·배음: 예시(답 없음) + 6번. 순서에 따라 답이 갈리게 (AB → 내려감 = 바탕음 쪽)
-if (LANG === 'en') await waitPhase('example');
+// ⑧ 바탕음·배음: 새 한/영 안내 + 6번. 순서에 따라 답이 갈리게 (AB → 내려감 = 바탕음 쪽)
+// 새 한/영 지시문: 예시 없음.
 for (let k = 0; k < 6; k++) {
   await waitPhase('answer');
   const order = await ev('GlobalState.part2.trial.order');
@@ -205,6 +205,7 @@ console.log('  result voice', await ev('voiceNow'));
 console.log('  psycho', JSON.stringify(await ev('GlobalState.psychoProfile')));
 
 await canHold(); await holdSnail(); await expect('MUSIC');
+await waitUntil('!voiceBusy()');
 // 결과: 빈 곳을 누르고 있으면 원래 소리, 떼면 내 소리. 달팽이를 오른쪽으로 밀면 보내기
 await sleep(2500); await shot('10-result-subtitle'); await sleep(3000); await shot('10-result');
 console.log('  code', await ev('getFullEarCode(GlobalState.userEQProfile, GlobalState.psychoProfile)'), 'place', await ev('tourPlace().key'));
