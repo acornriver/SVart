@@ -37,7 +37,7 @@ const T = () => ev('getTouchTargets()');
 // 꾹 누르기 (달팽이 위에서 움직이지 않고)
 const hold = async (x, y, ms = 1200, mid) => { await mouse('mousePressed', x, y); await sleep(ms / 2); if (mid) await mid(); await sleep(ms / 2); await mouse('mouseReleased', x, y); await sleep(450); };
 const holdSnail = async (mid) => { const t = await T(); await hold(t.snail.x, t.snail.y, 1200, mid); };
-const tapAntenna = async () => { const t = await T(); await tap(t.antenna.x, t.antenna.y); };
+const tapAntenna = async () => { await waitUntil('!!(getTouchTargets() && getTouchTargets().antenna)'); const t = await T(); await tap(t.antenna.x, t.antenna.y); };
 const stage = () => ev('GlobalState.currentStage');
 const drag = async (dy) => {
   const x = W / 2, y0 = 500;
@@ -114,11 +114,9 @@ const spots = (await T()).spots;
 await tap(spots[0].x, spots[0].y); console.log('  tap during task voice → card', await ev('GlobalState.part1.register.selectedCard'), '(-1이어야 함)');
 await unlocked();
 await tap(spots[2].x, spots[2].y); console.log('  picked card', await ev('GlobalState.part1.register.selectedCard'));
-await holdSnail(); await expect('PART1_REGISTER'); // 4-5 안내 전에는 확정 안 됨
-await canHold(); await shot('04-register-picked');
-await tapAntenna(); console.log('  antenna replay → autoplaying', await ev('GlobalState.part1.register.isAutoPlaying'));
-await holdSnail(); await expect('PART1_REGISTER'); // 다시 듣는 중에는 확정 안 됨
-await waitUntil('!GlobalState.part1.register.isAutoPlaying');
+await canHold(); await shot('04-register-picked'); // 카드 선택 + 4-4·4-7 안내 완료 대기
+await tap(spots[2].x, spots[2].y); console.log('  card re-tap → playing', await ev('GlobalState.part1.register.playingCard'), '(2이어야 함)');
+await waitUntil('GlobalState.part1.register.playingCard < 0'); // 재생 완료 대기
 await holdSnail(); await expect('PART2_SENSITIVITY');
 console.log('  register', await ev('GlobalState.userEQProfile.registerPeak.register'));
 

@@ -31,7 +31,8 @@ window.GlobalState = {
       selectedCard: -1,
       isAutoPlaying: false
     },
-    isBypassed: false      // 결과 단계: true면 EQ 없이 원래 소리
+    isBypassed: false,     // 결과 단계: true면 EQ 없이 원래 소리 (eqMix < 0.5)
+    eqMix: 1               // 결과 단계: 원래 소리(0.0) ↔ 내 귀 EQ(1.0) 슬라이더 위치
   },
 
   // Part 2 진행 상태 (part2_audio.js, 검사 내용은 ref/part2 (1).html)
@@ -51,11 +52,13 @@ window.GlobalState = {
     frozenU: null          // ⑤ 톡 한 순간의 경로 위치 (그 꼬임으로 멈춤)
   },
 
-  // 결과 화면: 북서울 산책과 청감타워로 보내기 (tour.js)
+  // 결과 화면: 북서울 산책(3곡 선택)과 청감타워로 보내기 (tour.js)
   tour: {
-    index: 0,              // TOUR_PLACES 안의 지금 장소
+    index: 0,              // TOUR_PLACES 안의 지금 장소 (0 ~ 2)
     placeAt: 0,            // 이 장소에 들어온 시각(millis)
-    sendAt: null           // 보내기를 누른 시각(millis). null이면 아직
+    sendAt: null,          // 보내기를 누른 시각(millis). null이면 아직
+    listenAt: -1e9,        // 곡 버튼을 눌러 달팽이가 귀 기울여 듣기 시작한 시각(millis)
+    pinned: false,         // 곡 버튼을 눌렀으면 그 곡에 고정 (자동으로 넘어가지 않음)
   },
 
   // Part 1 결과 (최종 감상 곡의 개인 EQ, Part 2 기준 볼륨)

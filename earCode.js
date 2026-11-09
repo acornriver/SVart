@@ -12,11 +12,11 @@
 
 const EAR_CODE = {
   REGISTER: [
-    { letter: 'O', id: 'LOW',  peakHz: 100 },
-    { letter: 'A', id: 'MID',  peakHz: 400 },
+    { letter: 'O', id: 'LOW', peakHz: 100 },
+    { letter: 'A', id: 'MID', peakHz: 400 },
     { letter: 'I', id: 'HIGH', peakHz: 2500 }
   ],
-  LOW:  { letters: ['T', 't', 'E', 'w', 'W'], words: ['얇게', '조금 얇게', '그대로', '조금 웅웅', '웅웅'] },
+  LOW: { letters: ['T', 't', 'E', 'w', 'W'], words: ['얇게', '조금 얇게', '그대로', '조금 웅웅', '웅웅'] },
   HIGH: { letters: ['V', 'v', 'E', 's', 'S'], words: ['보들', '조금 보들', '그대로', '조금 쨍', '쨍'] },
   SHELF_STEP_DB: 4,
   PEAK_GAIN_DB: 3,

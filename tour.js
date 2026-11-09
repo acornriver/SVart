@@ -3,17 +3,16 @@
  *
  * "이 달팽이가 북서울미술관 주변에 가 본다면?"
  * 결과 화면에서 개인 EQ를 입힌 북서울 주변 녹음을 장소마다 TOUR_SECONDS씩 차례로 들려주고,
- * 그 장소 영상을 캔버스 뒤에 고대비 흑백으로 깝니다. 내 EQ ↔ 원래 소리 비교는 그대로 됩니다.
- * '청감타워로 보내기'를 누르면 달팽이가 오른쪽으로 기어 나가고, 잠시 뒤 첫 화면으로 돌아갑니다.
- * (실제 업로드는 아직 없음. 청감타워 연결은 사용자와 정하는 중)
+ * 그 장소 영상을 캔버스 뒤에 고대비 흑백으로 깝니다. 버튼으로 곡을 고르면 그 곡에 고정합니다 (사용자 선택 11/06).
+ * 달팽이를 오른쪽으로 밀면 결과를 청감타워로 보내고(cloud/send.js), 달팽이가 기어 나간 뒤 첫 화면으로 돌아갑니다.
  *
  * 영상과 소리는 전시 내내 멈추면 안 됩니다: 영상은 처음에 blob으로 받아 두고, 1초마다 멈췄는지 확인해 다시 재생합니다.
  */
 
+// 작가 곡 3개가 오기 전까지 북서울 사운드스케이프 3개를 선택해 들을 수 있게 구성 (사용자 지시 11/06)
 // spectrum은 음량 보정용 대략적 기울기. 장소 이름은 copy.js의 place.<key>
 const TOUR_PLACES = [
   { key: 'water',      audio: './media/audio/water.m4a',      video: './media/video/water.mp4',      spectrum: 'pink' },  // 당현천 물소리
-  { key: 'walk-stair', audio: './media/audio/walk-stair.m4a', video: './media/video/walk-stair.mp4', spectrum: 'white' }, // 중계역 계단 발소리
   { key: 'train-go',   audio: './media/audio/train-go.m4a',   video: './media/video/train-go.mp4',   spectrum: 'brown' }, // 중계역 지하철
   { key: 'car-move',   audio: './media/audio/car-move.m4a',   video: './media/video/car-move.mp4',   spectrum: 'pink' }   // 북서울미술관 앞 지나가는 차
 ];
@@ -46,6 +45,8 @@ function startTour() {
   const tour = tourState();
   tour.index = 0;
   tour.sendAt = null;
+  tour.pinned = false;
+  tour.listenAt = millis();
   enterPlace();
 }
 
@@ -57,12 +58,22 @@ function enterPlace() {
   showBackdrop(tourPlace().key);
 }
 
+function selectTourPlace(index) {
+  const tour = tourState();
+  if (tour.sendAt !== null) return;
+  const next = ((index % TOUR_PLACES.length) + TOUR_PLACES.length) % TOUR_PLACES.length;
+  tour.index = next;
+  tour.pinned = true;
+  tour.listenAt = millis();
+  enterPlace();
+}
+
 /**
  * 매 프레임 (part1_audio.js의 updateFlow()에서 호출)
  */
 function updateTour() {
   const tour = tourState();
-  if (tour.sendAt !== null) return;
+  if (tour.sendAt !== null || tour.pinned) return;
   if (millis() - tour.placeAt >= TOUR_SECONDS * 1000) {
     tour.index = (tour.index + 1) % TOUR_PLACES.length;
     enterPlace();
@@ -76,6 +87,7 @@ function sendToTower() {
   const tour = tourState();
   if (tour.sendAt !== null) return;
   tour.sendAt = millis();
+  if (window.svartCloud && window.EAR_RESULT) window.svartCloud.sendEar(window.EAR_RESULT); // 뒤에서 전송. 화면 흐름을 막지 않음
   sendTimers.push(setTimeout(() => {
     setActiveSource(null, 1.5);
     showBackdrop(null);

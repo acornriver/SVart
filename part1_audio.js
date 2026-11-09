@@ -5,13 +5,13 @@
  * ① 편한 볼륨    : 전체 비트를 들으며 위아래로 쓸어 크기 맞추기       → masterVolume (반죽 크기)
  * ② 저음 맞추기  : 킥·베이스가 큰 비트로 low shelf 맞추기           → lowShelf (꼬리)
  * ③ 고음 맞추기  : 하이햇·쉐이커가 큰 비트로 high shelf 맞추기       → highShelf (머리)
- * ④ 음역 고르기  : 같은 멜로디 저/중/고 중 하나 고르기 (듣는 순서 무작위) → registerPeak (껍질 자리)
+ * ④ 음역 고르기  : 같은 멜로디 저/중/고 중 하나 고르기 (듣는 순서 B-A-C 고정) → registerPeak (껍질 자리)
  * → Part 2 검사 네 단계 (part2_audio.js: 고역 예민도 · 중앙 · 우세 귀 · 바탕음/배음)
- * 결과          : 개인 EQ를 입힌 북서울 주변 녹음을 장소마다 차례로 (tour.js) ↔ 원래 소리 비교
+ * 결과          : 개인 EQ를 입힌 북서울 주변 녹음을 15초씩 돌아가며, 버튼으로 고르면 그 곡에 고정 (tour.js) ↔ 원래 소리 비교
  *
  * - 한 단계에 한 파트, 한 축(위아래 쓸기)만 조절. 시작값은 매번 무작위.
  * - 충분히 움직인 뒤 달팽이 꾹으로 확정.
- * - 음성 안내(voice.js)는 지시문 순서대로. ①②③④는 관람객이 먼저 조작하면 남은 안내를 끊음 (사용자 선택 11/05)
+ * - 음성 안내(voice.js)는 지시문 순서대로. 할 일을 알려 주는 동안은 터치를 받지 않음 (안내 잠금, 차민휘 전달사항 11/06)
  * - EQ를 바꿔도 체감 음량이 같도록 자동 음량 보정 (큰 소리를 고르는 편향 방지).
  *
  * 신호 흐름:
@@ -40,6 +40,7 @@ const PART1_SOURCES = {
 // 녹음마다 크기가 달라 ①에서 맞춘 볼륨이 다음 단계에서 어긋나지 않도록 크기를 맞춤 (비트와 같은 K-가중 기준, LOUD_TARGET).
 // 원본이 -53 ~ -37 dBFS로 작아 크게 키우는데, 발소리처럼 피크가 큰 녹음은 피크가 상한을 넘지 않는 데까지만 키움
 const SAMPLE_PEAK_CEILING = 0.7;  // p5.sound 최종 리미터(-3 dBFS) 바로 아래
+const SAMPLE_RETRY_MS = 5000;     // 녹음을 못 받았을 때 다시 받기까지
 
 // 단계별 음성 안내 번호 (voice.js, 문구는 copy.js). 앞 단계의 확정 안내(1-6 등)가 다음 단계 맨 앞에 옴
 // intro: 들어갈 때, confirm: 확정할 수 있게 됐을 때
@@ -112,12 +113,29 @@ let registerPlayToken = 0;
 let currentVoice = null;
 
 /**
- * 0. 녹음 파일 미리 불러오기 (main.js의 preload()에서 호출)
+ * 0. 녹음 파일 불러오기 (main.js의 setup()에서 호출). preload()에 넣으면 하나만 실패해도 앱이 영영 시작되지 않음.
+ * 못 받은 녹음은 다시 시도하고, 받기 전까지 그 곡은 영상만 나옴. 받으면 watchActiveSource가 재생을 이어 줌
  */
-function preloadPart1() {
-  TOUR_PLACES.forEach(({ key, audio }) => {
-    sampleSources[key] = loadSound(audio);
-  });
+function loadSamples() {
+  TOUR_PLACES.forEach(({ key, audio }) => loadSample(key, audio));
+}
+
+function loadSample(key, audio) {
+  loadSound(audio, (s) => {
+    sampleSources[key] = s;
+    if (window.GlobalState.isAudioInitialized) connectSample(key);
+  }, () => setTimeout(() => loadSample(key, audio), SAMPLE_RETRY_MS));
+}
+
+// 녹음을 EQ 체인에 잇고 크기·스펙트럼을 잼
+function connectSample(key) {
+  const s = sampleSources[key];
+  s.disconnect();
+  s.connect(lowShelfFilter);
+  const ch = bufferChannels(s.buffer);
+  const { kRms, peak } = measureLoudness(ch, s.buffer.sampleRate);
+  sampleLevels[key] = Math.min(LOUD_TARGET / kRms, SAMPLE_PEAK_CEILING / peak);
+  sampleSpectra[key] = measureSpectrum(ch, s.buffer.sampleRate);
 }
 
 /**
@@ -197,14 +215,7 @@ function setupAudioPipeline() {
   duckGain.connect();
 
   setupBeat(lowShelfFilter.input);
-  Object.entries(sampleSources).forEach(([key, s]) => {
-    s.disconnect();
-    s.connect(lowShelfFilter);
-    const ch = bufferChannels(s.buffer);
-    const { kRms, peak } = measureLoudness(ch, s.buffer.sampleRate);
-    sampleLevels[key] = Math.min(LOUD_TARGET / kRms, SAMPLE_PEAK_CEILING / peak);
-    sampleSpectra[key] = measureSpectrum(ch, s.buffer.sampleRate);
-  });
+  Object.keys(sampleSources).forEach(connectSample);
 
   const fft = new p5.FFT(0.8, 512);
   fft.setInput(masterGain);
@@ -292,6 +303,7 @@ function goToStep(index) {
     beginPart2Stage(stage);
   } else if (stage === 'RESULT') {
     gs.part1.isBypassed = false;
+    gs.part1.eqMix = 1;
     startTour(); // 북서울 산책. 장소를 바꿀 때마다 음량 보정도 그 녹음 기준으로
     saveEarResult();
     say(['9-1']);
@@ -336,6 +348,7 @@ function restartFlow() {
   profile.registerPeak.gain = 0;
   resetPsychoProfile();
   gs.part1.isBypassed = false;
+  gs.part1.eqMix = 1;
   gs.part1.stepIndex = 0;
   gs.userName = '';
 
@@ -418,17 +431,14 @@ function canConfirmAdjust() {
 }
 
 /**
- * ①은 지시문대로 위로 쓸면 1-2·1-3, 그다음 아래로 쓸면 1-4
+ * ①은 쓰기 시작하면 1-2 (소리에 주의 유도)
  */
 function voiceOnDrag(stage, dyRatio) {
   if (stage !== 'PART1_VOLUME') return;
   if (Math.abs(dyRatio) < 0.002) return; // 손 떨림
-  if (dyRatio > 0 && !voiceCue.up) {
+  if (!voiceCue.up) {
     voiceCue.up = true;
-    say(['1-2', '1-3']);
-  } else if (dyRatio < 0 && voiceCue.up && !voiceCue.down && !voiceCue.confirm) {
-    voiceCue.down = true;
-    say(['1-4']);
+    say(['1-2']);
   }
 }
 
@@ -444,7 +454,7 @@ function dragAdjust(dyRatio) {
   const next = constrain(adjustValue + dyRatio * cfg.span, cfg.min, cfg.max);
   movedPath += Math.abs(next - adjustValue);
   adjustValue = next;
-  window.GlobalState.part1.lastDragAt = millis(); // 비주얼: 반죽을 누르는 손가락 자국
+  window.GlobalState.part1.lastDragAt = millis(); // 비주얼: 달팽이를 누르는 손가락 자국
   voiceOnDrag(stage, dyRatio);
   applyAdjust(stage);
 }
@@ -481,15 +491,18 @@ function tapConfirmAdjust() {
  */
 function applyEQ() {
   const profile = window.GlobalState.userEQProfile;
-  const bypass = window.GlobalState.part1.isBypassed;
+  const p1 = window.GlobalState.part1;
+  const mix = window.GlobalState.currentStage === 'RESULT'
+    ? (typeof p1.eqMix === 'number' ? p1.eqMix : (p1.isBypassed ? 0 : 1))
+    : (p1.isBypassed ? 0 : 1);
 
-  lowShelfFilter.gain(bypass ? 0 : profile.lowShelf.gain);
+  lowShelfFilter.gain(profile.lowShelf.gain * mix);
   peakFilter.freq(profile.registerPeak.freq);
-  peakFilter.gain(bypass ? 0 : profile.registerPeak.gain);
-  highShelfFilter.gain(bypass ? 0 : profile.highShelf.gain);
+  peakFilter.gain(profile.registerPeak.gain * mix);
+  highShelfFilter.gain(profile.highShelf.gain * mix);
 
   const spectrum = sourceSpectrum(activeSourceKey);
-  const compDb = bypass ? 0 : getLoudnessCompDb(spectrum);
+  const compDb = mix <= 0 ? 0 : getLoudnessCompDb(spectrum, mix);
   loudnessComp.amp(dbToGain(compDb), 0.08);
 }
 
@@ -497,7 +510,7 @@ function applyEQ() {
  * EQ가 바꾼 체감 음량을 되돌리는 보정값(dB).
  * 소스 스펙트럼 × A-가중치로 EQ 전후 파워를 비교한다.
  */
-function getLoudnessCompDb(spectrum) {
+function getLoudnessCompDb(spectrum, mix = 1) {
   const profile = window.GlobalState.userEQProfile;
   let before = 0;
   let after = 0;
@@ -507,7 +520,7 @@ function getLoudnessCompDb(spectrum) {
     // 로그 간격 한 칸에 들어있는 파워: 잰 값, 아니면 white ∝ f, pink 일정, brown ∝ 1/f
     const s = Array.isArray(spectrum) ? spectrum[i] : spectrum === 'white' ? f : spectrum === 'brown' ? 1 / f : 1;
     const w = s * Math.pow(aWeighting(f), 2);
-    const eqDb = getEQResponseDb(f, profile);
+    const eqDb = getEQResponseDb(f, profile, mix);
     before += w;
     after += w * Math.pow(10, eqDb / 10);
   }
@@ -518,11 +531,11 @@ function getLoudnessCompDb(spectrum) {
  * 개인 EQ의 주파수 f에서 이득(dB). Web Audio BiquadFilter와 같은 공식(RBJ Cookbook).
  * 비주얼에서 곡선을 그릴 때도 사용.
  */
-function getEQResponseDb(f, profile) {
+function getEQResponseDb(f, profile, mix = 1) {
   const fs = getAudioContext().sampleRate;
-  return biquadResponseDb('lowshelf', profile.lowShelf.freq, profile.lowShelf.gain, 1, f, fs) +
-    biquadResponseDb('peaking', profile.registerPeak.freq, profile.registerPeak.gain, profile.registerPeak.q, f, fs) +
-    biquadResponseDb('highshelf', profile.highShelf.freq, profile.highShelf.gain, 1, f, fs);
+  return biquadResponseDb('lowshelf', profile.lowShelf.freq, profile.lowShelf.gain * mix, 1, f, fs) +
+    biquadResponseDb('peaking', profile.registerPeak.freq, profile.registerPeak.gain * mix, profile.registerPeak.q, f, fs) +
+    biquadResponseDb('highshelf', profile.highShelf.freq, profile.highShelf.gain * mix, 1, f, fs);
 }
 
 function biquadResponseDb(type, f0, gainDb, q, f, fs) {
@@ -577,18 +590,19 @@ function aWeighting(f) {
 }
 
 /**
- * 결과 단계: 내 EQ ↔ 원래 소리 비교
+ * 결과 단계: 내 EQ ↔ 원래 소리 슬라이더(0 = 원래 소리, 1 = 내 EQ) 및 비교
  */
-function toggleResultBypass() {
-  setResultBypass(!window.GlobalState.part1.isBypassed);
+function setResultEqMix(mix) {
+  const p1 = window.GlobalState.part1;
+  const m = constrain(mix, 0, 1);
+  if (p1.eqMix === m) return;
+  p1.eqMix = m;
+  p1.isBypassed = m < 0.5;
+  applyEQ();
 }
 
-// 결과 화면: 화면을 누르고 있는 동안만 원래 소리 (main.js)
 function setResultBypass(on) {
-  const p1 = window.GlobalState.part1;
-  if (p1.isBypassed === on) return;
-  p1.isBypassed = on;
-  applyEQ();
+  setResultEqMix(on ? 0 : 1);
 }
 
 /**
@@ -596,9 +610,9 @@ function setResultBypass(on) {
  */
 function startRegisterTrial() {
   const reg = window.GlobalState.part1.register;
-  // 카드는 x축(음고) 위 제자리에 고정하고, 처음 들려주는 순서만 무작위
+  // 카드는 x축(음고) 위 제자리에 고정하고, 처음 들려주는 순서는 B - A - C 고정 (사용자 지시 11/06)
   reg.order = REGISTERS.map((r) => r.id);
-  reg.playOrder = shuffle([0, 1, 2]);
+  reg.playOrder = [1, 0, 2];
   reg.selectedCard = -1;
   reg.playingCard = -1;
   reg.isAutoPlaying = true;
@@ -610,7 +624,10 @@ async function introRegister() {
   lockInput();
   await say(REGISTER_INTRO_VOICE);
   if (token !== registerPlayToken) return;
-  if (await playAllRegisterCards()) sayGuide(['4-4', '4-7']);
+  if (!(await playAllRegisterCards())) return;
+  // 4-3·4-4까지 들은 뒤에 세 자리를 눌러 보고 확정할 수 있음 (지시문)
+  const playedToken = registerPlayToken;
+  if (await sayGuide(['4-4', '4-7']) && playedToken === registerPlayToken) voiceCue.picked = true;
 }
 
 // 세 멜로디를 끝까지 들려줬으면 true
@@ -644,25 +661,11 @@ async function tapRegisterCard(i) {
   await wait(MELODY_LENGTH * 1000);
   if (token !== registerPlayToken) return;
   reg.playingCard = -1;
-  if (!voiceCue.picked) {
-    voiceCue.picked = true;
-    say(['4-5']);
-  }
-}
-
-async function replayAllRegisterCards() {
-  const reg = window.GlobalState.part1.register;
-  if (reg.isAutoPlaying) return;
-  stopVoice();
-  reg.isAutoPlaying = true;
-  const token = ++registerPlayToken;
-  await say(['4-8']);
-  if (token === registerPlayToken) playAllRegisterCards();
 }
 
 function confirmRegister() {
   const reg = window.GlobalState.part1.register;
-  if (reg.isAutoPlaying || reg.selectedCard < 0) return;
+  if (reg.isAutoPlaying || reg.selectedCard < 0 || !voiceCue.picked) return; // 4-4·4-7 안내 전에는 확정 안 됨
 
   const chosen = REGISTERS.find((r) => r.id === reg.order[reg.selectedCard]);
   const peak = window.GlobalState.userEQProfile.registerPeak;

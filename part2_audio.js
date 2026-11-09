@@ -14,7 +14,7 @@
  *
  * 음악처럼 (사용자 지시 11/02 "적극적으로 음악 소리 바꿔도 됨" → 측정은 살리는 쪽을 고름). 박자는 120 BPM(P2_GROOVE):
  *   ⑦ 0.25초 음 · ⑧ 0.5초 음과 0.25초 쉼이 원래 120 BPM의 8분·4분음표라 측정 소리 길이는 그대로
- *   ⑤ 삐 간격만 0.3초 → 0.25초(8분음표). 밑에 4분음표 킥(45–140 Hz라 8 kHz 넘는 삐를 가리지 않음)
+ *   ⑤ 삐 간격만 0.3초 → 0.25초(8분음표). 뒤의 쿵쿵 비트는 뺌 (사용자 지시 11/06)
  *   ⑥ 말소리 대신 Part 1 비트를 120 BPM으로 그려서 머리 둘레로 돌림 (못 그리면 말소리로)
  *   ⑦ 밑에 4분음표 킥 (두 귀에 똑같이, 400/800 Hz와 떨어져 있음)
  *   ⑧ 앞에 하이햇 카운트인 (7 kHz 위라 배음과 안 겹침). 킥은 빠진 바탕음을 채울 수 있어 넣지 않음
@@ -37,7 +37,7 @@ const PART2_MOVE_THRESHOLD = 0.25; // 이만큼은 굴려야 확정 가능
 const CENTER_DEG_PER_WIDTH = 300;  // ⑥ 화면 너비만큼 쓸면 머리 둘레를 이만큼 돎
 const CENTER_SIDE_DEG = 5;         // ⑥ 치우침이 이 안이면 코드에서 C(가운데)
 
-const P2_GROOVE = { bpm: 120, sensKickSpl: 48, earKickSpl: 54, hatSpl: 44, countIn: 4 };
+const P2_GROOVE = { bpm: 120, earKickSpl: 54, hatSpl: 44, countIn: 4 };
 const P2_BEAT_SEC = 60 / P2_GROOVE.bpm;
 
 let part2Bus = null;
@@ -225,7 +225,6 @@ function sensBuffer() {
       R[pre + s0 + i] = v;
     }
   }
-  for (let t = 0; t < pre + sweep; t += Math.round(P2_BEAT_SEC * sr)) p2AddKick(buf, t, P2_GROOVE.sensKickSpl);
   return buf;
 }
 
@@ -619,16 +618,11 @@ function part2Next() {
   const stage = window.GlobalState.currentStage;
   p2.replayLeft = PART2_TESTS[stage].replay || 0;
   if (stage === 'PART2_CENTER' && tr.index > 1) {
-    // 두 번째 검사음 전 안내
-    const tok = p2.token;
+    // 두 번째 검사음은 안내 없이 1초 뒤 (지시문)
     p2.phase = 'lead';
-    lockInput();
-    say(['6-4']).then(() => {
-      if (tok !== p2.token) return;
-      part2Later(P2_TIMING.leadMs, () => {
-        unlockInput(0);
-        part2Present(tr);
-      });
+    part2Later(P2_TIMING.leadMs, () => {
+      unlockInput(0);
+      part2Present(tr);
     });
     return;
   }
@@ -690,10 +684,10 @@ function part2AfterAnswer(key, value) {
   p2.phase = 'wait';
   const note = p2.logic.answer(p2.trial, key, value);
   p2.note = note;
-  // ⑤는 저절로 다음으로 가지 않고 고르기를 기다림 (더듬이 톡 = 한 번 더, 달팽이 꾹 = 다음)
+  // ⑤는 저절로 다음으로 가지 않고 고르기를 기다림 (달팽이 톡 = 한 번 더, 달팽이 꾹 = 다음)
   if (window.GlobalState.currentStage === 'PART2_SENSITIVITY') {
     p2.phase = 'choice';
-    if (note) sayGuide(['5-7', '5-8']);
+    if (note) sayGuide(['5-7', '5-8']); // 소리 전에 누름
     else sayGuide([...(p2.logic.canMore() ? ['5-3'] : []), ...(p2.logic.canFinish() ? ['5-4'] : [])]);
     return;
   }
@@ -706,13 +700,6 @@ async function finishPart2Stage() {
   const res = p2.logic.result();
   storePart2Result(stage, res);
   stopPart2Sounds();
-  if (stage === 'PART2_PITCH') {
-    // 결과 화면으로 넘어가기 전 마지막 안내
-    p2.phase = 'wait';
-    const tok = p2.token;
-    await say(['8-6']);
-    if (tok !== p2.token) return;
-  }
   confirmStep();
 }
 
@@ -830,6 +817,11 @@ function releaseRoll() {
   if (ok) confirmPart2();
 }
 
+// 터치가 끊기면 답하지 않고 가운데로
+function cancelRoll() {
+  part2State().roll = 0;
+}
+
 function rollSide(roll) {
   return roll < -PART2_SIDE_THRESHOLD ? 'L' : roll > PART2_SIDE_THRESHOLD ? 'R' : null;
 }
@@ -882,14 +874,9 @@ function replayPart2() {
     p2.frozenU = null;
     p2.note = null;
     p2.phase = 'lead';
-    const tok = p2.token;
-    lockInput();
-    say(['5-6']).then(() => { // 새로 한 번 더 (결과는 평균)
-      if (tok !== p2.token) return;
-      part2Later(P2_TIMING.leadMs, () => {
-        unlockInput(0);
-        part2Next();
-      });
+    part2Later(P2_TIMING.leadMs, () => { // 새로 한 번 더 (결과는 평균). 안내 없이 1초 뒤
+      unlockInput(0);
+      part2Next();
     });
     return;
   }
