@@ -84,17 +84,14 @@
     .intro .langs .spk.muted .on { display: none; }
     .intro .langs .spk.muted .off { display: inline; }
     .intro.started .langs { opacity: 0; transition: opacity .4s ease; }
-    .intro .title { margin: 0; font-weight: 700; font-size: clamp(30px, 6vw, 60px); white-space: nowrap; }
-    .intro .before, .intro .after, .intro .hint { display: none; }
+    .intro .title-btn { pointer-events: auto; touch-action: manipulation; background: transparent; border: none; outline: none;
+      margin: 0; padding: 0; cursor: pointer; font: 700 clamp(30px, 6vw, 60px)/1 inherit; color: #f5f5f0; white-space: nowrap;
+      -webkit-tap-highlight-color: transparent; }
+    .intro .title-btn:active { opacity: .7; }
+    .intro .before, .intro .after { display: inline; }
     .intro .br { color: #ff3b1f; }
-    .intro .name { pointer-events: auto; width: 2.4em; padding: 0 .1em; background: transparent; border: none; outline: none;
-      border-bottom: 2px solid #f5f5f0; color: #f5f5f0; font: inherit; text-align: center; caret-color: #ff3b1f;
-      border-radius: 0; -webkit-appearance: none; transition: border-color .6s ease; }
-    .intro .name::placeholder { color: #80807c; }
-    .intro .name.done { border-bottom-color: transparent; }
-    .intro .hint { white-space: pre-line; line-height: 1.7; font-size: 14px; letter-spacing: .08em; color: #80807c; transition: opacity .4s ease; }
-    .intro .shake { animation: shake .4s; }
-    @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+    .intro .dots { color: #f5f5f0; letter-spacing: .15em; }
+    .intro .hint { white-space: pre-line; line-height: 1.7; font-size: 14px; letter-spacing: .08em; color: #80807c; transition: opacity .4s ease; display: block; }
   </style>
   <link rel="stylesheet" href="./memeFX.css">
 

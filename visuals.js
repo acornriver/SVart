@@ -142,7 +142,7 @@ function onStageChange(stage) {
  * ===================================================================== */
 
 /**
- * 이름 입력칸을 캔버스 위에 띄움 (main.js의 setup()에서 호출). onSubmit(name)은 이름이 있을 때만 불림
+ * [ … ] 탭으로 시작하는 첫 화면. 이름 입력 없음.
  */
 function setupIntro(onSubmit) {
   const wrap = document.createElement('div');
@@ -152,96 +152,71 @@ function setupIntro(onSubmit) {
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9.5v5h3.5L11 18.5v-13L6.5 9.5z" fill="currentColor" stroke="none"/>' +
     '<circle class="on" cx="18" cy="12" r="3.5"/><path class="off" d="M15 9l6 6M21 9l-6 6"/></svg></button>' +
     '<button type="button" data-lang="ko">한국어</button><button type="button" data-lang="en">English</button></div>' +
-    '<form class="title" autocomplete="off">' +
+    '<button type="button" class="title-btn" aria-label="시작">' +
     '<span class="before"></span><span class="br">[</span>' +
-    '<input class="name" name="name" maxlength="12" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">' +
+    '<span class="dots">…</span>' +
     '<span class="br">]</span><span class="after"></span>' +
-    '</form>' +
+    '</button>' +
     '<div class="hint"></div>';
   document.body.appendChild(wrap);
 
   intro = {
     wrap,
-    form: wrap.querySelector('form'),
-    input: wrap.querySelector('input'),
     hint: wrap.querySelector('.hint'),
     before: wrap.querySelector('.before'),
     after: wrap.querySelector('.after'),
+    titleBtn: wrap.querySelector('.title-btn'),
     speaker: wrap.querySelector('.spk'),
     langs: [...wrap.querySelectorAll('[data-lang]')]
   };
+
+  function startFlow() {
+    if (intro.wrap.classList.contains('started')) return;
+    intro.hint.style.opacity = 0;
+    intro.wrap.classList.add('started');
+    enterFullscreen();
+    onSubmit('');
+    setTimeout(() => intro.wrap.classList.add('out'), 900);
+    setTimeout(() => intro.wrap.classList.add('gone'), NAME_FADE_MS);
+  }
+
   intro.speaker.addEventListener('click', () => {
     setVoiceOn(!window.GlobalState.voiceOn);
     refreshIntroText();
-    focusIntroInput();
   });
   intro.langs.forEach((b) => b.addEventListener('click', () => {
     window.GlobalState.lang = b.dataset.lang;
     refreshIntroText();
-    focusIntroInput();
   }));
-  intro.input.addEventListener('input', () => {
-    fitIntroInput();
-    refreshIntroHint();
-  });
-  // form 제출은 한글 입력이 확정된 뒤에 오므로 Enter(키보드의 '완료')를 따로 처리하지 않아도 됨
-  intro.form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const name = intro.input.value.trim();
-    if (!name) {
-      intro.form.classList.remove('shake');
-      void intro.form.offsetWidth;
-      intro.form.classList.add('shake');
-      return;
-    }
-    intro.input.value = name;
-    fitIntroInput();
-    intro.input.readOnly = true;
-    intro.input.blur();
-    intro.input.classList.add('done');
-    intro.hint.style.opacity = 0;
-    intro.wrap.classList.add('started');
-    enterFullscreen();
-    onSubmit(name);
-    setTimeout(() => intro.wrap.classList.add('out'), 900);
-    setTimeout(() => intro.wrap.classList.add('gone'), NAME_FADE_MS);
-  });
+  intro.titleBtn.addEventListener('click', startFlow);
+
   refreshIntroText();
-  setTimeout(focusIntroInput, 400);
 }
 
 function refreshIntroText() {
   intro.before.textContent = t('intro.before');
   intro.after.textContent = t('intro.after');
-  intro.input.placeholder = t('intro.placeholder');
   refreshIntroHint();
   document.documentElement.lang = currentLang();
   intro.langs.forEach((b) => b.classList.toggle('on', b.dataset.lang === currentLang()));
   intro.speaker.classList.toggle('muted', !window.GlobalState.voiceOn);
   intro.speaker.setAttribute('aria-label', t('intro.voice'));
   intro.speaker.setAttribute('aria-pressed', String(window.GlobalState.voiceOn));
-  fitIntroInput();
 }
 
-// 첫 화면 안내 (0-1 ~ 0-3). 자막만, 음성 없음
+// 첫 화면 안내
 function refreshIntroHint() {
-  intro.hint.textContent = intro.input.value ? t('intro.done') : `${t('intro.headphones')}\n${t('intro.name')}`;
+  intro.hint.textContent = t('intro.headphones');
 }
 
 function showIntro() {
   exitFullscreen();
   intro.wrap.classList.remove('gone', 'out', 'started');
-  intro.input.classList.remove('done');
-  intro.input.readOnly = false;
-  intro.input.value = '';
   intro.hint.style.opacity = 1;
   refreshIntroText();
-  setTimeout(focusIntroInput, 300);
 }
 
-function focusIntroInput() {
-  if (window.GlobalState.currentStage === 'INIT') intro.input.focus();
-}
+function focusIntroInput() { /* 이름 입력 없음 — 하위 호환용 빈 함수 */ }
 
 // Safari에서 주소창과 시계·배터리 줄까지 가리기. iPad는 전체화면에서 글자를 치면 경고가 떠서 첫 화면(이름 입력)에서는 쓰지 않음
 function enterFullscreen() {
@@ -265,10 +240,7 @@ function isIntroControl(el) {
   return !!el && (el === intro.input || el === intro.speaker || intro.langs.includes(el));
 }
 
-function fitIntroInput() {
-  const n = [...intro.input.value].length || [...intro.input.placeholder].length;
-  intro.input.style.width = Math.max(2.4, n * 1.02 + 0.5) + 'em';
-}
+function fitIntroInput() { /* 이름 입력 없음 — 하위 호환용 빈 함수 */ }
 
 /* =====================================================================
  * 작은 헬퍼
@@ -1029,11 +1001,14 @@ function drawHeader(L) {
   const stage = gs.currentStage;
   const i = stageIndex(stage);
   const copy = stageCopy(stage);
+  const titleSize = width < 768 ? 36 : 34;
+  const subtitleSize = width < 768 ? 27 : 25;
+  const subtitleLineH = width < 768 ? 42 : 38;
   label(`${i < 4 ? 'PART 1' : 'PART 2'}   ${i + 1} / ${N_TESTS}`, L.m, L.m, { family: FONT.mono, size: 18, c: COLORS.accent, valign: TOP });
-  label(copy.title, L.m, L.m + 30, { size: 34, weight: 700, valign: TOP });
+  label(copy.title, L.m, L.m + 30, { size: titleSize, weight: 700, valign: TOP });
 
   // 음성 안내 자막
-  wrapText(voiceLine(), width - L.m * 2, 25, 500).forEach((s, k) => label(s, L.m, L.m + 86 + k * 38, { size: 25, weight: 500, valign: TOP }));
+  wrapText(voiceLine(), width - L.m * 2, subtitleSize, 500).forEach((s, k) => label(s, L.m, L.m + (width < 768 ? 92 : 86) + k * subtitleLineH, { size: subtitleSize, weight: 500, valign: TOP }));
 
   // 디버그 값 (프로토타입용)
   const p = gs.userEQProfile;
@@ -1150,8 +1125,8 @@ function drawGuides(L) {
       const sx = cur.cx;
       const sy = cur.groundY - R0 * 1.2;
       const dx = R0 * 2.4;
-      label('←', sx - dx - bob, sy, { family: FONT.mono, size: 64, c: COLORS.accent, a: arrowA, align: CENTER });
-      label('→', sx + dx + bob, sy, { family: FONT.mono, size: 64, c: COLORS.accent, a: arrowA, align: CENTER });
+      label('←', sx - dx - bob, sy, { family: FONT.mono, size: 90, c: COLORS.accent, a: arrowA, align: CENTER });
+      label('→', sx + dx + bob, sy, { family: FONT.mono, size: 90, c: COLORS.accent, a: arrowA, align: CENTER });
     }
     // ⑤ 톡 했을 때 화면 가장자리가 잠깐 빨갛게
     if (stage === 'PART2_SENSITIVITY' && millis() - (p2.tapAt || -1e9) < 500) {
@@ -1184,9 +1159,10 @@ function drawGuides(L) {
 
 // 아래쪽 안내 문구 (첫 줄이 지금 할 일이라 밝게)
 function drawHints(L, hints) {
-  const rows = hints.flatMap((h, i) => wrapText(h, width - L.m * 2, i === 0 ? 23 : 21, i === 0 ? 500 : 400).map(text => ({ text, first: i === 0 })));
-  rows.forEach((row, i) => label(row.text, width / 2, L.hintY - (rows.length - 1 - i) * 34, {
-    size: row.first ? 23 : 21, weight: row.first ? 500 : 400, c: row.first ? COLORS.ink : COLORS.mute, align: CENTER
+  const hintSz0 = width < 768 ? 25 : 23, hintSz1 = width < 768 ? 23 : 21, hintLH = width < 768 ? 38 : 34;
+  const rows = hints.flatMap((h, i) => wrapText(h, width - L.m * 2, i === 0 ? hintSz0 : hintSz1, i === 0 ? 500 : 400).map(text => ({ text, first: i === 0 })));
+  rows.forEach((row, i) => label(row.text, width / 2, L.hintY - (rows.length - 1 - i) * hintLH, {
+    size: row.first ? hintSz0 : hintSz1, weight: row.first ? 500 : 400, c: row.first ? COLORS.ink : COLORS.mute, align: CENTER
   }));
 }
 

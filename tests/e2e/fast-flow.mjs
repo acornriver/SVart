@@ -88,14 +88,14 @@ export async function runFastFlow({ send, ev, shot, lang }) {
     if (cue) await shot('fast-meme-' + cue);
   };
 
-  await until("typeof setupIntro === 'function' && !!document.querySelector('.intro input') && !!document.querySelector('canvas')", 20000);
+  await until("typeof setupIntro === 'function' && !!document.querySelector('.intro .title-btn') && !!document.querySelector('canvas')", 20000);
   await ev(`GlobalState.lang = ${JSON.stringify(lang)}; refreshIntroText()`);
   await until("voiceIds(currentLang()).filter(id => !VOICE_PENDING[currentLang()].includes(id)).every(id => !!voiceClips[currentLang()][id])", 20000);
   await ev(`(${installFastMode.toString()})()`);
   await stage('INIT');
   await until('MemeFX.ready()');
   await shot('fast-00-intro');
-  await ev("(() => { const input = document.querySelector('.intro input'); input.value = 'Fast flow'; document.querySelector('.intro form').requestSubmit(); })()");
+  await ev("document.querySelector('.intro .title-btn').click()");
   await stage('PART1_VOLUME');
   await check('inputLocked() && voiceBusy()', 'Intro must lock gestures');
   const value = await ev('GlobalState.part1.control');
@@ -192,7 +192,7 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   await drag(744 * 0.25, 0, p);
   await check('GlobalState.tour.sendAt !== null', 'Snail did not send');
   await stage('INIT');
-  await ev("(() => { document.querySelector('.intro input').value = 'Next visitor'; document.querySelector('.intro form').requestSubmit(); })()");
+  await ev("document.querySelector('.intro .title-btn').click()");
   await stage('PART1_VOLUME');
   await ev('lastActivity -= (IDLE_RESET_SECONDS + 1) * 1000');
   await stage('INIT');

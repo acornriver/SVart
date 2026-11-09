@@ -68,7 +68,7 @@ function windowResized() {
 function submitName(name) {
   const gs = window.GlobalState;
   if (gs.currentStage !== 'INIT') return;
-  gs.userName = name;
+  gs.userName = name || '';
   initAudio();
   ensureAudioRunning();
   gs.currentStage = 'NAMED';
