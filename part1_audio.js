@@ -24,7 +24,7 @@
 const FLOW_STAGES = [
   'PART1_VOLUME', 'PART1_LOW', 'PART1_HIGH', 'PART1_REGISTER', // 둥근 반죽 → 꼬리 → 머리 → 껍질 얹기
   'PART2_SENSITIVITY', 'PART2_CENTER', 'PART2_EAR', 'PART2_PITCH',
-  'RESULT'
+  'RESULT', 'MUSIC'
 ];
 const EAR_RESULT_KEY = 'svart.earProfile'; // 청감 클라우드 연결용으로 결과를 남겨 두는 자리
 
@@ -302,11 +302,13 @@ function goToStep(index) {
     setActiveSource(null); // Part 2 순음은 조용한 바탕에서
     beginPart2Stage(stage);
   } else if (stage === 'RESULT') {
+    setActiveSource(null); // 분석 화면: 소리 없음
+    saveEarResult();
+    say(['9-1']);
+  } else if (stage === 'MUSIC') {
     gs.part1.isBypassed = false;
     gs.part1.eqMix = 1;
     startTour(); // 북서울 산책. 장소를 바꿀 때마다 음량 보정도 그 녹음 기준으로
-    saveEarResult();
-    say(['9-1']);
   }
 }
 
@@ -376,7 +378,7 @@ function updateFlow(dt) {
   const stage = window.GlobalState.currentStage;
   if (PART1_ADJUST[stage]) updateAdjust(stage, dt);
   if (stage.startsWith('PART2_')) updatePart2();
-  if (stage === 'RESULT') updateTour();
+  if (stage === 'MUSIC') updateTour();
 
   sourceWatchTimer += dt;
   if (sourceWatchTimer >= SOURCE_WATCH_SECONDS) {
@@ -492,7 +494,7 @@ function tapConfirmAdjust() {
 function applyEQ() {
   const profile = window.GlobalState.userEQProfile;
   const p1 = window.GlobalState.part1;
-  const mix = window.GlobalState.currentStage === 'RESULT'
+  const mix = window.GlobalState.currentStage === 'MUSIC'
     ? (typeof p1.eqMix === 'number' ? p1.eqMix : (p1.isBypassed ? 0 : 1))
     : (p1.isBypassed ? 0 : 1);
 

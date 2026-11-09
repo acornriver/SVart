@@ -1,0 +1,124 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /ears/{earId} {
+
+      // ===== 읽기: hidden == false인 문서만 =====
+      // get은 없는 문서도 허용: send.js가 거부 원인(이미 있음/규칙 위반)을 구분해야 함
+      allow get: if resource == null || resource.data.hidden == false;
+      allow list: if resource.data.hidden == false;
+
+      // ===== 쓰기: create만 허용 =====
+      allow update, delete: if false;
+
+      allow create: if
+        // earId 형식 (10자, 허용 글자)
+        earId.matches('^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{10}$') &&
+
+        // 문서의 earId 필드와 경로의 earId가 같아야 함
+        request.resource.data.earId == earId &&
+
+        // 허용된 최상위 키만
+        request.resource.data.keys().hasOnly([
+          'v', 'earId', 'code', 'codeVersion', 'profile',
+          'name', 'lang', 'seat', 'createdAt', 'clientAt', 'hidden', 'app'
+        ]) &&
+
+        // profile 맵의 허용된 키만
+        request.resource.data.profile.keys().hasOnly([
+          'volDb', 'lowDb', 'highDb', 'register',
+          'maxFreqHz', 'sensitivity', 'twistAmount',
+          'centerDeg', 'centerImage',
+          'dominantEar', 'earStrength',
+          'pitchMode', 'pitchIndex'
+        ]) &&
+
+        // 스키마 버전
+        request.resource.data.v == 1 &&
+
+        // code: 40자 이하 string
+        request.resource.data.code is string &&
+        request.resource.data.code.size() <= 40 &&
+
+        // codeVersion: int
+        request.resource.data.codeVersion is int &&
+
+        // name: null 또는 1~12자 string
+        (request.resource.data.name == null ||
+          (request.resource.data.name is string &&
+           request.resource.data.name.size() >= 1 &&
+           request.resource.data.name.size() <= 12)) &&
+
+        // lang: 'ko' | 'en'
+        request.resource.data.lang in ['ko', 'en'] &&
+
+        // seat: null 또는 1~6
+        (request.resource.data.seat == null ||
+          (request.resource.data.seat is int &&
+           request.resource.data.seat >= 1 &&
+           request.resource.data.seat <= 6)) &&
+
+        // createdAt: 서버 타임스탬프
+        request.resource.data.createdAt == request.time &&
+
+        // clientAt: int (ms)
+        request.resource.data.clientAt is int &&
+
+        // hidden: 항상 false
+        request.resource.data.hidden == false &&
+
+        // app: string
+        request.resource.data.app is string &&
+
+        // profile 타입과 범위
+        (request.resource.data.profile.volDb is float || request.resource.data.profile.volDb is int) &&
+        request.resource.data.profile.volDb >= -60 &&
+        request.resource.data.profile.volDb <= 0 &&
+
+        (request.resource.data.profile.lowDb is float || request.resource.data.profile.lowDb is int) &&
+        request.resource.data.profile.lowDb >= -10 &&
+        request.resource.data.profile.lowDb <= 10 &&
+
+        (request.resource.data.profile.highDb is float || request.resource.data.profile.highDb is int) &&
+        request.resource.data.profile.highDb >= -10 &&
+        request.resource.data.profile.highDb <= 10 &&
+
+        (request.resource.data.profile.register == null ||
+          request.resource.data.profile.register in ['LOW', 'MID', 'HIGH']) &&
+
+        (request.resource.data.profile.maxFreqHz == null ||
+          (request.resource.data.profile.maxFreqHz >= 8000 &&
+           request.resource.data.profile.maxFreqHz <= 16000)) &&
+
+        (request.resource.data.profile.sensitivity == null ||
+          (request.resource.data.profile.sensitivity >= 0 &&
+           request.resource.data.profile.sensitivity <= 100)) &&
+
+        (request.resource.data.profile.twistAmount == null ||
+          (request.resource.data.profile.twistAmount >= 0 &&
+           request.resource.data.profile.twistAmount <= 1)) &&
+
+        (request.resource.data.profile.centerDeg == null ||
+          (request.resource.data.profile.centerDeg >= -180 &&
+           request.resource.data.profile.centerDeg <= 180)) &&
+
+        (request.resource.data.profile.centerImage == null ||
+          request.resource.data.profile.centerImage in ['L', 'C', 'R']) &&
+
+        (request.resource.data.profile.dominantEar == null ||
+          request.resource.data.profile.dominantEar in ['LEFT', 'RIGHT']) &&
+
+        (request.resource.data.profile.earStrength == null ||
+          (request.resource.data.profile.earStrength >= 0 &&
+           request.resource.data.profile.earStrength <= 100)) &&
+
+        (request.resource.data.profile.pitchMode == null ||
+          request.resource.data.profile.pitchMode in ['F', 'B', 'H']) &&
+
+        (request.resource.data.profile.pitchIndex == null ||
+          (request.resource.data.profile.pitchIndex >= -100 &&
+           request.resource.data.profile.pitchIndex <= 100));
+    }
+  }
+}

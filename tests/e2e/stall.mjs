@@ -46,6 +46,8 @@ const expect = async (s) => { const cur = await stage(); if (cur !== s) throw ne
 
 await send('Runtime.enable'); await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+await send('Network.enable');
+await send('Network.setCacheDisabled', { cacheDisabled: true });
 await send('Page.navigate', { url: URL });
 await sleep(4000);
 await ev(`(() => { const i = document.querySelector('.intro input'); i.value = '시험'; document.querySelector('.intro form').requestSubmit(); })()`);
@@ -59,7 +61,7 @@ console.log('scheduler killed → timer back', await ev('beatTimer !== null'), '
 await ev('stopBeat()'); await sleep(2000);
 console.log('beat stopped by accident → on', await ev('isBeatOn()'));
 // 결과 화면
-await ev('goToStep(8)'); await expect('RESULT'); await sleep(1500);
+await ev('goToStep(9)'); await expect('MUSIC'); await sleep(1500);
 console.log('tour', await ev('activeSourceKey'), 'video playing', await ev('!backdropVideos[backdropKey].paused'));
 await ev('sampleSources[activeSourceKey].stop()'); await sleep(2500);
 console.log('recording stop → playing', await ev('sampleSources[activeSourceKey].isPlaying()'));
@@ -72,4 +74,4 @@ console.log('result suspend → ', await ev('getAudioContext().state'));
 await send('Network.enable'); await send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
 for (let k = 0; k < 4; k++) { await ev('GlobalState.tour.placeAt -= 15000'); await sleep(2500); console.log('offline place', await ev('tourPlace().key'), 'video playing', await ev('!backdropVideos[backdropKey].paused && backdropVideos[backdropKey].readyState'), 'audio', await ev('sampleSources[activeSourceKey].isPlaying()')); }
 console.log('errors:', errors.length ? errors : 'none');
-ws.close(); chrome.kill(); process.exit(0);
+ws.close(); chrome.kill(); process.exit(errors.length ? 1 : 0);

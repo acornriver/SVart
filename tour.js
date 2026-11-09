@@ -93,7 +93,7 @@ function sendToTower() {
     showBackdrop(null);
   }, SEND_WALK_MS * 0.7));
   sendTimers.push(setTimeout(() => {
-    if (window.GlobalState.currentStage === 'RESULT' && tourState().sendAt !== null) restartFlow();
+    if (window.GlobalState.currentStage === 'MUSIC' && tourState().sendAt !== null) restartFlow();
   }, SEND_WALK_MS + SEND_HOLD_MS));
 }
 

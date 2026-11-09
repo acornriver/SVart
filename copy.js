@@ -17,14 +17,17 @@ const STAGE_COPY = {
   PART2_SENSITIVITY: { ko: { title: '어디까지 들리나요?' }, en: { title: 'How high can you hear?' } },
   PART2_CENTER: { ko: { title: '가운데는 어디인가요?' }, en: { title: 'Where is the middle?' } },
   PART2_EAR: { ko: { title: '높은 음은 어느 쪽인가요?' }, en: { title: 'Where is the high note?' } },
-  PART2_PITCH: { ko: { title: '올라갔나요? 내려갔나요?' }, en: { title: 'Up or down?' } }
+  PART2_PITCH: { ko: { title: '올라갔나요? 내려갔나요?' }, en: { title: 'Up or down?' } },
+  RESULT: { ko: { title: '나의 청감' }, en: { title: 'My Ear Profile' } },
+  MUSIC: { ko: { title: '음악 듣기' }, en: { title: 'Listen' } }
 };
 
 // 음성 안내의 자막 (차민휘 지시문 그대로, media/voice 파일과 번호가 같음). 재생 시점은 part1_audio.js · part2_audio.js
 // 녹음이 아직 없는 줄. 녹음이 오면 media/voice에 넣고 여기서 지움. 그 전까지는 소리 없이 자막만 나옴
+// 5-2는 자막만 바꾸고 아직 재녹음 안 됨 → 소리 없이 자막만 나옴
 const VOICE_PENDING = {
-  ko: [],
-  en: []
+  ko: ['5-2'],
+  en: ['5-2']
 };
 
 const VOICE_COPY = {
@@ -53,7 +56,7 @@ const VOICE_COPY = {
   '4-7': { ko: '더듬이를 누르면 세 가지 소리를 다시 들을 수 있어요.', en: "Tap the feelers to hear the three sounds again." },
   '4-8': { ko: '세 가지 소리를 차례로 다시 들려드릴게요.', en: "You’ll hear the three sounds again, one at a time." },
   '5-1': { ko: '이번에는 소리가 언제 사라지는지 들어볼게요.', en: "This time, listen for the moment the sound disappears." },
-  '5-2': { ko: '소리가 더 이상 들리지 않을 때, 화면 아무 곳이나 한 번 눌러주세요.', en: "When you can no longer hear the sound, tap anywhere on the screen once." },
+  '5-2': { ko: '달팽이를 밀어 소리가 사라지는 지점을 찾은 뒤, 달팽이를 꾹 눌러 결정해주세요.', en: "Slide the snail until the sound disappears, then press and hold the snail to confirm." },
   '5-3': { ko: '한 번 더 들어보시려면 더듬이를 눌러주세요.', en: "To listen again, tap the feelers." },
   '5-4': { ko: '다음으로 넘어가려면 달팽이를 길게 눌러주세요.', en: "To continue, press and hold the snail." },
   '5-5': { ko: '소리를 듣는 동안 달팽이의 선이 돌돌 말렸어요.', en: "As you listened, the snail’s line coiled up." },
@@ -136,8 +139,10 @@ const COPY = {
     'pitch.B': '두 귀',
     'pitch.H': '배음 귀',
     'khz': (k) => `${k} kHz까지`,
-    'lowWords': ['얇게', '조금 얇게', '그대로', '조금 웅웅', '웅웅'],
-    'highWords': ['보들', '조금 보들', '그대로', '조금 쨍', '쨍']
+    'lowWords': ['얇게', '그대로', '웅웅'],
+    'highWords': ['보들', '그대로', '쨍'],
+    'music.line': '세 곡 중 하나를 골라 달팽이와 함께 들어보세요 · 지금은 환경음으로 미리 듣기',
+    'hint.toMusic': '달팽이를 꾹 눌러 음악을 들어보세요'
   },
   en: {
     'intro.before': 'Every ear is ',
@@ -194,8 +199,10 @@ const COPY = {
     'pitch.B': 'Both ears',
     'pitch.H': 'Overtone ear',
     'khz': (k) => `up to ${k} kHz`,
-    'lowWords': ['thin', 'a bit thin', 'as is', 'a bit warm', 'warm'],
-    'highWords': ['velvet', 'a bit velvet', 'as is', 'a bit shiny', 'shiny']
+    'lowWords': ['thin', 'as is', 'warm'],
+    'highWords': ['velvet', 'as is', 'shiny'],
+    'music.line': 'Choose a track to listen with your snail · environmental sound previews',
+    'hint.toMusic': 'Hold the snail to start listening'
   }
 };
 
@@ -218,4 +225,60 @@ function voiceText(id) {
 function stageCopy(stage) {
   const c = STAGE_COPY[stage];
   return c ? c[currentLang()] || c.ko : null;
+}
+
+/**
+ * earCode + psychoProfile → MBTI식 분석 문장 배열 (임시, 작가 교체 예정)
+ * profile: userEQProfile, psycho: psychoProfile, name: 관람객 이름
+ */
+function getAnalysisLines(profile, psycho, name) {
+  const lang = currentLang();
+  const reg = profile.registerPeak.register; // 'LOW'|'MID'|'HIGH'|null
+  const lowL = shelfToLetter(profile.lowShelf.gain, 'LOW');   // 'T'|'E'|'W'
+  const highL = shelfToLetter(profile.highShelf.gain, 'HIGH'); // 'V'|'E'|'S'
+  const ear = psycho.dominantEar; // 'LEFT'|'RIGHT'|null
+  const khz = typeof psycho.maxFreqHz === 'number' ? (psycho.maxFreqHz / 1000).toFixed(1) : null;
+  const ko = lang !== 'en';
+
+  // 달팽이 별명: 저음(T/E/W) × 고음(V/E/S) 조합
+  const nickKo = { TV:'조용한', TE:'부드러운', TS:'예리한', EV:'따스한', EE:'균형잡힌', ES:'선명한', WV:'따뜻한', WE:'묵직한', WS:'화려한' };
+  const nickEn = { TV:'quiet', TE:'smooth', TS:'crisp', EV:'warm', EE:'balanced', ES:'vivid', WV:'rich', WE:'full', WS:'vibrant' };
+  const nk = (ko ? nickKo : nickEn)[lowL + highL] || (ko ? '독특한' : 'unique');
+
+  // 음역 텍스트
+  const regTextKo = { LOW:'저음', MID:'중음역', HIGH:'고음' }[reg] || '다양한 음역의';
+  const regTextEn = { LOW:'low-frequency', MID:'mid-range', HIGH:'high-frequency' }[reg] || 'full-range';
+
+  // 저음·고음 단어
+  const lowWords = { T: ko ? '얇고 가벼운' : 'thin', E: ko ? '자연스러운' : 'natural', W: ko ? '두툼하고 웅웅대는' : 'warm and deep' };
+  const highWords = { V: ko ? '보드랍고 부드러운' : 'velvety', E: ko ? '자연스러운' : 'natural', S: ko ? '또렷하고 쨍한' : 'bright and crisp' };
+
+  const lines = [];
+
+  if (ko) {
+    lines.push(`${name}님은 ${nk} 달팽이입니다.`);
+    if (lowL === highL && lowL === 'E') {
+      lines.push(`${regTextKo} 소리를 있는 그대로 듣는 걸 편안해 하세요.`);
+    } else {
+      lines.push(`${regTextKo} 소리를, ${lowWords[lowL]} 저음과 ${highWords[highL]} 고음으로 들을 때 편안함을 느끼세요.`);
+    }
+    if (ear) {
+      const side = ear === 'LEFT' ? '왼' : '오른';
+      lines.push(`소리로 따지자면 ${side}손잡이예요—${side}쪽 귀가 조금 더 활발합니다.`);
+    }
+    if (khz) lines.push(`${khz} kHz까지 들리는 귀를 갖고 계세요.`);
+  } else {
+    lines.push(`${name} is a ${nk} snail.`);
+    if (lowL === highL && lowL === 'E') {
+      lines.push(`You prefer hearing ${regTextEn} sounds just as they are.`);
+    } else {
+      lines.push(`You feel most at ease with ${regTextEn} sounds: ${lowWords[lowL]} bass, ${highWords[highL]} treble.`);
+    }
+    if (ear) {
+      const side = ear === 'LEFT' ? 'left' : 'right';
+      lines.push(`In hearing terms, you're ${side}-handed—your ${side} ear leads a little.`);
+    }
+    if (khz) lines.push(`Your ears can catch sounds up to ${khz} kHz.`);
+  }
+  return lines;
 }

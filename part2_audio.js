@@ -2,8 +2,8 @@
  * 청각 다변기 (Sound Variator) - Part 2 검사 (ref/part2 (1).html 을 옮김)
  *
  * 검사 설계·소리·횟수·채점은 ref 그대로이고, 답하는 방식만 이 앱의 손짓(톡 · 쓸기 · 껍질 굴리기 · 달팽이 꾹)으로 바꿨습니다.
- * ⑤ 고역 예민도 : 8→16 kHz로 높아지며 작아지는 "삐". 안 들리게 되는 순간 화면 아무 데나 톡 → maxFreqHz, sensitivity
- *               저절로 반복하지 않음: 듣고 나면 더듬이 톡 = 한 번 더(평균, 모두 3번까지), 달팽이 꾹 = 다음 (사용자 지시 11/03)
+ * ⑤ 고역 예민도 : 8→20 kHz 슬라이더. 달팽이를 오른쪽으로 밀어 소리가 사라지는 지점에서 손을 떼면 답 (사용자 지시 11/09)
+ *               x축이 음고: 왼쪽 = 8kHz, 오른쪽 = 20kHz. 연속 사인파가 현재 위치의 주파수로 울림 → maxFreqHz, twist
  * ⑥ 중앙       : 머리 둘레의 비트(HRIR 68번 귀). 좌우로 쓸면 소리가 머리 둘레를 돎. 가운데면 달팽이 꾹 (2번) → centerDeg, centerImage
  * ⑦ 우세 귀     : 옥타브 착청(Deutsch 1974). 높은 음이 들린 쪽으로 달팽이를 기어가게 하고 손을 떼면 바로 답 (3번) → dominantEar
  * ⑧ 바탕음·배음 : 바탕음 없는 복합음 두 개. 올라감 = 오른쪽, 내려감 = 왼쪽으로 달팽이를 보내고 손을 떼면 바로 답 (예시 + 6번) → pitchMode
@@ -159,73 +159,60 @@ function p2AddHat(buf, at, spl) {
  * 안 들리게 되는 순간 누름. 누른 시각에서 반응 시간 rtSec을 뺌. 소리 전에 누르면 마지막에 한 번 더.
  * ===================================================================== */
 
-const SENS = {
-  f0: 8000, f1: 16000, l0: 60, l1: 15, sweepSec: 10,
-  onMs: 200, offMs: 50, rampMs: 20, preSec: P2_BEAT_SEC,
-  maxListens: 3, rtSec: 0.5, unsteadyGap: 0.25
-};
+// 슬라이더 방식: 왼쪽(8kHz) → 오른쪽(20kHz) 사인파. 달팽이를 오른쪽으로 밀어 사라지는 지점에서 손을 뗌
+const SENS = { f0: 8000, f1: 20000, spl: 65 };
 const sensFreqAt = (u) => SENS.f0 * Math.pow(SENS.f1 / SENS.f0, u);
-const sensLevelAt = (u) => SENS.l0 + (SENS.l1 - SENS.l0) * u;
 
-// 한 번 듣고 고르기 (사용자 지시 11/03): 삐 소리는 저절로 다시 나오지 않음. 듣고 나면 더듬이 톡 = 한 번 더 듣기(평균에 들어감),
-// 달팽이 꾹 = 다음. 너무 일찍 눌렀으면 꾹이 안 되고 다시 들어야 함. 모두 합쳐 SENS.maxListens번까지
-function sensLogic() {
-  const res = [];
-  let n = 0;
+// 슬라이더 고역 한계 로직: 1회 조절, 최종 u 위치를 기록
+function sensSliderLogic() {
+  let finalU = null;
   return {
-    next() {
-      if (n >= SENS.maxListens) return null;
-      n++;
-      return { index: n, total: SENS.maxListens };
-    },
-    // key: 'P' 누름 · 'none' 끝까지 안 누름. at: 소리 시작부터 누른 순간까지 (초)
-    answer(tr, key, at) {
-      const r = { index: tr.index, key, at: at == null ? null : Math.round(at * 1000) / 1000, tapU: part2State().frozenU };
-      if (key === 'P') {
-        const x = (at - SENS.preSec) / SENS.sweepSec;
-        if (x < 0) r.early = true;
-        else r.u = p2Clamp(x - SENS.rtSec / SENS.sweepSec, 0, 1);
-      } else {
-        r.censored = true; // 끝까지 들림
-        r.u = 1;
-      }
-      res.push(r);
-      return r.early ? 'early' : null;
-    },
-    canMore() { return n < SENS.maxListens; },
-    // 하나라도 제대로 들었으면 넘어갈 수 있음. 다 써 버렸으면 그냥 넘어감 (결과는 Hx)
-    canFinish() { return res.some((r) => r.u != null) || n >= SENS.maxListens; },
+    next() { return finalU === null ? { index: 1, total: 1 } : null; },
+    setAnswer(u) { finalU = u; },
     result() {
-      const us = res.filter((r) => r.u != null).map((r) => r.u);
-      const base = { trials: res, early: res.filter((r) => r.early).length };
-      if (!us.length) return { ...base, valid: false, code: 'Hx' };
-      const u = us.reduce((s, x) => s + x, 0) / us.length;
-      const gap = us.length > 1 ? Math.max(...us) - Math.min(...us) : 0;
+      if (finalU === null) return { valid: false };
       return {
-        ...base, valid: true, u, gap, unsteady: gap > SENS.unsteadyGap,
-        hz: Math.round(sensFreqAt(u)), splNominal: round1(sensLevelAt(u)),
-        sensitivity: Math.round(u * 100), code: 'H' + Math.round(u * 100)
+        valid: true, u: finalU,
+        hz: Math.round(sensFreqAt(finalU)),
+        sensitivity: Math.round(finalU * 100)
       };
     },
     progress() { return ''; }
   };
 }
 
-function sensBuffer() {
+// 연속 사인파 오실레이터 (슬라이더 움직임에 따라 주파수 실시간 변경)
+let sensOsc = null;
+
+function sensToneStart(freqHz) {
+  sensToneStop();
   const ctx = p2Ctx();
-  const sr = ctx.sampleRate, pre = Math.round(SENS.preSec * sr), sweep = Math.round(SENS.sweepSec * sr);
-  const on = Math.round(SENS.onMs / 1000 * sr), period = on + Math.round(SENS.offMs / 1000 * sr), r = Math.round(SENS.rampMs / 1000 * sr);
-  const buf = ctx.createBuffer(2, pre + sweep, sr), L = buf.getChannelData(0), R = buf.getChannelData(1);
-  for (let s0 = 0; s0 + on <= sweep; s0 += period) {
-    const u = (s0 + on / 2) / sweep;
-    const a = splToAmp(sensLevelAt(u)), w = 2 * Math.PI * sensFreqAt(u) / sr;
-    for (let i = 0; i < on; i++) {
-      const v = a * fadeAt(i, on, r) * Math.sin(w * i);
-      L[pre + s0 + i] = v;
-      R[pre + s0 + i] = v;
-    }
-  }
-  return buf;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = freqHz;
+  g.gain.value = splToAmp(SENS.spl);
+  osc.connect(g);
+  g.connect(p2Out());
+  osc.start();
+  sensOsc = { osc, g };
+}
+
+function sensToneSetFreq(freqHz) {
+  if (!sensOsc) return;
+  sensOsc.osc.frequency.setTargetAtTime(freqHz, p2Ctx().currentTime, 0.015);
+}
+
+function sensToneStop() {
+  if (!sensOsc) return;
+  try {
+    const t = p2Ctx().currentTime;
+    sensOsc.g.gain.setTargetAtTime(0, t, 0.02);
+    sensOsc.osc.stop(t + 0.1);
+    sensOsc.osc.disconnect();
+    sensOsc.g.disconnect();
+  } catch (e) {}
+  sensOsc = null;
 }
 
 /* =====================================================================
@@ -548,7 +535,7 @@ function f0Buffer(tr) {
 
 // voice: 시작 안내(앞 단계의 확정 안내가 맨 앞), example: 듣기만 하는 예시 소리, voiceAfter: 예시 뒤 안내
 const PART2_TESTS = {
-  PART2_SENSITIVITY: { logic: sensLogic, voice: ['4-6', '5-1', '5-2'] },
+  PART2_SENSITIVITY: { logic: sensSliderLogic, voice: ['4-6', '5-1', '5-2'] },
   PART2_CENTER: { logic: centerLogic, voice: ['5-5', '6-1', '6-2', '6-3'] },
   PART2_EAR: {
     logic: octLogic, buffer: octBuffer, replay: OCT.replay, voice: ['6-5', '7-1'],
@@ -637,16 +624,10 @@ function part2Present(tr) {
   stopPart2Sounds();
 
   if (stage === 'PART2_SENSITIVITY') {
-    if (!tr._buf) tr._buf = sensBuffer();
-    p2.phase = 'pressing';
-    const v = p2Play(tr._buf);
-    p2.voice = v;
-    v.onEnd = () => {
-      if (tok !== p2.token) return;
-      p2.frozenU = 1; // 끝까지 들렸으면 가장 꼬인 채로
-      p2.voice = null;
-      part2AfterAnswer('none', null);
-    };
+    p2.phase = 'adjusting';
+    p2.roll = -1; // 맨 왼쪽에서 시작 (8 kHz)
+    p2.moved = 0;
+    sensToneStart(sensFreqAt(0));
     return;
   }
 
@@ -677,20 +658,12 @@ function part2Present(tr) {
   };
 }
 
-// 답한 뒤. ⑤는 note가 'early'면 소리 전에 누른 것
+// 답한 뒤. (⑤는 슬라이더 방식으로 finishPart2Stage를 직접 호출하므로 여기 오지 않음)
 function part2AfterAnswer(key, value) {
   const p2 = part2State();
   p2.token++;
   p2.phase = 'wait';
-  const note = p2.logic.answer(p2.trial, key, value);
-  p2.note = note;
-  // ⑤는 저절로 다음으로 가지 않고 고르기를 기다림 (달팽이 톡 = 한 번 더, 달팽이 꾹 = 다음)
-  if (window.GlobalState.currentStage === 'PART2_SENSITIVITY') {
-    p2.phase = 'choice';
-    if (note) sayGuide(['5-7', '5-8']); // 소리 전에 누름
-    else sayGuide([...(p2.logic.canMore() ? ['5-3'] : []), ...(p2.logic.canFinish() ? ['5-4'] : [])]);
-    return;
-  }
+  p2.logic.answer(p2.trial, key, value);
   part2Later(P2_TIMING.gapMs, part2Next);
 }
 
@@ -710,9 +683,7 @@ function storePart2Result(stage, r) {
   const psy = window.GlobalState.psychoProfile;
   if (stage === 'PART2_SENSITIVITY') {
     psy.raw.sensitivity = r;
-    // 꼬임: 톡 한 순간의 자리 평균 (끝까지 들렸으면 1). 너무 일찍 누른 것은 뺌
-    const us = r.trials.filter((x) => !x.early).map((x) => (x.censored ? 1 : x.tapU));
-    psy.twist = us.length ? us.reduce((a, b) => a + b, 0) / us.length : null;
+    psy.twist = r.valid ? r.u : null;
     psy.maxFreqHz = r.valid ? r.hz : null;
     psy.sensitivity = r.valid ? r.sensitivity : null;
   } else if (stage === 'PART2_CENTER') {
@@ -743,6 +714,7 @@ function stopPart2Sounds() {
   part2Voices.forEach((v) => v.stop(0.03));
   part2Voices = [];
   if (part2Ctrl) { part2Ctrl.stop(); part2Ctrl = null; }
+  sensToneStop();
   const p2 = part2State();
   p2.voice = null;
 }
@@ -766,27 +738,23 @@ function updatePart2() {}
  * ===================================================================== */
 
 /**
- * ⑤ 화면 아무 데나 톡 (손가락이 닿는 순간). 소리가 나는 동안만
+ * ⑤는 슬라이더 방식으로 바뀌어 톡 처리 불필요
  */
-function part2Tap() {
-  const p2 = part2State();
-  if (window.GlobalState.currentStage !== 'PART2_SENSITIVITY' || p2.phase !== 'pressing' || !p2.voice) return false;
-  const v = p2.voice;
-  const at = p2Ctx().currentTime - v.startTime;
-  p2.frozenU = part2LiveU(); // 이 순간의 꼬임이 남음
-  v.stop(0.05);
-  p2.voice = null;
-  p2.tapAt = millis();
-  part2AfterAnswer('P', at);
-  return true;
-}
+function part2Tap() { return false; }
 
 /**
- * 좌우로 쓴 양(화면 너비 비율, 오른쪽 +). ⑥은 비트를 돌리고, ⑦⑧은 껍질을 굴림
+ * 좌우로 쓴 양(화면 너비 비율, 오른쪽 +). ⑤는 주파수 슬라이더, ⑥은 비트를 돌리고, ⑦⑧은 껍질을 굴림
  */
 function dragRoll(dxRatio) {
   const p2 = part2State();
   const stage = window.GlobalState.currentStage;
+  if (stage === 'PART2_SENSITIVITY') {
+    if (p2.phase !== 'adjusting') return;
+    p2.moved += Math.abs(dxRatio * PART2_ROLL_SPAN);
+    p2.roll = constrain(p2.roll + dxRatio * PART2_ROLL_SPAN, -1, 1);
+    sensToneSetFreq(sensFreqAt((p2.roll + 1) / 2));
+    return;
+  }
   if (stage === 'PART2_CENTER') {
     if (p2.phase !== 'adjusting' || !part2Ctrl) return;
     const d = dxRatio * CENTER_DEG_PER_WIDTH;
@@ -804,12 +772,14 @@ function dragRoll(dxRatio) {
 }
 
 /**
- * 손을 떼면 왼쪽이나 오른쪽 자리로 껍질이 굴러가 멈추고 그대로 답이 됨 (덜 굴렸으면 가운데로 돌아오고 답 안 함)
- * 꾹 누를 필요 없음(사용자 지시 11/02)
+ * 손을 뗌.
+ * ⑤는 손을 떼어도 조절 상태를 유지하고, 달팽이를 꾹 눌러 확정.
+ * ⑦⑧ 왼/오른쪽 자리로 껍질이 굴러가 멈추고 그대로 답이 됨 (덜 굴렸으면 가운데로 돌아오고 답 안 함)
  */
 function releaseRoll() {
   const p2 = part2State();
   const stage = window.GlobalState.currentStage;
+  if (stage === 'PART2_SENSITIVITY') return;
   if (stage !== 'PART2_EAR' && stage !== 'PART2_PITCH') return;
   const ok = canConfirmPart2();
   const side = rollSide(p2.roll);
@@ -819,6 +789,8 @@ function releaseRoll() {
 
 // 터치가 끊기면 답하지 않고 가운데로
 function cancelRoll() {
+  // 고역 조절값은 터치가 끊겨도 유지하며, 꾹 누르기로만 확정합니다.
+  if (window.GlobalState.currentStage === 'PART2_SENSITIVITY') return;
   part2State().roll = 0;
 }
 
@@ -829,7 +801,7 @@ function rollSide(roll) {
 function canConfirmPart2() {
   const p2 = part2State();
   const stage = window.GlobalState.currentStage;
-  if (stage === 'PART2_SENSITIVITY') return p2.phase === 'choice' && p2.logic.canFinish();
+  if (stage === 'PART2_SENSITIVITY') return p2.phase === 'adjusting' && p2.moved >= PART2_MOVE_THRESHOLD;
   if (stage === 'PART2_CENTER') return p2.phase === 'adjusting' && p2.moved >= CENTER_TEST.minMoveDeg;
   if (stage === 'PART2_EAR' || stage === 'PART2_PITCH') return p2.phase === 'answer' && p2.moved >= PART2_MOVE_THRESHOLD && rollSide(p2.roll) !== null;
   return false;
@@ -843,6 +815,10 @@ function confirmPart2() {
   const p2 = part2State();
   const stage = window.GlobalState.currentStage;
   if (stage === 'PART2_SENSITIVITY') {
+    const u = (p2.roll + 1) / 2;
+    p2.logic.setAnswer(u);
+    sensToneStop();
+    p2.phase = 'wait';
     p2.token++;
     finishPart2Stage();
     return;
@@ -859,27 +835,16 @@ function confirmPart2() {
   part2AfterAnswer(key, millis() - p2.answerAt);
 }
 
-// 더듬이 톡 = 한 번 더 듣기 (⑦⑧ 시행마다 한 번, ⑤ 다 들은 뒤 모두 합쳐 SENS.maxListens번까지)
+// 더듬이 톡 = 한 번 더 듣기 (⑦⑧ 시행마다 한 번. ⑤는 슬라이더 방식이므로 다시 듣기 없음)
 function canReplayPart2() {
   const p2 = part2State();
   const stage = window.GlobalState.currentStage;
-  if (stage === 'PART2_SENSITIVITY') return p2.phase === 'choice' && p2.logic.canMore();
   return (stage === 'PART2_EAR' || stage === 'PART2_PITCH') && p2.phase === 'answer' && p2.replayLeft > 0;
 }
 
 function replayPart2() {
   if (!canReplayPart2()) return;
   const p2 = part2State();
-  if (window.GlobalState.currentStage === 'PART2_SENSITIVITY') {
-    p2.frozenU = null;
-    p2.note = null;
-    p2.phase = 'lead';
-    part2Later(P2_TIMING.leadMs, () => { // 새로 한 번 더 (결과는 평균). 안내 없이 1초 뒤
-      unlockInput(0);
-      part2Next();
-    });
-    return;
-  }
   p2.replayLeft--;
   part2Present(p2.trial);
 }
@@ -895,24 +860,23 @@ function getPart2Progress() {
   return p2.logic.progress();
 }
 
-// ⑤ 지금 울리는 삐 소리의 경로 위치 u (0 = 8 kHz, 1 = 16 kHz). 울리지 않으면 null
-function part2LiveU() {
-  const p2 = part2State();
-  if (window.GlobalState.currentStage !== 'PART2_SENSITIVITY' || p2.phase !== 'pressing' || !p2.voice) return null;
-  return p2Clamp((p2Ctx().currentTime - p2.voice.startTime - SENS.preSec) / SENS.sweepSec, 0, 1);
+// ⑤ 슬라이더 위치 u (0 = 8 kHz, 1 = 20 kHz). 조절 중이면 실시간 위치, 아니면 null
+function part2SensU() {
+  const gs = window.GlobalState;
+  if (gs.currentStage !== 'PART2_SENSITIVITY') return null;
+  const p2 = gs.part2;
+  return p2.phase === 'adjusting' ? (p2.roll + 1) / 2 : null;
 }
 
 // 달팽이 꼬임 정도 0~1 (고역 한계). ⑤ 전에는 null(꼬이지 않은 한 줄)
-// ⑤ 동안: 소리가 나면 실시간으로 늘고, 톡 하면 그 자리에서 멈춤. ⑤ 뒤: 톡 한 자리들의 평균 (결과에 남음)
+// ⑤ 동안: 슬라이더 위치에 따라 실시간으로 바뀜. ⑤ 뒤: 최종 자리 (결과에 남음)
 function part2Twist() {
   const gs = window.GlobalState;
   const psy = gs.psychoProfile;
   if (typeof psy.twist === 'number') return psy.twist;
   if (gs.currentStage !== 'PART2_SENSITIVITY') return null;
-  const live = part2LiveU();
-  if (live !== null) return live;
-  const p2 = part2State();
-  return typeof p2.frozenU === 'number' ? p2.frozenU : 0;
+  const live = part2SensU();
+  return live !== null ? live : 0;
 }
 
 // ⑥ 껍질이 제자리에서 도는 각도 (라디안). 방향과는 상관없는 회전

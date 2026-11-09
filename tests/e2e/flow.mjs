@@ -63,6 +63,8 @@ const hdragHold = async (dx, mid) => {
 };
 await send('Runtime.enable'); await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+await send('Network.enable');
+await send('Network.setCacheDisabled', { cacheDisabled: true });
 await send('Page.navigate', { url: URL });
 await sleep(4000);
 await expect('INIT');
@@ -120,21 +122,20 @@ await waitUntil('GlobalState.part1.register.playingCard < 0'); // 재생 완료 
 await holdSnail(); await expect('PART2_SENSITIVITY');
 console.log('  register', await ev('GlobalState.userEQProfile.registerPeak.register'));
 
-// ⑤ 고역 예민도: 삐 소리 동안 화면 아무 데나 톡. 저절로 다음으로 가지 않음. 더듬이 톡 = 한 번 더, 꾹 = 다음
+// ⑤ 고역 예민도: 밀어서 조절하고 손을 떼면 유지, 달팽이를 꾹 눌러 답 확정
 const waitPhase = async (ph, ms = 60000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if ((await ev('GlobalState.part2.phase')) === ph) return; await sleep(80); } throw new Error('phase ' + ph + ' timeout, now ' + await ev('GlobalState.part2.phase')); };
 await sleep(800); await shot('05-sens-lead');
-await waitPhase('pressing'); await sleep(150); await tap(600, 900); console.log('  early → note', await ev('GlobalState.part2.note'), 'phase', await ev('GlobalState.part2.phase'));
-console.log('  early voice', await ev('voiceNow'));
-await holdSnail(); await expect('PART2_SENSITIVITY'); // 일찍 누른 것만 있으면 꾹이 안 됨
-await sleep(1500); console.log('  after 1.5s phase', await ev('GlobalState.part2.phase'), '(choice여야 함, 저절로 안 넘어감)');
-await unlocked(); await tapAntenna(); await waitPhase('pressing'); await sleep(4500); await shot('05-sens-twisting'); console.log('  twist live', (await ev('part2Twist()')).toFixed(2));
-{ const b = await ev('voiceSliderBox()'); await tap(b.x0 + 60, b.y); console.log('  slider while beeping → phase', await ev('GlobalState.part2.phase'), '(pressing이어야 함)'); }
-await tap(100, 300); console.log('  tapped → frozen', (await ev('GlobalState.part2.frozenU')).toFixed(2), 'phase', await ev('GlobalState.part2.phase'));
-await shot('05-sens-frozen');
-await unlocked(); await tapAntenna(); await waitPhase('pressing'); await sleep(7000); await tap(400, 400);
-console.log('  3 listens used → can replay', await ev('canReplayPart2()'));
-await holdSnail(); await expect('PART2_SENSITIVITY'); // 안내(5-4) 도중 꾹 → 안 됨
-await canHold(); await holdSnail();
+await waitPhase('adjusting'); await sleep(100);
+console.log('  sens adjusting, roll', await ev('GlobalState.part2.roll'), 'freq', (await ev('part2SensU()')));
+{ const b = await ev('voiceSliderBox()'); await tap(b.x0 + 60, b.y); console.log('  voice slider tap → phase still adjusting:', await ev('GlobalState.part2.phase')); }
+await shot('05-sens-adjusting');
+// 조금만 밀면 아직 answer 안 됨
+await hdrag(50); console.log('  small drag → phase', await ev('GlobalState.part2.phase'), 'moved', (await ev('GlobalState.part2.moved')).toFixed(2));
+// 충분히 밀어도 유지, 다시 조절한 뒤 꾹 눌러 확정
+await hdrag(400); await sleep(100); await shot('05-sens-done');
+await expect('PART2_SENSITIVITY');
+await hdrag(-120); await expect('PART2_SENSITIVITY');
+await canHold(); await holdSnail(() => shot('05-sens-holding'));
 await sleep(900); await expect('PART2_CENTER');
 console.log('  sens', JSON.stringify(await ev('({ hz: GlobalState.psychoProfile.maxFreqHz, s: GlobalState.psychoProfile.sensitivity, twist: GlobalState.psychoProfile.twist })')));
 
@@ -176,13 +177,29 @@ for (let k = 0; k < 6; k++) {
   if (k === 3) await hdragHold(dir * 250, async () => { await sleep(700); await shot('08-pitch-live'); }); else await hdrag(dir * 250);
   if (k === 4) { await sleep(500); await shot('08-pitch-trail'); }
 }
-await waitUntil("voiceNow === '8-6'"); await shot('08-pitch-outro'); await expect('PART2_PITCH');
-await waitUntil("GlobalState.currentStage === 'RESULT'", 8000); await expect('RESULT');
+await waitUntil("GlobalState.currentStage === 'RESULT'", 40000); await shot('08-pitch-outro'); await expect('RESULT');
 console.log('  result voice', await ev('voiceNow'));
 console.log('  psycho', JSON.stringify(await ev('GlobalState.psychoProfile')));
 
 // 결과: 빈 곳을 누르고 있으면 원래 소리, 떼면 내 소리. 달팽이를 오른쪽으로 밀면 보내기
 await sleep(2500); await shot('10-result-subtitle'); await sleep(3000); await shot('10-result');
+await canHold(); await holdSnail(); await expect('MUSIC');
+await sleep(1500);
+for (const i of [2, 0, 1]) {
+  const t = await T(); await tap(t.tracks[i].x, t.tracks[i].y); await sleep(1800);
+  if (!(await ev(`GlobalState.tour.index === ${i} && GlobalState.tour.pinned && activeSourceKey === TOUR_PLACES[${i}].key`))) throw new Error('track selection failed: ' + i);
+  const pos = await ev('({ actual: cur.cx, target: targetParams(calculateUILayout()).cx, listen: resultListenState().dir })');
+  if (Math.abs(pos.actual - pos.target) > 3) throw new Error('snail did not reach track');
+  await shot('10-music-track-' + i);
+}
+const sb = (await T()).eqSlider;
+await mouse('mousePressed', sb.x1, sb.y);
+for (const mix of [0, 0.25, 0.75, 1]) {
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: sb.x0 + (sb.x1 - sb.x0) * mix, y: sb.y, button: 'left', buttons: 1 }); await sleep(150);
+  if (!(await ev(`Math.abs(GlobalState.part1.eqMix - ${mix}) < 0.01 && Math.abs(lowShelfFilter.biquad.gain.value - GlobalState.userEQProfile.lowShelf.gain * ${mix}) < 0.05`))) throw new Error('EQ slider failed at ' + mix);
+}
+await mouse('mouseReleased', sb.x1, sb.y); await shot('10-music-eq');
+console.log('  tracks, snail movement and continuous EQ slider passed');
 console.log('  code', await ev('getFullEarCode(GlobalState.userEQProfile, GlobalState.psychoProfile)'), 'place', await ev('tourPlace().key'));
 await hold(80, 300, 1400, async () => { console.log('  holding empty → bypass', await ev('GlobalState.part1.isBypassed')); await shot('11-result-original'); });
 console.log('  released → bypass', await ev('GlobalState.part1.isBypassed'));
@@ -209,4 +226,4 @@ await sleep(2500); await expect('PART1_VOLUME');
 console.log('  voice off → subtitle', await ev('voiceLine()'), 'locked', await ev('inputLocked()'), 'slider', await ev('voiceSliderShown()'));
 await ev('lastActivity -= (IDLE_RESET_SECONDS + 1) * 1000'); await sleep(300); await expect('INIT');
 console.log('errors:', errors.length ? errors : 'none');
-ws.close(); chrome.kill(); process.exit(0);
+ws.close(); chrome.kill(); process.exit(errors.length ? 1 : 0);

@@ -113,7 +113,10 @@ function renderVisuals() {
 
   if (stage === 'RESULT') {
     drawSnail(L);
-    drawResult(L);
+    drawAnalysis(L);
+  } else if (stage === 'MUSIC') {
+    drawSnail(L);
+    drawMusic(L);
   } else {
     drawGround(L);
     drawSnail(L);
@@ -129,7 +132,7 @@ function isIntroStage(stage) {
 }
 
 function onStageChange(stage) {
-  if (stage === 'RESULT') resultAt = millis();
+  if (stage === 'RESULT' || stage === 'MUSIC') resultAt = millis();
   if (stage === 'INIT' && lastStage !== null) showIntro();
   lastStage = stage;
 }
@@ -347,7 +350,7 @@ function calculateUILayout() {
   let stageTop = 160;
   let stageBottom = btn.y - 60;
   let groundK = 0.72;
-  if (stage === 'RESULT') { stageTop = m + 185; stageBottom = btn.y - 230; groundK = 0.72; }
+  if (stage === 'RESULT' || stage === 'MUSIC') { stageTop = m + 185; stageBottom = btn.y - 230; groundK = 0.72; }
   const stageH = max(160, stageBottom - stageTop);
   let R0 = min(width * (stage === 'RESULT' ? 0.155 : 0.15), stageH * 0.24); // 11/07 아이패드 미니에서 작아 보여 약 1.25배로 키움
   let groundY = stageTop + stageH * groundK;
@@ -380,20 +383,20 @@ function resultTrackBoxes(L = calculateUILayout()) {
 }
 
 function hitResultTrack(px, py) {
-  if (window.GlobalState.currentStage !== 'RESULT') return -1;
+  if (window.GlobalState.currentStage !== 'MUSIC') return -1;
   const hit = resultTrackBoxes().find((b) => px >= b.x - 4 && px <= b.x + b.w + 4 && py >= b.y - 6 && py <= b.y + b.h + 6);
   return hit ? hit.index : -1;
 }
 
 // 결과 화면: 원래 소리(0) ↔ 내 귀 EQ(1) 슬라이더 영역
 function resultEqSliderBox(L = calculateUILayout()) {
-  const w = min(width - L.m * 2 - 190, 280);
+  const w = max(80, min(width - L.m * 2 - 150, 280));
   const y = (cur ? cur.groundY : L.groundY) + 84;
   return { x0: width / 2 - w / 2, x1: width / 2 + w / 2, y };
 }
 
 function hitResultEqSlider(px, py) {
-  if (window.GlobalState.currentStage !== 'RESULT') return false;
+  if (window.GlobalState.currentStage !== 'MUSIC') return false;
   const b = resultEqSliderBox();
   return px >= b.x0 - RESULT_EQ_SLIDER.hit && px <= b.x1 + RESULT_EQ_SLIDER.hit && Math.abs(py - b.y) <= RESULT_EQ_SLIDER.hit;
 }
@@ -485,7 +488,7 @@ function shellTarget(L, R0) {
     return { on: settled ? 1 : 0.6, x: spot(reg.order[card]), key: reg.order[card] };
   }
   if (stage.startsWith('PART2_')) return { on: 1, x: chosen ? spot(chosen) : 0, key: chosen || 'MID' }; // 제자리 (⑥은 돌기만 하고, ⑦⑧은 달팽이째 움직임)
-  if (stage === 'RESULT' && chosen) return { on: 1, x: spot(chosen), key: chosen };
+  if ((stage === 'RESULT' || stage === 'MUSIC') && chosen) return { on: 1, x: spot(chosen), key: chosen };
   return { on: 0, x: 0, key: null };
 }
 
@@ -496,26 +499,27 @@ function targetParams(L) {
   const at = stageIndex(stage);
   const cfg = PART1_ADJUST.PART1_VOLUME;
   const size = map(v.volDb === null ? -20 : v.volDb, cfg.min, cfg.max, SIZE_MIN, SIZE_MAX, true);
-  // ⑦⑧: 달팽이 자체가 좌우로 기어감. 화면 안에서 오갈 수 있게 조금 작게
-  const crawlStage = stage === 'PART2_EAR' || stage === 'PART2_PITCH';
-  const R0 = L.R0 * size * (crawlStage ? CRAWL_SCALE : 1);
+  // ⑤⑦⑧: 달팽이 자체가 좌우로 기어감. 화면 안에서 오갈 수 있게 조금 작게
+  const crawlStage = stage === 'PART2_SENSITIVITY' || stage === 'PART2_EAR' || stage === 'PART2_PITCH';
+  const R0 = L.R0 * size * (crawlStage ? CRAWL_SCALE : stage === 'MUSIC' ? 0.7 : 1);
+  const musicX = stage === 'MUSIC' ? constrain(resultTrackBoxes(L)[tourState().index].cx, L.m + R0 * 2.8, width - L.m - R0 * 2.8) : L.cx;
   const sh = shellTarget(L, R0);
   const tw = isIntroStage(stage) ? null : part2Twist();
   const pressing = millis() - gs.part1.lastDragAt < 180 && (stage === 'PART1_LOW' || stage === 'PART1_HIGH');
   return {
-    cx: L.cx + (crawlStage ? (gs.part2.roll / (typeof PART2_SNAP !== 'undefined' ? PART2_SNAP : 0.85)) * crawlTravel(L, R0) : 0), groundY: L.groundY, R0,
+    cx: musicX + (crawlStage ? (gs.part2.roll / (typeof PART2_SNAP !== 'undefined' ? PART2_SNAP : 0.85)) * crawlTravel(L, R0) : 0), groundY: L.groundY, R0,
     tailF: v.low === null ? 0 : 1,
     tailG: v.low === null ? 0 : v.low / 10,
     headF: v.high === null ? 0 : 1,
     headG: v.high === null ? 0 : v.high / 10,
     wobble: at < FLOW_STAGES.indexOf('PART1_LOW') ? 1 : 0.3, // 빚기 전에는 말랑하게 일렁임
-    crawl: stage === 'RESULT' ? 1 : 0,                       // 결과 화면: 제자리에서 천천히 기어감
+    crawl: stage === 'MUSIC' ? 1 : 0,                       // 결과 화면: 제자리에서 천천히 기어감
     press: pressing ? 1 : 0,
     pressAngle: stage === 'PART1_VOLUME' ? -HALF_PI : stage === 'PART1_HIGH' ? HEAD_ANGLE : TAIL_ANGLE,
     shellOn: sh.on, shellX: sh.x, shellKey: sh.key,
-    shellSquare: stage === 'RESULT' ? (EAR_SHELL[gs.psychoProfile.dominantEar] ?? 0) : 0, // ⑦ 우세 귀에 따른 네모/동그라미 등껍질 (결과에서만 표시)
+    shellSquare: (stage === 'RESULT' || stage === 'MUSIC') ? (EAR_SHELL[gs.psychoProfile.dominantEar] ?? 0) : 0, // ⑦ 우세 귀에 따른 네모/동그라미 등껍질 (결과에서만 표시)
     helix: tw === null ? 0 : 1, twist: tw === null ? 0 : tw,
-    dim: stage === 'RESULT' ? lerp(0.45, 1, typeof gs.part1.eqMix === 'number' ? gs.part1.eqMix : (gs.part1.isBypassed ? 0 : 1)) : 1
+    dim: stage === 'MUSIC' ? lerp(0.45, 1, typeof gs.part1.eqMix === 'number' ? gs.part1.eqMix : (gs.part1.isBypassed ? 0 : 1)) : 1
   };
 }
 
@@ -528,7 +532,7 @@ function smoothAll(L) {
   const tp = targetParams(L);
   const k = 0.1;
   const stage = window.GlobalState.currentStage;
-  const crawlStage = stage === 'PART2_EAR' || stage === 'PART2_PITCH';
+  const crawlStage = stage === 'PART2_SENSITIVITY' || stage === 'PART2_EAR' || stage === 'PART2_PITCH' || stage === 'MUSIC';
   // 가는 쪽으로 몸을 돌림 (face 1 = 오른쪽, -1 = 왼쪽). 사이를 지나는 동안 몸이 좁아졌다 뒤집혀 도는 것처럼 보임
   const dx = tp.cx - cur.cx;
   if (!crawlStage) cur.faceT = 1;
@@ -559,12 +563,12 @@ function sendOffset() {
   const p = sendProgress();
   if (p < 0) return 0;
   const e = p * p * (3 - 2 * p);
-  return e * (width * 0.5 + cur.R0 * 4);
+  return e * (width - cur.cx + cur.R0 * 4);
 }
 
 // 결과 화면에서 달팽이가 소리에 귀 기울이는 정도 (0~1): 곡을 바꾼 직후 더 크게 반응하고, 평소에도 음량에 맞춰 리듬을 탐
 function resultListenState() {
-  if (window.GlobalState.currentStage !== 'RESULT' || sendProgress() >= 0) return { boost: 0, level: 0, dir: 0 };
+  if (window.GlobalState.currentStage !== 'MUSIC' || sendProgress() >= 0) return { boost: 0, level: 0, dir: 0 };
   const ampNode = window.GlobalState.audioNodes.amplitude;
   const level = ampNode ? constrain(ampNode.getLevel() * 4.5, 0, 1) : 0;
   const elapsed = millis() - (tourState().listenAt || -1e9);
@@ -656,8 +660,8 @@ function scopeStroke(ctx, tracePts, closed, weight = 1) {
   ctx.save();
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
-  ctx.strokeStyle = rgba(snailGlow, 0.22 + 0.3 * pulse.kick);
-  ctx.lineWidth = (5 + 7 * pulse.kick) * weight;
+  ctx.strokeStyle = rgba(snailGlow, 0.38 + 0.42 * pulse.kick);
+  ctx.lineWidth = (9 + 11 * pulse.kick) * weight;
   draw();
   ctx.strokeStyle = rgba(snailInk, 1);
   ctx.lineWidth = (1.5 + 1.2 * pulse.kick) * weight;
@@ -893,7 +897,7 @@ function drawAntennae(ctx, shape) {
   });
 
   // 달팽이가 소리를 들어보는 음파 고리 애니메이션 (결과 화면)
-  if (window.GlobalState.currentStage === 'RESULT' && sendProgress() < 0 && antennaTips.length === 2) {
+  if (window.GlobalState.currentStage === 'MUSIC' && sendProgress() < 0 && antennaTips.length === 2) {
     drawListeningWaves(ctx, antennaTips, R0, listen);
   }
 }
@@ -1054,7 +1058,7 @@ function voiceSliderBox() {
 
 function voiceSliderShown() {
   const gs = window.GlobalState;
-  return gs.voiceOn && stageIndex(gs.currentStage) >= 0 && gs.currentStage !== 'RESULT';
+  return gs.voiceOn && stageIndex(gs.currentStage) >= 0 && gs.currentStage !== 'RESULT' && gs.currentStage !== 'MUSIC';
 }
 
 function hitVoiceSlider(px, py) {
@@ -1101,8 +1105,8 @@ function drawGuides(L) {
     if (!gs.part1.hasMoved && !inputLocked()) {
       const ax = stage === 'PART1_LOW' ? cur.cx - R0 * 1.6 : stage === 'PART1_HIGH' ? cur.cx + R0 * 1.4 : cur.cx;
       const top = cur.groundY - R0 * (stage === 'PART1_VOLUME' ? 1.9 : 1.5);
-      label('↑', ax, top - 14 + bob, { family: FONT.mono, size: 18, c: COLORS.accent, a: arrowA, align: CENTER });
-      label('↓', ax, top + 12 - bob, { family: FONT.mono, size: 18, c: COLORS.accent, a: arrowA, align: CENTER });
+      label('↑', ax, top - 14 + bob, { family: FONT.mono, size: 36, c: COLORS.accent, a: arrowA, align: CENTER });
+      label('↓', ax, top + 12 - bob, { family: FONT.mono, size: 36, c: COLORS.accent, a: arrowA, align: CENTER });
     }
     hints.push(voiceText(canConfirmAdjust() ? ADJUST_VOICE[stage].confirm : '2-3'));
   } else if (stage === 'PART1_REGISTER') {
@@ -1117,7 +1121,7 @@ function drawGuides(L) {
       drawingContext.setLineDash([2, 5]);
       line(p.x, y + 14, p.x, cur.groundY - R0 * 1.9);
       drawingContext.setLineDash([]);
-      label(REGISTER_LETTERS[i], p.x, y, { family: FONT.mono, size: 18, weight: 500, c: on || playing ? COLORS.accent : COLORS.ink, a: reg.isAutoPlaying && !playing ? 110 : 255, align: CENTER });
+      label(REGISTER_LETTERS[i], p.x, y, { family: FONT.mono, size: 26, weight: 500, c: on || playing ? COLORS.accent : COLORS.ink, a: reg.isAutoPlaying && !playing ? 110 : 255, align: CENTER });
     });
     if (reg.isAutoPlaying) hints.push(t('hint.listening'));
     else {
@@ -1140,7 +1144,7 @@ function drawGuides(L) {
         noStroke();
         fill(...(on ? COLORS.accent : COLORS.line));
         circle(x, cur.groundY, on ? 9 : 6);
-        label(t(`${key}.${id}`), x, cur.groundY + 14, { size: 13, weight: on ? 700 : 400, c: on ? COLORS.ink : COLORS.mute, a: p2.phase === 'answer' ? 255 : 110, align: CENTER, valign: TOP });
+        label(t(`${key}.${id}`), x, cur.groundY + 14, { size: 18, weight: on ? 700 : 400, c: on ? COLORS.ink : COLORS.mute, a: p2.phase === 'answer' ? 255 : 110, align: CENTER, valign: TOP });
       });
     }
     // 좌우 화살표: ⑥ 아직 덜 돌렸을 때 달팽이 양옆 (⑦⑧은 없앰, 사용자 지시)
@@ -1149,26 +1153,10 @@ function drawGuides(L) {
       const sx = cur.cx;
       const sy = cur.groundY - R0 * 1.2;
       const dx = R0 * 2.4;
-      label('←', sx - dx - bob, sy, { family: FONT.mono, size: 18, c: COLORS.accent, a: arrowA, align: CENTER });
-      label('→', sx + dx + bob, sy, { family: FONT.mono, size: 18, c: COLORS.accent, a: arrowA, align: CENTER });
+      label('←', sx - dx - bob, sy, { family: FONT.mono, size: 36, c: COLORS.accent, a: arrowA, align: CENTER });
+      label('→', sx + dx + bob, sy, { family: FONT.mono, size: 36, c: COLORS.accent, a: arrowA, align: CENTER });
     }
-    // ⑤ 톡 했을 때 화면 가장자리가 잠깐 빨갛게
-    if (stage === 'PART2_SENSITIVITY' && millis() - (p2.tapAt || -1e9) < 500) {
-      const k = 1 - (millis() - p2.tapAt) / 500;
-      noFill();
-      stroke(COLORS.accent[0], COLORS.accent[1], COLORS.accent[2], 200 * k);
-      strokeWeight(6);
-      rect(3, 3, width - 6, height - 6);
-    }
-
-    if (p2.phase === 'pressing') hints.push(voiceText('5-2'));
-    else if (p2.phase === 'choice') {
-      if (p2.note) hints.push(voiceText('5-8'));
-      else {
-        if (canConfirmPart2()) hints.push(voiceText('5-4'));
-        if (canReplayPart2()) hints.push(voiceText('5-3'));
-      }
-    }
+    if (p2.phase === 'adjusting' && stage === 'PART2_SENSITIVITY') hints.push(voiceText('5-2'));
     else if (p2.phase === 'playing' || p2.phase === 'example') hints.push(t('hint.listening'));
     else if (p2.phase === 'adjusting') hints.push(voiceText(canConfirmPart2() ? '6-3' : '6-2'));
     else if (p2.phase === 'answer') {
@@ -1183,8 +1171,8 @@ function drawGuides(L) {
 
 // 아래쪽 안내 문구 (첫 줄이 지금 할 일이라 밝게)
 function drawHints(L, hints) {
-  hints.forEach((h, i) => label(h, width / 2, L.hintY - (hints.length - 1 - i) * 22, {
-    size: i === 0 ? 15 : 13, weight: i === 0 ? 500 : 400, c: i === 0 ? COLORS.ink : COLORS.mute, align: CENTER
+  hints.forEach((h, i) => label(h, width / 2, L.hintY - (hints.length - 1 - i) * 28, {
+    size: i === 0 ? 22 : 18, weight: i === 0 ? 500 : 400, c: i === 0 ? COLORS.ink : COLORS.mute, align: CENTER
   }));
 }
 
@@ -1221,7 +1209,55 @@ function gs() {
   return window.GlobalState;
 }
 
-function drawResult(L) {
+/** RESULT 단계: 청감 코드 + 분석 텍스트 + "달팽이 꾹" 안내 */
+function drawAnalysis(L) {
+  const gst = window.GlobalState;
+  const p = gst.userEQProfile;
+  const psy = gst.psychoProfile;
+  const a = 255 * constrain((millis() - resultAt - RESULT_TEXT_DELAY * 0.5) / 700, 0, 1);
+
+  // 위쪽 그라데이션
+  const ctx = drawingContext;
+  const topH = L.m + 260;
+  let g = ctx.createLinearGradient(0, 0, 0, topH);
+  g.addColorStop(0, `rgba(0,0,0,${0.85 * a / 255})`);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, width, topH);
+
+  // "모든 귀는 [이름] 이다"
+  const titleSize = min(26, width * 0.055);
+  const parts = [[t('result.before'), COLORS.ink], ['[', COLORS.accent], [gst.userName, COLORS.ink], [']', COLORS.accent], [t('result.after'), COLORS.ink]];
+  let x = width / 2 - parts.reduce((s, [str]) => s + textW(str, titleSize, 700), 0) / 2;
+  parts.forEach(([str, c]) => {
+    label(str, x, L.m + 32, { size: titleSize, weight: 700, c, a, valign: TOP });
+    x += textW(str, titleSize, 700);
+  });
+
+  // 청감 코드
+  label(getFullEarCode(p, psy), width / 2, L.m + 80, { family: FONT.mono, size: min(44, width * 0.072), weight: 500, c: COLORS.ink, a, align: CENTER, valign: TOP });
+
+  // 분석 텍스트 (임시, 작가 교체 예정)
+  const lines = typeof getAnalysisLines === 'function' ? getAnalysisLines(p, psy, gst.userName) : [];
+  lines.forEach((line, i) => {
+    label(line, width / 2, L.m + 150 + i * 36, {
+      size: i === 0 ? 18 : 15,
+      weight: i === 0 ? 600 : 400,
+      c: i === 0 ? COLORS.ink : COLORS.mute,
+      a, align: CENTER, valign: TOP
+    });
+  });
+
+  // 아래쪽 안내: 달팽이 꾹 → 음악으로
+  if (a > 10) {
+    push();
+    drawingContext.globalAlpha = a / 255;
+    drawHints(L, voiceBusy() ? [voiceLine()] : [t('hint.toMusic')]);
+    pop();
+  }
+}
+
+function drawMusic(L) {
   const sp = sendProgress();
   if (sp >= 1) {
     // 기어 나간 뒤
@@ -1292,26 +1328,26 @@ function drawResultControls(L, a) {
   const mix = typeof p1.eqMix === 'number' ? p1.eqMix : (p1.isBypassed ? 0 : 1);
   const sx = lerp(sb.x0, sb.x1, mix);
 
-  label(t('result.eqOrig'), sb.x0 - 12, sb.y, {
+  label(t('result.eqOrig'), sb.x0 - 22, sb.y, {
     size: 12, weight: mix < 0.5 ? 700 : 400,
     c: mix < 0.5 ? COLORS.accent : COLORS.mute, a, align: RIGHT, valign: CENTER
   });
-  label(t('result.eqMine'), sb.x1 + 12, sb.y, {
+  label(t('result.eqMine'), sb.x1 + 22, sb.y, {
     size: 12, weight: mix >= 0.5 ? 700 : 400,
     c: mix >= 0.5 ? COLORS.ink : COLORS.mute, a, align: LEFT, valign: CENTER
   });
 
   push();
   stroke(COLORS.line[0], COLORS.line[1], COLORS.line[2], a);
-  strokeWeight(3);
+  strokeWeight(6);
   line(sb.x0, sb.y, sb.x1, sb.y);
   stroke(COLORS.accent[0], COLORS.accent[1], COLORS.accent[2], a);
-  strokeWeight(3);
+  strokeWeight(6);
   line(sb.x0, sb.y, sx, sb.y);
   fill(COLORS.ink[0], COLORS.ink[1], COLORS.ink[2], a);
   stroke(COLORS.bg[0], COLORS.bg[1], COLORS.bg[2], a);
-  strokeWeight(2);
-  circle(sx, sb.y, 16);
+  strokeWeight(3);
+  circle(sx, sb.y, 28);
   pop();
 }
 
@@ -1360,7 +1396,7 @@ function drawResultText(L, a) {
     `${centerWord}  ·  ${side ? t(`side.${side}`) : '—'}  ·  ${psy.pitchMode ? t(`pitch.${psy.pitchMode}`) : '—'}  ·  ${t('khz')(khz)}`
   ];
   words.forEach((s, k) => label(s, width / 2, L.m + 124 + k * 19, { size: 12, c: COLORS.mute, a, align: CENTER, valign: TOP }));
-  label(t('tour.line'), width / 2, L.m + 172, { size: 14, a, align: CENTER, valign: TOP });
+  label(t('music.line'), width / 2, L.m + 172, { size: 14, a, align: CENTER, valign: TOP });
 
   // 아래: 8개 값 (2열)
   const volDb = 20 * Math.log10(Math.max(p.masterVolume, 1e-4));
