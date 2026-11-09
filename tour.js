@@ -87,13 +87,14 @@ function sendToTower() {
   const tour = tourState();
   if (tour.sendAt !== null) return;
   tour.sendAt = millis();
+  MemeFX.depart();
   if (window.svartCloud && window.EAR_RESULT) window.svartCloud.sendEar(window.EAR_RESULT); // 뒤에서 전송. 화면 흐름을 막지 않음
   sendTimers.push(setTimeout(() => {
     setActiveSource(null, 1.5);
     showBackdrop(null);
   }, SEND_WALK_MS * 0.7));
   sendTimers.push(setTimeout(() => {
-    if (window.GlobalState.currentStage === 'RESULT' && tourState().sendAt !== null) restartFlow();
+    if (window.GlobalState.currentStage === 'MUSIC' && tourState().sendAt !== null) restartFlow();
   }, SEND_WALK_MS + SEND_HOLD_MS));
 }
 

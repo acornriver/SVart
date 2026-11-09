@@ -1,0 +1,38 @@
+[
+  {
+    "id": "size",
+    "original": "mac-quack.mp3",
+    "start": 0.1,
+    "end": 0.42,
+    "duration": 0.32,
+    "gainDb": -16,
+    "targetLufs": -27
+  },
+  {
+    "id": "shell",
+    "original": "bbyororong.mp3",
+    "start": 0,
+    "end": 1.7,
+    "duration": 1.7,
+    "gainDb": -9.6,
+    "targetLufs": -27
+  },
+  {
+    "id": "reveal",
+    "original": "ta-da.mp3",
+    "start": 0.24,
+    "end": 1.65,
+    "duration": 1.41,
+    "gainDb": -5.5,
+    "targetLufs": -27
+  },
+  {
+    "id": "depart",
+    "original": "dj-stop.mp3",
+    "start": 0.4,
+    "end": 1.27,
+    "duration": 0.87,
+    "gainDb": -6.7,
+    "targetLufs": -27
+  }
+]

@@ -1,24 +1,42 @@
 // 전체 흐름 테스트: 첫 화면(언어) → 이름 → 8검사(Part 2: 톡 · 돌리기 · 굴리기) → 결과(북서울 산책, 비교, 보내기) → 자동으로 첫 화면 → 다음 관람객 → 방치 시 첫 화면
 // 버튼 없는 손짓(쓸기, 달팽이 꾹, 더듬이 톡, 등 위 자리 톡, 누르고 있기, 밀기)을 실제 마우스 이벤트로 하며, 단계마다 스크린샷을 <출력폴더>/*.png로 남김. 마지막 줄이 'errors: none'이어야 함
+// 빠른 검증: node tests/e2e/flow.mjs /tmp/svart-fast ko --fast (브라우저 안에서만 안내/검사음 8배속)
 // 실행: (레포 루트에서) python3 -m http.server 8765 &   그다음   node tests/e2e/flow.mjs <출력폴더(절대경로)> [ko|en]
-// 맥의 Google Chrome을 헤드리스로 띄워 CDP(포트 9333)로 조종함. Node 22 이상(내장 WebSocket)
+// 맥의 Google Chrome을 헤드리스로 띄워 CDP(자동 빈 포트)로 조종함. Node 22 이상(내장 WebSocket)
 import { spawn } from 'node:child_process';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync, existsSync, unlinkSync } from 'node:fs';
 
 const OUT = process.argv[2];
 const URL = 'http://localhost:8765/index.html';
-const LANG = process.argv[3] || 'ko';
+const LANG = process.argv.slice(3).find(arg => arg === 'ko' || arg === 'en') || 'ko';
+const FAST = process.argv.includes('--fast');
 const W = 744, H = 1133;
+const portFile = `${OUT}/profile/DevToolsActivePort`;
+const requestedPort = process.env.SVART_CDP_PORT || '0';
 mkdirSync(OUT, { recursive: true });
+if (requestedPort === '0' && existsSync(portFile)) unlinkSync(portFile);
 
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
-  '--headless=new', '--remote-debugging-port=9333', `--window-size=${W},${H}`,
+  '--headless=new', '--remote-debugging-port=' + requestedPort, `--window-size=${W},${H}`,
   '--autoplay-policy=no-user-gesture-required', '--user-data-dir=' + OUT + '/profile', 'about:blank'
 ], { stdio: 'ignore' });
+process.on('exit', () => chrome.kill());
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-await sleep(1500);
-
-const targets = await (await fetch('http://127.0.0.1:9333/json')).json();
+// Chrome chooses a fresh port by default, so parallel runs cannot attach to an old test tab.
+let targets;
+const deadline = Date.now() + 15000;
+while (Date.now() < deadline) {
+  try {
+    const port = requestedPort === '0' ? readFileSync(portFile, 'utf8').split('\n')[0].trim() : requestedPort;
+    const response = await fetch(`http://127.0.0.1:${port}/json`);
+    if (response.ok) {
+      targets = await response.json();
+      if (targets.some(t => t.type === 'page')) break;
+    }
+  } catch { /* Chrome is still starting. */ }
+  await sleep(80);
+}
+if (!targets?.some(t => t.type === 'page')) throw new Error('Chrome did not start within 15 seconds');
 const ws = new WebSocket(targets.find((t) => t.type === 'page').webSocketDebuggerUrl);
 await new Promise((r) => ws.addEventListener('open', r));
 let id = 0; const pending = {}; const errors = [];
@@ -45,7 +63,7 @@ const drag = async (dy) => {
   for (let k = 1; k <= 10; k++) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y: y0 - dy * k / 10, button: 'left', buttons: 1 }); await sleep(16); }
   await mouse('mouseReleased', x, y0 - dy); await sleep(400);
 };
-const expect = async (s) => { const cur = await stage(); if (cur !== s) throw new Error(`expected ${s}, got ${cur}`); console.log('✓', s); };
+const expect = async (s) => { const start = Date.now(); while (Date.now() - start < 6000) { if (await stage() === s) { console.log('✓', s); return; } await sleep(40); } throw new Error(`expected ${s}, got ${await stage()}`); };
 
 const hdrag = async (dx) => {
   const x0 = W / 2, y = 520;
@@ -63,13 +81,29 @@ const hdragHold = async (dx, mid) => {
 };
 await send('Runtime.enable'); await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+await send('Network.enable'); await send('Network.setCacheDisabled', { cacheDisabled: true });
 await send('Page.navigate', { url: URL });
+if (FAST) {
+  const { runFastFlow } = await import('./fast-flow.mjs');
+  let summary;
+  try {
+    summary = await runFastFlow({ send, ev, shot, lang: LANG });
+  } catch (error) {
+    await shot('fast-failure');
+    const state = await ev('({ stage: GlobalState.currentStage, part1: GlobalState.part1, part2: { phase: GlobalState.part2.phase, trial: GlobalState.part2.trial?.index, roll: GlobalState.part2.roll, replayLeft: GlobalState.part2.replayLeft }, targets: getTouchTargets(), fast: window.__fastFlow })');
+    writeFileSync(`${OUT}/fast-failure.json`, JSON.stringify({ error: error.message, state, errors }, null, 2));
+    throw error;
+  }
+  writeFileSync(`${OUT}/fast-summary.json`, JSON.stringify({ ...summary, errors }, null, 2));
+  console.log('errors:', errors.length ? errors : 'none');
+  ws.close(); chrome.kill(); process.exit(errors.length ? 1 : 0);
+}
 await sleep(4000);
 await expect('INIT');
 if (LANG === 'en') { const b = await ev(`(() => { const r = document.querySelector('.langs [data-lang=en]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); await tap(b.x, b.y); }
 console.log('  lang', await ev('GlobalState.lang'));
 await shot('00-intro');
-console.log('  voice clips', await ev('JSON.stringify({ ko: Object.keys(voiceClips.ko).length, en: Object.keys(voiceClips.en).length })'), '(모두 50)');
+console.log('  voice clips', await ev('JSON.stringify({ ko: Object.keys(voiceClips.ko).length, en: Object.keys(voiceClips.en).length })'), '(한국어 29개, 영어 기존 녹음)');
 // 확성기: 끄고 켜기. 끈 모습을 찍고 다시 켜서 시작
 { const b = await ev(`(() => { const r = document.querySelector('.spk').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
   await tap(b.x, b.y); console.log('  speaker off', await ev('GlobalState.voiceOn')); await shot('00-intro-voice-off');
@@ -120,23 +154,13 @@ await waitUntil('GlobalState.part1.register.playingCard < 0'); // 재생 완료 
 await holdSnail(); await expect('PART2_SENSITIVITY');
 console.log('  register', await ev('GlobalState.userEQProfile.registerPeak.register'));
 
-// ⑤ 고역 예민도: 삐 소리 동안 화면 아무 데나 톡. 저절로 다음으로 가지 않음. 더듬이 톡 = 한 번 더, 꾹 = 다음
-const waitPhase = async (ph, ms = 60000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if ((await ev('GlobalState.part2.phase')) === ph) return; await sleep(80); } throw new Error('phase ' + ph + ' timeout, now ' + await ev('GlobalState.part2.phase')); };
-await sleep(800); await shot('05-sens-lead');
-await waitPhase('pressing'); await sleep(150); await tap(600, 900); console.log('  early → note', await ev('GlobalState.part2.note'), 'phase', await ev('GlobalState.part2.phase'));
-console.log('  early voice', await ev('voiceNow'));
-await holdSnail(); await expect('PART2_SENSITIVITY'); // 일찍 누른 것만 있으면 꾹이 안 됨
-await sleep(1500); console.log('  after 1.5s phase', await ev('GlobalState.part2.phase'), '(choice여야 함, 저절로 안 넘어감)');
-await unlocked(); await tapAntenna(); await waitPhase('pressing'); await sleep(4500); await shot('05-sens-twisting'); console.log('  twist live', (await ev('part2Twist()')).toFixed(2));
-{ const b = await ev('voiceSliderBox()'); await tap(b.x0 + 60, b.y); console.log('  slider while beeping → phase', await ev('GlobalState.part2.phase'), '(pressing이어야 함)'); }
-await tap(100, 300); console.log('  tapped → frozen', (await ev('GlobalState.part2.frozenU')).toFixed(2), 'phase', await ev('GlobalState.part2.phase'));
-await shot('05-sens-frozen');
-await unlocked(); await tapAntenna(); await waitPhase('pressing'); await sleep(7000); await tap(400, 400);
-console.log('  3 listens used → can replay', await ev('canReplayPart2()'));
-await holdSnail(); await expect('PART2_SENSITIVITY'); // 안내(5-4) 도중 꾹 → 안 됨
-await canHold(); await holdSnail();
+// ⑤ 새 지시문: 밀어서 조절 → 손을 떼도 유지 → 꾹으로 확정
+const waitPhase = async (ph, ms = 60000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if ((await ev('GlobalState.part2.phase')) === ph) return; await sleep(80); } throw new Error('phase ' + ph + ' timeout'); };
+await waitPhase('adjusting');
+await holdSnail(); await expect('PART2_SENSITIVITY');
+await hdrag(220); await expect('PART2_SENSITIVITY');
+await canHold(); await shot('05-sens-adjusted'); await holdSnail();
 await sleep(900); await expect('PART2_CENTER');
-console.log('  sens', JSON.stringify(await ev('({ hz: GlobalState.psychoProfile.maxFreqHz, s: GlobalState.psychoProfile.sensitivity, twist: GlobalState.psychoProfile.twist })')));
 
 // ⑥ 중앙: 돌리기 전 꾹 → 안 됨, 좌우로 쓸고 꾹 (2번)
 await waitPhase('adjusting');
@@ -150,7 +174,7 @@ await sleep(900); await expect('PART2_EAR');
 console.log('  center', await ev('GlobalState.psychoProfile.centerDeg'), await ev('GlobalState.psychoProfile.centerImage'));
 
 // ⑦ 우세 귀: 안내 → 듣기만 하는 예시 → 안내 → 시행. 덜 굴리면 답 안 됨, 더듬이로 한 번 더 듣기, 굴리고 손을 떼면 바로 답 (3번)
-await waitPhase('example'); console.log('  ear example, answers', await ev('GlobalState.part2.trial === null'), 'locked', await ev('inputLocked()')); await shot('07-ear-example');
+if (LANG === 'en') { await waitPhase('example'); await shot('07-ear-example'); }
 for (let k = 0; k < 3; k++) {
   await waitPhase('answer');
   if (k === 0) {
@@ -168,7 +192,7 @@ console.log('  ear', await ev('GlobalState.psychoProfile.dominantEar'), await ev
 await sleep(800); await shot('07-ear-antennae');
 
 // ⑧ 바탕음·배음: 예시(답 없음) + 6번. 순서에 따라 답이 갈리게 (AB → 내려감 = 바탕음 쪽)
-await waitPhase('example');
+if (LANG === 'en') await waitPhase('example');
 for (let k = 0; k < 6; k++) {
   await waitPhase('answer');
   const order = await ev('GlobalState.part2.trial.order');
@@ -176,11 +200,11 @@ for (let k = 0; k < 6; k++) {
   if (k === 3) await hdragHold(dir * 250, async () => { await sleep(700); await shot('08-pitch-live'); }); else await hdrag(dir * 250);
   if (k === 4) { await sleep(500); await shot('08-pitch-trail'); }
 }
-await waitUntil("voiceNow === '8-6'"); await shot('08-pitch-outro'); await expect('PART2_PITCH');
 await waitUntil("GlobalState.currentStage === 'RESULT'", 8000); await expect('RESULT');
 console.log('  result voice', await ev('voiceNow'));
 console.log('  psycho', JSON.stringify(await ev('GlobalState.psychoProfile')));
 
+await canHold(); await holdSnail(); await expect('MUSIC');
 // 결과: 빈 곳을 누르고 있으면 원래 소리, 떼면 내 소리. 달팽이를 오른쪽으로 밀면 보내기
 await sleep(2500); await shot('10-result-subtitle'); await sleep(3000); await shot('10-result');
 console.log('  code', await ev('getFullEarCode(GlobalState.userEQProfile, GlobalState.psychoProfile)'), 'place', await ev('tourPlace().key'));
@@ -209,4 +233,4 @@ await sleep(2500); await expect('PART1_VOLUME');
 console.log('  voice off → subtitle', await ev('voiceLine()'), 'locked', await ev('inputLocked()'), 'slider', await ev('voiceSliderShown()'));
 await ev('lastActivity -= (IDLE_RESET_SECONDS + 1) * 1000'); await sleep(300); await expect('INIT');
 console.log('errors:', errors.length ? errors : 'none');
-ws.close(); chrome.kill(); process.exit(0);
+ws.close(); chrome.kill(); process.exit(errors.length ? 1 : 0);

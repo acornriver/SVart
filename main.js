@@ -39,6 +39,7 @@ function setup() {
   setupIntro(submitName);
   setupBackdrops();
   loadVoice();
+  MemeFX.load();
   loadSamples();
 
   // 모바일 브라우저 롱프레스 컨텍스트 메뉴 차단
@@ -157,7 +158,7 @@ function pointerDown(px, py) {
   ensureAudioRunning();
   resumeBackdrop();
   lastActivity = millis();
-  if (window.GlobalState.currentStage === 'RESULT') {
+  if (window.GlobalState.currentStage === 'MUSIC') {
     if (tourState().sendAt !== null) return;
     if (hitResultEqSlider(px, py)) {
       pointer = { mode: 'eq' };
@@ -182,7 +183,7 @@ function pointerDown(px, py) {
   if (part2Tap()) return;
 
   const onSnail = hitSnail(px, py);
-  const holdBypass = window.GlobalState.currentStage === 'RESULT' && !onSnail;
+  const holdBypass = window.GlobalState.currentStage === 'MUSIC' && !onSnail;
   pointer = {
     x0: px, y0: py, x: px, y: py, lastX: px, lastY: py, t0: millis(),
     onSnail, canHold: canHoldConfirm(), mode: 'pending',
@@ -216,7 +217,7 @@ function pointerMove(px, py) {
   const stage = window.GlobalState.currentStage;
   if (PART1_ADJUST[stage]) dragAdjust((pointer.lastY - py) / height);
   else if (stage.startsWith('PART2_')) dragRoll((px - pointer.lastX) / width);
-  else if (stage === 'RESULT' && pointer.onSnail && px - pointer.x0 > width * SEND_PUSH_RATIO) {
+  else if (stage === 'MUSIC' && pointer.onSnail && px - pointer.x0 > width * SEND_PUSH_RATIO) {
     pointer.mode = 'done';
     sendToTower();
   }
@@ -231,7 +232,7 @@ function pointerUp() {
   lastActivity = millis();
   const stage = window.GlobalState.currentStage;
 
-  if (stage === 'RESULT' && p.holdBypass) setResultEqMix(p.prevEqMix);
+  if (stage === 'MUSIC' && p.holdBypass) setResultEqMix(p.prevEqMix);
   if (p.mode === 'drag' && stage.startsWith('PART2_')) releaseRoll();
   if (p.mode === 'pending') tapAt(p.x0, p.y0, millis() - p.t0);
 }
@@ -248,7 +249,7 @@ function tapAt(px, py, pressedMs) {
       return;
     }
   }
-  if (pressedMs < REPLAY_TAP_MS && hitSnail(px, py) && canReplay()) {
+  if (pressedMs < REPLAY_TAP_MS && (hitSnail(px, py) || hitAntenna(px, py)) && canReplay()) {
     replayPart2(); // ④는 A/B/C를 눌러 다시 들음 (canReplay가 false)
   }
 }
@@ -257,7 +258,7 @@ function tapAt(px, py, pressedMs) {
 function dragAxisOk(dx, dy) {
   const stage = window.GlobalState.currentStage;
   if (PART1_ADJUST[stage]) return Math.abs(dy) >= Math.abs(dx) * DRAG_AXIS_RATIO;
-  if (stage.startsWith('PART2_') || stage === 'RESULT') return Math.abs(dx) >= Math.abs(dy) * DRAG_AXIS_RATIO;
+  if (stage.startsWith('PART2_') || stage === 'MUSIC') return Math.abs(dx) >= Math.abs(dy) * DRAG_AXIS_RATIO;
   return true;
 }
 
@@ -268,7 +269,7 @@ function pointerCancel() {
   pointer = null;
   lastActivity = millis();
   const stage = window.GlobalState.currentStage;
-  if (stage === 'RESULT' && p.holdBypass) setResultEqMix(p.prevEqMix);
+  if (stage === 'MUSIC' && p.holdBypass) setResultEqMix(p.prevEqMix);
   if (p.mode === 'drag' && stage.startsWith('PART2_')) cancelRoll();
 }
 
@@ -281,6 +282,7 @@ function canHoldConfirm() {
   if (voiceBusy() || inputLocked()) return false; // 말이 끝나기 전에 닿아 있던 손가락으로 넘어가지 않게
   if (PART1_ADJUST[stage]) return canConfirmAdjust();
   if (stage === 'PART1_REGISTER') return gs.part1.register.selectedCard >= 0 && !gs.part1.register.isAutoPlaying && !!voiceCue.picked;
+  if (stage === 'RESULT') return true;
   if (stage === 'PART2_CENTER' || stage === 'PART2_SENSITIVITY') return canConfirmPart2(); // ⑦⑧은 손을 떼면 답 (releaseRoll)
   return false;
 }
@@ -298,6 +300,7 @@ function updateHold() {
   if (PART1_ADJUST[stage]) tapConfirmAdjust();
   else if (stage === 'PART1_REGISTER') confirmRegister();
   else if (stage.startsWith('PART2_')) confirmPart2();
+  else if (stage === 'RESULT') confirmStep();
 }
 
 // 비주얼용: 꾹 누르는 중이면 { x, y, progress 0~1 }

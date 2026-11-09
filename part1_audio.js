@@ -24,7 +24,7 @@
 const FLOW_STAGES = [
   'PART1_VOLUME', 'PART1_LOW', 'PART1_HIGH', 'PART1_REGISTER', // 둥근 반죽 → 꼬리 → 머리 → 껍질 얹기
   'PART2_SENSITIVITY', 'PART2_CENTER', 'PART2_EAR', 'PART2_PITCH',
-  'RESULT'
+  'RESULT', 'MUSIC'
 ];
 const EAR_RESULT_KEY = 'svart.earProfile'; // 청감 클라우드 연결용으로 결과를 남겨 두는 자리
 
@@ -45,11 +45,10 @@ const SAMPLE_RETRY_MS = 5000;     // 녹음을 못 받았을 때 다시 받기�
 // 단계별 음성 안내 번호 (voice.js, 문구는 copy.js). 앞 단계의 확정 안내(1-6 등)가 다음 단계 맨 앞에 옴
 // intro: 들어갈 때, confirm: 확정할 수 있게 됐을 때
 const ADJUST_VOICE = {
-  PART1_VOLUME: { intro: ['1-1'], confirm: '1-5' },
-  PART1_LOW: { intro: ['1-6', '2-1', '2-2', '2-3'], confirm: '2-4' },
-  PART1_HIGH: { intro: ['2-5', '3-1', '3-2', '3-3'], confirm: '3-4' }
+  PART1_VOLUME: { intro: 'adjustVolumeIntro', confirm: 'adjustVolumeConfirm' },
+  PART1_LOW: { intro: 'adjustLowIntro', confirm: 'adjustLowConfirm' },
+  PART1_HIGH: { intro: 'adjustHighIntro', confirm: 'adjustHighConfirm' }
 };
-const REGISTER_INTRO_VOICE = ['3-5', '4-1', '4-2', '4-3'];
 const CONFIRM_VOICE_QUIET_MS = 1500; // 손을 멈춘 뒤 소리를 듣는 시간. 쓰는 중이나 멈추자마자 말해서 비트가 줄어들지 않게 (Claude가 정한 임시값)
 const VOICE_DUCK = { gain: 0.25, down: 0.15, up: 0.5 }; // 말하는 동안 비트·녹음을 -12 dB로. Claude가 정한 임시값
 
@@ -273,6 +272,7 @@ function sourceSpectrum(key) {
  * 2. 단계 이동
  */
 function goToStep(index) {
+  MemeFX.cancel();
   const gs = window.GlobalState;
   const stage = FLOW_STAGES[index];
   gs.currentStage = stage;
@@ -302,17 +302,28 @@ function goToStep(index) {
     setActiveSource(null); // Part 2 순음은 조용한 바탕에서
     beginPart2Stage(stage);
   } else if (stage === 'RESULT') {
+    setActiveSource(null);
+    saveEarResult();
+    say(voicePlan('result'));
+  } else if (stage === 'MUSIC') {
     gs.part1.isBypassed = false;
     gs.part1.eqMix = 1;
-    startTour(); // 북서울 산책. 장소를 바꿀 때마다 음량 보정도 그 녹음 기준으로
-    saveEarResult();
-    say(['9-1']);
+    startTour();
+    say(voicePlan('music'));
   }
 }
 
 function confirmStep() {
-  const next = window.GlobalState.part1.stepIndex + 1;
-  if (next < FLOW_STAGES.length) goToStep(next);
+  const state = window.GlobalState;
+  if (MemeFX.busy()) return;
+  const next = state.part1.stepIndex + 1;
+  if (next >= FLOW_STAGES.length) return;
+  const from = state.currentStage;
+  const cue = MemeFX.cueFor(from, FLOW_STAGES[next]);
+  if (!cue) return goToStep(next);
+  MemeFX.transition(cue, () => {
+    if (state.currentStage === from) goToStep(next);
+  });
 }
 
 /**
@@ -340,6 +351,7 @@ function saveEarResult() {
  * 처음으로: 값을 모두 지우고 소리를 끈 뒤 이름 입력 화면으로
  */
 function restartFlow() {
+  MemeFX.cancel();
   const gs = window.GlobalState;
   const profile = gs.userEQProfile;
   profile.lowShelf.gain = 0;
@@ -376,7 +388,7 @@ function updateFlow(dt) {
   const stage = window.GlobalState.currentStage;
   if (PART1_ADJUST[stage]) updateAdjust(stage, dt);
   if (stage.startsWith('PART2_')) updatePart2();
-  if (stage === 'RESULT') updateTour();
+  if (stage === 'MUSIC') updateTour();
 
   sourceWatchTimer += dt;
   if (sourceWatchTimer >= SOURCE_WATCH_SECONDS) {
@@ -411,7 +423,7 @@ function beginAdjust(stage) {
   movedPath = 0;
   stepElapsed = 0;
   applyAdjust(stage);
-  sayGuide(ADJUST_VOICE[stage].intro);
+  sayGuide(voicePlan(ADJUST_VOICE[stage].intro));
 }
 
 function updateAdjust(stage, dt) {
@@ -421,7 +433,7 @@ function updateAdjust(stage, dt) {
   p1.hasMoved = movedPath >= cfg.moveThreshold && stepElapsed >= MIN_STEP_SECONDS;
   if (p1.hasMoved && !voiceCue.confirm && !voiceBusy() && millis() - p1.lastDragAt > CONFIRM_VOICE_QUIET_MS) {
     voiceCue.confirm = true;
-    say([ADJUST_VOICE[stage].confirm]);
+    say(voicePlan(ADJUST_VOICE[stage].confirm));
   }
 }
 
@@ -438,7 +450,7 @@ function voiceOnDrag(stage, dyRatio) {
   if (Math.abs(dyRatio) < 0.002) return; // 손 떨림
   if (!voiceCue.up) {
     voiceCue.up = true;
-    say(['1-2']);
+    say(voicePlan('adjustVolumeDrag'));
   }
 }
 
@@ -492,7 +504,7 @@ function tapConfirmAdjust() {
 function applyEQ() {
   const profile = window.GlobalState.userEQProfile;
   const p1 = window.GlobalState.part1;
-  const mix = window.GlobalState.currentStage === 'RESULT'
+  const mix = window.GlobalState.currentStage === 'MUSIC'
     ? (typeof p1.eqMix === 'number' ? p1.eqMix : (p1.isBypassed ? 0 : 1))
     : (p1.isBypassed ? 0 : 1);
 
@@ -612,7 +624,7 @@ function startRegisterTrial() {
   const reg = window.GlobalState.part1.register;
   // 카드는 x축(음고) 위 제자리에 고정하고, 처음 들려주는 순서는 B - A - C 고정 (사용자 지시 11/06)
   reg.order = REGISTERS.map((r) => r.id);
-  reg.playOrder = [1, 0, 2];
+  reg.playOrder = [1, 0, 2]; // 화면 A(저)·B(중)·C(고), 처음 재생만 B→A→C (사용자 확정 2026-11-09)
   reg.selectedCard = -1;
   reg.playingCard = -1;
   reg.isAutoPlaying = true;
@@ -622,12 +634,12 @@ function startRegisterTrial() {
 async function introRegister() {
   const token = ++registerPlayToken;
   lockInput();
-  await say(REGISTER_INTRO_VOICE);
+  await say(voicePlan('registerIntro'));
   if (token !== registerPlayToken) return;
   if (!(await playAllRegisterCards())) return;
   // 4-3·4-4까지 들은 뒤에 세 자리를 눌러 보고 확정할 수 있음 (지시문)
   const playedToken = registerPlayToken;
-  if (await sayGuide(['4-4', '4-7']) && playedToken === registerPlayToken) voiceCue.picked = true;
+  if (await sayGuide(voicePlan('registerAfter')) && playedToken === registerPlayToken) voiceCue.picked = true;
 }
 
 // 세 멜로디를 끝까지 들려줬으면 true

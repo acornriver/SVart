@@ -3,7 +3,7 @@
  *
  * - 글자를 누르면 parseEarCode로 되살린 EQ를 녹음에 바로 입힘 (본 작품과 같은 체인과 음량 보정)
  * - [모든 글자 하나씩 듣기]: 지금 코드에서 한 자리씩만 바꿔 음역 → 저음 → 고음 → 음량 글자를 차례로 들려줌
- * - 헤더의 숫자: 가능한 코드 750개 전부 parseEarCode → getEarCode로 다시 같은 코드가 나오는지 확인한 결과
+ * - 헤더의 숫자: 가능한 짧은 코드 270개 전부 parseEarCode → getEarCode로 다시 같은 코드가 나오는지 확인한 결과
  */
 
 const SOURCES = [
@@ -198,11 +198,12 @@ function loadTyped() {
   const typed = $('codeInput').value.trim();
   const profile = parseEarCode(typed);
   if (!profile) {
-    setStatus(`"${typed}"은(는) 코드 형식이 아닙니다. 예) IwS/6`);
+    setStatus(`"${typed}"은(는) 코드 형식이 아닙니다. 예) IWS-RLF(13.2k/6)`);
     return;
   }
   stopTour();
-  code = { reg: typed[0], low: typed[1], high: typed[2], vol: typed[4] };
+  const short = getEarCode(profile);
+  code = { reg: short[0], low: short[1], high: short[2], vol: short[4] };
   applyCode();
 }
 

@@ -8,7 +8,7 @@
 
 window.GlobalState = {
   // 'INIT' | 'NAMED' | 'PART1_VOLUME' | 'PART1_LOW' | 'PART1_HIGH' | 'PART1_REGISTER'
-  // | 'PART2_SENSITIVITY' | 'PART2_CENTER' | 'PART2_EAR' | 'PART2_PITCH' | 'RESULT'
+  // | 'PART2_SENSITIVITY' | 'PART2_CENTER' | 'PART2_EAR' | 'PART2_PITCH' | 'RESULT' | 'MUSIC'
   // (NAMED: 이름을 넣고 첫 검사로 넘어가는 사이의 짧은 전환)
   currentStage: 'INIT',
 

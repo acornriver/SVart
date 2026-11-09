@@ -74,7 +74,7 @@
     .intro.out { opacity: 0; }
     .intro.gone { display: none; }
     .intro .langs { position: absolute; top: max(24px, env(safe-area-inset-top)); right: 24px; display: flex; gap: 6px; }
-    .intro .langs button { pointer-events: auto; touch-action: manipulation; font: 500 14px 'Noto Sans KR', sans-serif; color: #80807c;
+    .intro .langs button { pointer-events: auto; touch-action: manipulation; font: 500 18px 'Noto Sans KR', sans-serif; color: #80807c;
       background: transparent; border: 1.5px solid #3a3a38; border-radius: 999px; padding: 8px 16px; transition: all .3s ease; }
     .intro .langs button.on { color: #000; background: #f5f5f0; border-color: #f5f5f0; }
     .intro .langs .spk { display: flex; align-items: center; padding: 5px 12px; color: #f5f5f0; }
@@ -85,16 +85,18 @@
     .intro .langs .spk.muted .off { display: inline; }
     .intro.started .langs { opacity: 0; transition: opacity .4s ease; }
     .intro .title { margin: 0; font-weight: 700; font-size: clamp(30px, 6vw, 60px); white-space: nowrap; }
+    .intro .before, .intro .after, .intro .hint { display: none; }
     .intro .br { color: #ff3b1f; }
     .intro .name { pointer-events: auto; width: 2.4em; padding: 0 .1em; background: transparent; border: none; outline: none;
       border-bottom: 2px solid #f5f5f0; color: #f5f5f0; font: inherit; text-align: center; caret-color: #ff3b1f;
       border-radius: 0; -webkit-appearance: none; transition: border-color .6s ease; }
-    .intro .name::placeholder { color: #3a3a38; }
+    .intro .name::placeholder { color: #80807c; }
     .intro .name.done { border-bottom-color: transparent; }
     .intro .hint { white-space: pre-line; line-height: 1.7; font-size: 14px; letter-spacing: .08em; color: #80807c; transition: opacity .4s ease; }
     .intro .shake { animation: shake .4s; }
     @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
   </style>
+  <link rel="stylesheet" href="./memeFX.css">
 
   <!-- p5.js 1.9.4 및 p5.sound (CDN에 의존하지 않게 lib/에 둠) -->
   <script src="./lib/p5.min.js"></script>
@@ -106,12 +108,14 @@
 
   <!-- 2. 화면 문구 (한국어 / English) -->
   <script src="./copy.js"></script>
+  <script src="./voiceMemesound.js"></script>
 
   <!-- 3. 청감 코드 (IwS/6 · CRH 16.5) -->
   <script src="./earCode.js"></script>
 
   <!-- 음성 안내 -->
   <script src="./voice.js"></script>
+  <script src="./memeFX.js"></script>
 
   <!-- 4. 검사용 비트 · 결과 화면의 북서울 산책과 보내기 -->
   <script src="./loudness.js"></script>
@@ -130,13 +134,6 @@
   <!-- 8. p5.js 생명주기 및 이벤트 메인 라우터 -->
   <script src="./main.js"></script>
 
-  <!-- 클라우드 모듈 (Firebase 동적 import, 검사 흐름과 무관하게 뒤에서 동작) -->
-  <script src="./cloud/config.js"></script>
-  <script src="./cloud/firebase.js"></script>
-  <script src="./cloud/send.js"></script>
-
-  <!-- 개발용 이동 버튼 (?dev=1 일 때만). 최종본에서는 이 줄과 dev.js를 지움 -->
-  <script src="./dev.js"></script>
 </head>
 <body>
 </body>

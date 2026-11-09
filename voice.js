@@ -1,8 +1,8 @@
 /**
  * 청각 다변기 (Sound Variator) - 음성 안내 (차민휘 제작, 일레븐랩스)
  *
- * 파일: media/voice/k/k<번호>.mp3 (한국어), media/voice/e/e<번호>.mp3 (영어). 번호와 문구는 copy.js의 VOICE_COPY.
- * 0-1~0-3은 파일만 있고 재생하지 않음: iPad는 첫 터치 전에 소리를 못 내서 첫 화면은 글자로만 보여 줌 (사용자 선택 11/05)
+ * 한국어: media/voice/memesound/m<번호>.mp3 (voiceMemesound.js), 영어: media/voice/e/e<번호>.mp3 (copy.js).
+ * iPad는 첫 터치 전에 소리를 못 내서 첫 화면은 글자로만 보여 줌 (사용자 선택 11/05).
  *
  * 줄을 넘기는 것은 재생 끝 이벤트가 아니라 타이머입니다. 오디오가 멈추거나 파일을 못 읽어도 안내가 흐름을 막으면 안 되기 때문입니다.
  * 음성을 꺼도 같은 시간 동안 자막이 나옵니다. EQ·① 볼륨과 무관하게 바로 출력하고, 말하는 동안 비트와 녹음을 줄입니다.
@@ -12,7 +12,7 @@
  * 잠긴 동안 시작한 터치는 풀린 뒤에도 무시하고, 풀린 뒤 새로 시작한 터치부터 반영합니다 (main.js).
  */
 
-const VOICE_FILES = { ko: 'media/voice/k/k', en: 'media/voice/e/e' };
+const VOICE_FILES = { en: 'media/voice/e/e' };
 const VOICE_LEVEL_START = 0.63; // 슬라이더 시작 자리. 소리는 자리의 제곱이라 -8 dB. 원본이 말소리 구간 K-가중 -27 dB로 ①의 최대(-26 dB)만큼 커서 낮춤. Claude가 정한 임시값
 const VOICE_GAP_MS = 200;       // 줄 사이 숨 고르기
 const VOICE_FALLBACK_SEC = 0.09; // 파일을 못 읽었을 때 글자당 자막을 보여 줄 시간
@@ -36,11 +36,11 @@ let inputFreeAt = 0;   // 이 시각(millis)까지 터치를 받지 않음
 function loadVoice() {
   const ctx = getAudioContext();
   LANGS.forEach(async (lang) => {
-    for (const id of Object.keys(VOICE_COPY)) {
+    for (const id of voiceIds(lang)) {
       if (VOICE_PENDING[lang].includes(id)) continue; // 문구가 바뀐 줄의 옛 녹음은 틀지 않음
       for (let k = 0; k < VOICE_LOAD_TRIES && !voiceClips[lang][id]; k++) {
         try {
-          const res = await fetch(`${VOICE_FILES[lang]}${id}.mp3`);
+          const res = await fetch(voiceFile(lang, id));
           if (!res.ok) continue;
           const ab = await res.arrayBuffer();
           voiceClips[lang][id] = await new Promise((ok, fail) => {
@@ -78,6 +78,7 @@ function voiceGain() {
 }
 
 function applyVoiceGain() {
+  MemeFX.updateGain();
   if (voiceBus) voiceBus.gain.setTargetAtTime(voiceGain(), getAudioContext().currentTime, 0.01);
 }
 

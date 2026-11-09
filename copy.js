@@ -17,6 +17,8 @@ const STAGE_COPY = {
   PART2_SENSITIVITY: { ko: { title: '어디까지 들리나요?' }, en: { title: 'How high can you hear?' } },
   PART2_CENTER: { ko: { title: '가운데는 어디인가요?' }, en: { title: 'Where is the middle?' } },
   PART2_EAR: { ko: { title: '높은 음은 어느 쪽인가요?' }, en: { title: 'Where is the high note?' } },
+  RESULT: { ko: { title: '나의 청감' }, en: { title: 'My ear profile' } },
+  MUSIC: { ko: { title: '세 가지 음악 들어보기' }, en: { title: 'Listen to three tracks' } },
   PART2_PITCH: { ko: { title: '올라갔나요? 내려갔나요?' }, en: { title: 'Up or down?' } }
 };
 
@@ -24,7 +26,7 @@ const STAGE_COPY = {
 // 녹음이 아직 없는 줄. 녹음이 오면 media/voice에 넣고 여기서 지움. 그 전까지는 소리 없이 자막만 나옴
 const VOICE_PENDING = {
   ko: [],
-  en: []
+  en: ['5-2']
 };
 
 const VOICE_COPY = {
@@ -53,7 +55,7 @@ const VOICE_COPY = {
   '4-7': { ko: '더듬이를 누르면 세 가지 소리를 다시 들을 수 있어요.', en: "Tap the feelers to hear the three sounds again." },
   '4-8': { ko: '세 가지 소리를 차례로 다시 들려드릴게요.', en: "You’ll hear the three sounds again, one at a time." },
   '5-1': { ko: '이번에는 소리가 언제 사라지는지 들어볼게요.', en: "This time, listen for the moment the sound disappears." },
-  '5-2': { ko: '소리가 더 이상 들리지 않을 때, 화면 아무 곳이나 한 번 눌러주세요.', en: "When you can no longer hear the sound, tap anywhere on the screen once." },
+  '5-2': { ko: '소리가 더 이상 들리지 않을 때, 화면 아무 곳이나 한 번 눌러주세요.', en: "Slide the snail to the right until the sound disappears. Stop there, then press and hold the snail to confirm." },
   '5-3': { ko: '한 번 더 들어보시려면 더듬이를 눌러주세요.', en: "To listen again, tap the feelers." },
   '5-4': { ko: '다음으로 넘어가려면 달팽이를 길게 눌러주세요.', en: "To continue, press and hold the snail." },
   '5-5': { ko: '소리를 듣는 동안 달팽이의 선이 돌돌 말렸어요.', en: "As you listened, the snail’s line coiled up." },
@@ -136,8 +138,8 @@ const COPY = {
     'pitch.B': '두 귀',
     'pitch.H': '배음 귀',
     'khz': (k) => `${k} kHz까지`,
-    'lowWords': ['얇게', '조금 얇게', '그대로', '조금 웅웅', '웅웅'],
-    'highWords': ['보들', '조금 보들', '그대로', '조금 쨍', '쨍']
+    'lowWords': ['얇게', '그대로', '웅웅'],
+    'highWords': ['보들', '그대로', '쨍'],
   },
   en: {
     'intro.before': 'Every ear is ',
@@ -194,8 +196,8 @@ const COPY = {
     'pitch.B': 'Both ears',
     'pitch.H': 'Overtone ear',
     'khz': (k) => `up to ${k} kHz`,
-    'lowWords': ['thin', 'a bit thin', 'as is', 'a bit warm', 'warm'],
-    'highWords': ['velvet', 'a bit velvet', 'as is', 'a bit shiny', 'shiny']
+    'lowWords': ['thin', 'as is', 'warm'],
+    'highWords': ['velvet', 'as is', 'shiny'],
   }
 };
 
@@ -212,10 +214,28 @@ function t(key) {
 
 // 음성 안내 번호 → 지금 언어의 자막
 function voiceText(id) {
-  return VOICE_COPY[id][currentLang()];
+  return MEME_VOICE_COPY[id] !== undefined ? MEME_VOICE_COPY[id] : VOICE_COPY[id][currentLang()];
 }
 
 function stageCopy(stage) {
   const c = STAGE_COPY[stage];
   return c ? c[currentLang()] || c.ko : null;
+}
+
+// Result copy describes this participant's choices, without population rankings.
+function getSnailAnalysis(profile, psycho, name) {
+  const ko = currentLang() === 'ko';
+  const low = shelfToLetter(profile.lowShelf.gain, 'LOW');
+  const high = shelfToLetter(profile.highShelf.gain, 'HIGH');
+  const names = { TV: ['차분한', 'quiet'], TE: ['가벼운', 'light'], TS: ['선명한', 'crisp'], EV: ['부드러운', 'gentle'], EE: ['균형 잡힌', 'balanced'], ES: ['또렷한', 'bright'], WV: ['포근한', 'warm'], WE: ['묵직한', 'deep'], WS: ['풍성한', 'vivid'] };
+  const type = (names[low + high] || ['개성 있는', 'distinctive'])[ko ? 0 : 1];
+  const bass = { T: ['가벼운 저음', 'lighter bass'], E: ['자연스러운 저음', 'natural bass'], W: ['풍성한 저음', 'fuller bass'] }[low][ko ? 0 : 1];
+  const treble = { V: ['부드러운 고음', 'softer treble'], E: ['자연스러운 고음', 'natural treble'], S: ['또렷한 고음', 'brighter treble'] }[high][ko ? 0 : 1];
+  const ear = psycho.dominantEar;
+  const side = ear === 'LEFT' ? (ko ? '왼' : 'left') : (ko ? '오른' : 'right');
+  const paragraphs = [ko ? `${bass}과 ${treble}이 편안한 소리로 느껴졌어요.` : `You chose ${bass} and ${treble} as your comfortable sound.`];
+  if (ear) paragraphs.push(ko ? `소리로 비유하면 ${side}손잡이예요. 높은 음을 ${side}쪽에서 더 자주 골랐어요.` : `In sound, think of yourself as ${side}-handed: you chose the higher note on the ${side} more often.`);
+  const pitch = psycho.pitchMode;
+  if (pitch) paragraphs.push(ko ? ({ F: '소리를 받쳐주는 낮은 바탕음을 따라 음의 움직임을 느끼는 편이에요.', H: '소리 위로 겹쳐지는 높은 울림을 따라 음의 움직임을 느끼는 편이에요.', B: '낮은 바탕음과 높은 울림을 함께 따라 음의 움직임을 느꼈어요.' }[pitch]) : ({ F: 'You tended to follow the low foundation when hearing a melody move.', H: 'You tended to follow the higher overtones when hearing a melody move.', B: 'You followed both the low foundation and the higher overtones.' }[pitch]));
+  return { title: ko ? `${name}님은 ${type} 달팽이예요` : `${name}, your snail is ${type}`, paragraphs };
 }

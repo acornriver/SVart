@@ -1,0 +1,27 @@
+/* Experimental, brief CapCut-like punctuation. No flashing or input capture. */
+.meme-pop {
+  position: fixed; z-index: 20; top: 38%; left: 5%; width: 90%;
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  text-align: center; pointer-events: none; visibility: hidden; opacity: 0;
+  font-family: 'Noto Sans KR', 'Arial Black', sans-serif;
+}
+.meme-pop strong {
+  display: inline-block; color: #fffef6; background: #090909ed;
+  padding: .14em .34em .23em; border: 3px solid #ff3b1f;
+  font-size: clamp(28px, 5vw, 60px); font-weight: 900; line-height: 1.25;
+  letter-spacing: -.06em; transform: rotate(-3deg);
+  -webkit-text-stroke: 1px #fffef6;
+  text-shadow: 3px 3px 0 #000; box-shadow: 7px 7px 0 #ff3b1f;
+}
+.meme-pop span {
+  color: #fffef6; background: #000e; padding: 6px 16px;
+  font-size: clamp(18px, 2.7vw, 28px); font-weight: 700;
+}
+.meme-pop.on { visibility: visible; opacity: 1; animation: meme-caption-pop .36s cubic-bezier(.18,.85,.25,1.15) both; }
+.meme-pop[data-cue=depart] strong { transform: rotate(3deg); }
+@keyframes meme-caption-pop {
+  0% { opacity: 0; transform: scale(.66) translateY(14px); }
+  65% { opacity: 1; transform: scale(1.06) translateY(-4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .meme-pop.on { animation: none; } }

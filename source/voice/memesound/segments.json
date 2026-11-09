@@ -1,0 +1,272 @@
+{
+  "source": "snail_m_001.flac",
+  "originalFile": "snail_m_001.wav",
+  "originalSha256": "1b3655dde462199c281fd323bb8ebee77c100574dbfffaeebfd21e86de7ddd6e",
+  "instructions": "instructions.pdf",
+  "language": "ko",
+  "targetLufs": -27,
+  "method": "PDF dialogue aligned with local Whisper word timestamps, boundaries inside measured silence; gain-only normalization.",
+  "segments": [
+    {
+      "id": "m1-1",
+      "text": "여러분, 저 커졌다 작아졌다 할 수 있대요! 손가락으로 화면을 위아래로 쓸어보세요.",
+      "start": 0,
+      "end": 5.229592,
+      "sourceLufs": -14.1,
+      "sourceTruePeakDbfs": -3.8,
+      "gainDb": -12.5
+    },
+    {
+      "id": "m1-2",
+      "text": "어? 제가 커지면 소리도 커지고, 제가 작아지면 소리도 작아져요. 같이 들어보세요!",
+      "start": 5.917551,
+      "end": 11.700998,
+      "sourceLufs": -16.9,
+      "sourceTruePeakDbfs": -4.3,
+      "gainDb": -9.8
+    },
+    {
+      "id": "m1-3",
+      "text": "아, 이 정도면 편하다 싶은 순간에요. 화면 속 저를 길게 눌러주세요.",
+      "start": 12.40322,
+      "end": 17.160714,
+      "sourceLufs": -16.2,
+      "sourceTruePeakDbfs": -4.1,
+      "gainDb": -10.4
+    },
+    {
+      "id": "m2-1",
+      "text": "이번엔요, 제 꼬리 차례예요! 손가락으로 화면을 위아래로 쓸면서 소리가 어떻게 바뀌는지 들어보세요.",
+      "start": 17.160714,
+      "end": 24.523787,
+      "sourceLufs": -17.2,
+      "sourceTruePeakDbfs": -4.7,
+      "gainDb": -9.3
+    },
+    {
+      "id": "m2-2",
+      "text": "이 소리가 제일 편하다 싶으면요, 화면 속 저를 길게 눌러주세요!",
+      "start": 25.058753,
+      "end": 29.235873,
+      "sourceLufs": -15.9,
+      "sourceTruePeakDbfs": -4.7,
+      "gainDb": -10.7
+    },
+    {
+      "id": "m3-1",
+      "text": "근데요, 이번엔 제 머리 길이도 바뀐대요! 아까처럼 화면을 위아래로 쓸면서 소리의 변화를 들어보세요.",
+      "start": 29.581224,
+      "end": 37.295079,
+      "sourceLufs": -16.0,
+      "sourceTruePeakDbfs": -3.8,
+      "gainDb": -10.6
+    },
+    {
+      "id": "m3-2",
+      "text": "가장 편하게 들리는 소리를 찾으셨으면 화면 속 저를 길게 눌러주세요. 저, 그 소리로 할게요!",
+      "start": 37.528571,
+      "end": 44.674989,
+      "sourceLufs": -14.8,
+      "sourceTruePeakDbfs": -4.2,
+      "gainDb": -11.8
+    },
+    {
+      "id": "m4-1",
+      "text": "여러분, 저 멜로디 하나 가져왔어요! 같은 멜로디를 세 가지 소리로 들려드릴게요.",
+      "start": 44.879977,
+      "end": 50.598367,
+      "sourceLufs": -17.0,
+      "sourceTruePeakDbfs": -4.2,
+      "gainDb": -9.6
+    },
+    {
+      "id": "m4-2",
+      "text": "소리가 나올 때마다 화면에 자리가 하나씩 표시돼요. 어디인지 같이 봐주세요!",
+      "start": 51.495624,
+      "end": 56.468662,
+      "sourceLufs": -16.0,
+      "sourceTruePeakDbfs": -3.9,
+      "gainDb": -10.6
+    },
+    {
+      "id": "m4-3",
+      "text": "어, 방금 들은 소리 중에 다시 듣고 싶은 게 있으세요? 화면에서 그 자리를 톡 눌러보세요.",
+      "start": 56.716667,
+      "end": 62.590363,
+      "sourceLufs": -18.1,
+      "sourceTruePeakDbfs": -4.1,
+      "gainDb": -8.5
+    },
+    {
+      "id": "m4-4",
+      "text": "세 가지 소리를 하나씩 들어보고요. 제일 편한 소리가 나온 자리를 고른 뒤, 화면 속 저를 길게 눌러주세요.",
+      "start": 62.949184,
+      "end": 70.2178,
+      "sourceLufs": -17.4,
+      "sourceTruePeakDbfs": -3.9,
+      "gainDb": -9.3
+    },
+    {
+      "id": "m4-5",
+      "text": "어? 여러분, 저 조금씩 달라지고 있어요. 저 지금 뭐가 되는 거죠?",
+      "start": 70.324785,
+      "end": 75.065624,
+      "sourceLufs": -17.3,
+      "sourceTruePeakDbfs": -4.4,
+      "gainDb": -9.4
+    },
+    {
+      "id": "m5-1",
+      "text": "여러분, 이번엔 소리가 사라진대요! 언제부터 안 들리는지 찾아볼 거예요.",
+      "start": 75.29805,
+      "end": 80.813719,
+      "sourceLufs": -15.6,
+      "sourceTruePeakDbfs": -4.4,
+      "gainDb": -10.9
+    },
+    {
+      "id": "m5-2",
+      "text": "화면 속 저를 오른쪽으로 천천히 밀어보세요. 소리가 더 이상 들리지 않으면 그 자리에서 멈춰주세요.",
+      "start": 80.998503,
+      "end": 86.898005,
+      "sourceLufs": -17.9,
+      "sourceTruePeakDbfs": -4.7,
+      "gainDb": -8.8
+    },
+    {
+      "id": "m5-4",
+      "text": "이제 다음으로 갈까요? 화면 속 저를 길게 눌러주세요!",
+      "start": 89.644331,
+      "end": 93.186077,
+      "sourceLufs": -13.4,
+      "sourceTruePeakDbfs": -4.0,
+      "gainDb": -13.3
+    },
+    {
+      "id": "m5-5",
+      "text": "어? 소리를 듣는 사이에 화면 속 선이 돌돌 감겼어요!",
+      "start": 93.388798,
+      "end": 97.83932,
+      "sourceLufs": -14.5,
+      "sourceTruePeakDbfs": -4.2,
+      "gainDb": -12.1
+    },
+    {
+      "id": "m6-1",
+      "text": "이번엔요, 소리가 딱 가운데에서 들리게 해볼 거예요!",
+      "start": 98.525329,
+      "end": 101.510136,
+      "sourceLufs": -18.6,
+      "sourceTruePeakDbfs": -4.2,
+      "gainDb": -8.2
+    },
+    {
+      "id": "m6-2",
+      "text": "손가락으로 화면을 왼쪽이나 오른쪽으로 쓸어보세요. 소리도 따라 움직여요!",
+      "start": 101.93356,
+      "end": 106.801224,
+      "sourceLufs": -16.7,
+      "sourceTruePeakDbfs": -4.4,
+      "gainDb": -9.8
+    },
+    {
+      "id": "m6-3",
+      "text": "소리가 가운데에서 들리면요, 화면 속 저를 길게 눌러주세요.",
+      "start": 107.278186,
+      "end": 111.381587,
+      "sourceLufs": -16.6,
+      "sourceTruePeakDbfs": -4.1,
+      "gainDb": -10.0
+    },
+    {
+      "id": "m6-4",
+      "text": "이건요, 두 번 해볼게요!",
+      "start": 111.537166,
+      "end": 113.425125,
+      "sourceLufs": -14.5,
+      "sourceTruePeakDbfs": -4.4,
+      "gainDb": -12.4
+    },
+    {
+      "id": "m7-1",
+      "text": "여러분, 저 이번엔 어디로 가야 할까요? 높은 음이 어느 쪽에서 들리는지 찾아볼 거예요.",
+      "start": 114.073016,
+      "end": 119.597143,
+      "sourceLufs": -16.9,
+      "sourceTruePeakDbfs": -4.4,
+      "gainDb": -9.7
+    },
+    {
+      "id": "m7-2",
+      "text": "높은 음이 들린 쪽으로 화면 속 저를 밀어주세요.",
+      "start": 120.297324,
+      "end": 123.621134,
+      "sourceLufs": -16.2,
+      "sourceTruePeakDbfs": -4.6,
+      "gainDb": -10.6
+    },
+    {
+      "id": "m7-3",
+      "text": "자, 세 번 가볼게요!",
+      "start": 123.894354,
+      "end": 125.506825,
+      "sourceLufs": -16.5,
+      "sourceTruePeakDbfs": -4.5,
+      "gainDb": -10.4
+    },
+    {
+      "id": "m8-1",
+      "text": "여러분, 저 마지막까지 왔어요! 두 소리를 차례로 들어보세요. 두 번째 소리가 첫 번째보다 높게 들리면, 화면 속 저를 오른쪽으로 밀어주세요.",
+      "start": 126.049637,
+      "end": 136.03941,
+      "sourceLufs": -14.8,
+      "sourceTruePeakDbfs": -4.2,
+      "gainDb": -11.8
+    },
+    {
+      "id": "m8-2",
+      "text": "두 번째 소리가 더 낮게 들리면요? 그땐 화면 속 저를 왼쪽으로 밀어주세요.",
+      "start": 136.727234,
+      "end": 142.221043,
+      "sourceLufs": -17.1,
+      "sourceTruePeakDbfs": -4.6,
+      "gainDb": -9.6
+    },
+    {
+      "id": "m8-3",
+      "text": "여섯 번 해볼게요. 그러면 저, 드디어 완성이에요!",
+      "start": 142.476803,
+      "end": 145.557664,
+      "sourceLufs": -15.2,
+      "sourceTruePeakDbfs": -4.3,
+      "gainDb": -11.5
+    },
+    {
+      "id": "m9-1",
+      "text": "여러분, 저 됐어요! 달팽이가 됐어요!",
+      "start": 146.500431,
+      "end": 149.122834,
+      "sourceLufs": -10.5,
+      "sourceTruePeakDbfs": -3.5,
+      "gainDb": -16.2
+    },
+    {
+      "id": "m9-2",
+      "text": "지금까지 검사해 주셔서 감사합니다!",
+      "start": 150.050454,
+      "end": 152.117143,
+      "sourceLufs": -17.1,
+      "sourceTruePeakDbfs": -4.7,
+      "gainDb": -9.5
+    },
+    {
+      "id": "m9-3",
+      "text": "아, 여기서 작가님들이 만든 소리도 들어볼 수 있어요! 화면에서 듣고 싶은 소리를 하나씩 골라보세요.",
+      "start": 152.886644,
+      "end": 159.224286,
+      "sourceLufs": -18.2,
+      "sourceTruePeakDbfs": -4.4,
+      "gainDb": -8.3
+    }
+  ]
+}
