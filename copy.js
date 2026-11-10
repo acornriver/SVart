@@ -49,19 +49,19 @@ const VOICE_COPY = {
   '4-1': { ko: '이제 등껍질의 자리를 정해볼게요.', en: "Now, let’s choose where the shell will sit." },
   '4-2': { ko: '같은 멜로디를 세 가지 소리로 들려드릴게요.', en: "You’ll hear the same melody played with three different sounds." },
   '4-3': { ko: '소리가 나오는 동안 표시되는 자리를 함께 살펴보세요.', en: "As each sound plays, look at the position marked on the screen." },
-  '4-4': { ko: '세 자리를 하나씩 눌러 멜로디를 다시 들어보세요.', en: "Tap each of the three positions to hear the melody again." },
+  '4-4': { ko: '세 자리를 하나씩 눌러 멜로디를 다시 들어보세요.', en: '' },
   '4-5': { ko: '가장 편안하게 들리는 자리를 고른 뒤, 달팽이를 길게 눌러주세요.', en: "Choose the position where the sound feels most comfortable, then press and hold the snail." },
   '4-6': { ko: '선택하신 소리에 맞춰 등껍질의 자리가 정해졌어요.', en: "The shell’s position is now set to match the sound you chose." },
-  '4-7': { ko: '더듬이를 누르면 세 가지 소리를 다시 들을 수 있어요.', en: "Tap the feelers to hear the three sounds again." },
-  '4-8': { ko: '세 가지 소리를 차례로 다시 들려드릴게요.', en: "You’ll hear the three sounds again, one at a time." },
+  '4-7': { ko: '더듬이를 누르면 세 가지 소리를 다시 들을 수 있어요.', en: '' },
+  '4-8': { ko: '세 가지 소리를 차례로 다시 들려드릴게요.', en: '' },
   '5-1': { ko: '이번에는 소리가 언제 사라지는지 들어볼게요.', en: "This time, listen for the moment the sound disappears." },
   '5-2': { ko: '소리가 더 이상 들리지 않을 때, 화면 아무 곳이나 한 번 눌러주세요.', en: "Slide the snail to the right until the sound disappears. Stop there, then press and hold the snail to confirm." },
-  '5-3': { ko: '한 번 더 들어보시려면 더듬이를 눌러주세요.', en: "To listen again, tap the feelers." },
+  '5-3': { ko: '한 번 더 들어보시려면 더듬이를 눌러주세요.', en: '' },
   '5-4': { ko: '다음으로 넘어가려면 달팽이를 길게 눌러주세요.', en: "To continue, press and hold the snail." },
   '5-5': { ko: '소리를 듣는 동안 달팽이의 선이 돌돌 말렸어요.', en: "As you listened, the snail’s line coiled up." },
-  '5-6': { ko: '같은 방법으로 한 번 더 들어볼게요.', en: "Let’s listen once more in the same way." },
+  '5-6': { ko: '같은 방법으로 한 번 더 들어볼게요.', en: '' },
   '5-7': { ko: '아직 소리가 시작되기 전이에요.', en: "The sound hasn’t started yet." },
-  '5-8': { ko: '더듬이를 눌러 다시 들어보세요.', en: "Tap the feelers to listen again." },
+  '5-8': { ko: '더듬이를 눌러 다시 들어보세요.', en: '' },
   '6-1': { ko: '이번에는 소리가 가운데에서 들리도록 맞춰볼게요.', en: "This time, let’s adjust the sound so you hear it in the center." },
   '6-2': { ko: '손가락으로 화면을 왼쪽이나 오른쪽으로 쓸어보세요.', en: "Swipe left or right on the screen with your finger." },
   '6-3': { ko: '소리가 가운데에서 들리면, 달팽이를 길게 눌러주세요.', en: "When you hear the sound in the center, press and hold the snail." },
@@ -118,6 +118,9 @@ const COPY = {
     'result.original': '원래 소리를 듣는 중',
     'tour.line': '이 귀로 북서울미술관 주변을 걸어 볼게요',
     'tour.now': '지금 걷는 곳',
+    'artist.wonwoori': '원우리',
+    'artist.felix': '펠릭스 쿠빈',
+    'artist.collaboration': '콜라보 음악',
     'place.water': '당현천',
     'place.train-go': '중계역 지하철',
     'place.car-move': '북서울미술관 앞',
@@ -178,6 +181,9 @@ const COPY = {
     'result.original': 'Playing the original',
     'tour.line': 'Let’s walk around the Buk-Seoul Museum of Art with these ears',
     'tour.now': 'Now walking',
+    'artist.wonwoori': 'WONWOORI',
+    'artist.felix': 'Felix Kubin',
+    'artist.collaboration': 'Collaboration',
     'place.water': 'Danghyeoncheon Stream',
     'place.train-go': 'Junggye Station subway',
     'place.car-move': 'In front of Buk-Seoul Museum of Art',
@@ -218,7 +224,7 @@ function t(key) {
 
 // 음성 안내 번호 → 지금 언어의 자막
 function voiceText(id) {
-  return memeText(id) !== undefined ? memeText(id) : VOICE_COPY[id][currentLang()];
+  return memeText(id) !== undefined ? memeText(id) : (VOICE_COPY[id]?.[currentLang()] || '');
 }
 
 function stageCopy(stage) {
@@ -241,5 +247,6 @@ function getSnailAnalysis(profile, psycho, name) {
   if (ear) paragraphs.push(ko ? `소리로 비유하면 ${side}손잡이예요. 높은 음을 ${side}쪽에서 더 자주 골랐어요.` : `In sound, think of yourself as ${side}-handed: you chose the higher note on the ${side} more often.`);
   const pitch = psycho.pitchMode;
   if (pitch) paragraphs.push(ko ? ({ F: '소리를 받쳐주는 낮은 바탕음을 따라 음의 움직임을 느끼는 편이에요.', H: '소리 위로 겹쳐지는 높은 울림을 따라 음의 움직임을 느끼는 편이에요.', B: '낮은 바탕음과 높은 울림을 함께 따라 음의 움직임을 느꼈어요.' }[pitch]) : ({ F: 'You tended to follow the low foundation when hearing a melody move.', H: 'You tended to follow the higher overtones when hearing a melody move.', B: 'You followed both the low foundation and the higher overtones.' }[pitch]));
-  return { title: ko ? `${name}님은 ${type} 달팽이예요` : `${name}, your snail is ${type}`, paragraphs };
+  const userName = String(name || '').trim();
+  return { title: ko ? `${userName ? userName + '님은 ' : ''}${type} 달팽이예요` : `${userName ? userName + ', your' : 'Your'} snail is ${type}`, paragraphs };
 }

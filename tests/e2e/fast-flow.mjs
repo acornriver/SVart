@@ -114,6 +114,10 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   await stage('PART1_REGISTER');
   await ready();
   await check('!GlobalState.part1.register.isAutoPlaying', 'Register guide unlocked before melody sequence ended');
+  if(lang==='en') {
+    await check("JSON.stringify(__fastFlow.voices.filter(x=>x.stage==='PART1_REGISTER').map(x=>x.id)) === JSON.stringify(['m4-1','m4-2','m4-4'])", 'Removed English replay guide still played');
+    await check("['m4-3','4-4','4-7','4-8','5-3','5-6','5-8'].every(id=>voiceText(id)==='')", 'Removed English replay copy is still present');
+  }
   await check("JSON.stringify(registerLetters()) === JSON.stringify(['A','B','C'])", 'Wrong register layout labels');
   await check(`JSON.stringify(__fastFlow.melodies.slice(0, 3)) === '${JSON.stringify(['MID', 'LOW', 'HIGH'])}'`, 'Wrong initial melody order');
   await tap((await targets()).spots[2]);
@@ -145,15 +149,28 @@ export async function runFastFlow({ send, ev, shot, lang }) {
       const antenna = replayTargets.antenna;
       const visible = antenna && antenna.x > 20 && antenna.x < 724 && antenna.y > 20 && antenna.y < 1113;
       await tap(visible ? antenna : replayTargets.snail);
-      await check('GlobalState.part2.replayLeft === 0', 'Replay was not consumed');
-      await until("GlobalState.part2.phase === 'answer'");
+      if(lang==='en') {
+        await check("!canReplay() && !canReplayPart2() && GlobalState.part2.replayLeft===0 && GlobalState.part2.phase==='answer'", 'English feeler tap replayed the trial');
+        await tap((await targets()).snail);
+        await check("GlobalState.part2.phase==='answer' && GlobalState.part2.trial.index===1", 'English body tap replayed the trial');
+      } else {
+        await check('GlobalState.part2.replayLeft === 0', 'Replay was not consumed');
+        await until("GlobalState.part2.phase === 'answer'");
+      }
     }
     await drag(i === 2 ? 250 : -250, 0);
   }
   await stage('PART2_PITCH');
   for (let i = 1; i <= 6; i++) {
     await until(`GlobalState.part2.phase === 'answer' && GlobalState.part2.trial.index === ${i}`);
-    if (i === 1) await shot('fast-08-pitch');
+    if (i === 1) {
+      if(lang==='en') {
+        await check('!canReplayPart2() && GlobalState.part2.replayLeft===0', 'English pitch replay is enabled');
+        await tap((await targets()).antenna);
+        await check("GlobalState.part2.phase==='answer' && GlobalState.part2.trial.index===1", 'English pitch feeler tap replayed the trial');
+      }
+      await shot('fast-08-pitch');
+    }
     const order = await ev('GlobalState.part2.trial.order');
     const direction = (order === 'AB' ? -1 : 1) * (i === 4 ? -1 : 1);
     await drag(direction * 250, 0);
@@ -168,6 +185,7 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   await check("JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'PART2_CENTER').map(x => x.id)) === JSON.stringify(['m5-5','m6-1','m6-2','m6-4','m6-3'])", 'Wrong center guide order');
   await check("!__fastFlow.buffers.some(x => x.phase === 'example')", 'Unexpected legacy example');
   await check("JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'RESULT').map(x => x.id)) === JSON.stringify(['m9-1','m9-2'])", 'Wrong result guides');
+  await check(`getSnailAnalysis({...GlobalState.userEQProfile,lowShelf:{gain:-10},highShelf:{gain:-10}},GlobalState.psychoProfile,'').title === ${JSON.stringify(lang==='en'?'Your snail is quiet':'차분한 달팽이예요')}`, 'Nameless analysis title has a dangling prefix');
   await shot('fast-09-analysis');
   await send('Emulation.setDeviceMetricsOverride', { width: 1133, height: 744, deviceScaleFactor: 1, mobile: false });
   await sleep(500); await shot('fast-09-analysis-landscape');
@@ -175,6 +193,7 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   await sleep(500);
   await confirm(); await stage('MUSIC'); await ready();
   await check("__fastFlow.voices.some(x => x.stage === 'MUSIC' && x.id === 'm9-3')", 'Missing music guide');
+  await check(`JSON.stringify(TOUR_PLACES.map(p=>t(p.artistKey))) === ${JSON.stringify(JSON.stringify(lang==='en'?['WONWOORI','Felix Kubin','Collaboration']:['원우리','펠릭스 쿠빈','콜라보 음악']))}`, 'Wrong localized artist labels');
   for (const i of [2, 0, 1]) {
     await tap((await targets()).tracks[i]);
     await check(`GlobalState.tour.index === ${i} && GlobalState.tour.pinned`, 'Track selection failed');

@@ -76,7 +76,7 @@ window.MemeFX = (() => {
   }
   function cancel() { epoch++; transitioning = false; stop(); }
   function updateGain() {
-    if (active?.gain) active.gain.gain.setTargetAtTime(voiceGain() * .8, getAudioContext().currentTime, .01);
+    if (active?.gain) active.gain.gain.setTargetAtTime(voiceGain(), getAudioContext().currentTime, .01);
   }
   function play(key) {
     stop(); show(key);
@@ -89,8 +89,8 @@ window.MemeFX = (() => {
       try {
         if (GlobalState.isAudioInitialized) {
           const ctx = getAudioContext();
-          current.gain = ctx.createGain(); current.gain.gain.value = voiceGain() * .8;
-          current.gain.connect(ctx.destination);
+          current.gain = ctx.createGain(); current.gain.gain.value = voiceGain();
+          current.gain.connect(AudioMix.bus('effects'));
           const start = ctx.currentTime;
           cue.sounds.forEach(([sound, at]) => {
             if (!buffers[sound]) return;

@@ -12,7 +12,7 @@
  * 잠긴 동안 시작한 터치는 풀린 뒤에도 무시하고, 풀린 뒤 새로 시작한 터치부터 반영합니다 (main.js).
  */
 
-const VOICE_LEVEL_START = 0.63; // 슬라이더 시작 자리. 소리는 자리의 제곱이라 -8 dB. 원본이 말소리 구간 K-가중 -27 dB로 ①의 최대(-26 dB)만큼 커서 낮춤. Claude가 정한 임시값
+const VOICE_LEVEL_START = 0.8; // 제곱 게인 -3.9dB. 공통 출력 +6dB와 함께 기존 기본값보다 약 10dB 크게.
 const VOICE_GAP_MS = 200;       // 줄 사이 숨 고르기
 const VOICE_FALLBACK_SEC = 0.09; // 파일을 못 읽었을 때 글자당 자막을 보여 줄 시간
 const VOICE_LOAD_TRIES = 3;
@@ -86,7 +86,7 @@ function getVoiceBus() {
     const ctx = getAudioContext();
     voiceBus = ctx.createGain();
     voiceBus.gain.value = voiceGain();
-    voiceBus.connect(ctx.destination);
+    voiceBus.connect(AudioMix.bus('voice'));
   }
   return voiceBus;
 }
@@ -96,7 +96,7 @@ function getVoiceBus() {
  */
 function say(ids) {
   hushVoice();
-  voiceQueue = [...ids];
+  voiceQueue = ids.filter(id => voiceText(id).trim()); // removed guides play neither audio nor a blank subtitle timer
   const run = voiceRun;
   return new Promise((resolve) => {
     voiceDone = resolve;

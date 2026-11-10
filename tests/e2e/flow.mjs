@@ -103,7 +103,7 @@ await expect('INIT');
 if (LANG === 'en') { const b = await ev(`(() => { const r = document.querySelector('.langs [data-lang=en]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); await tap(b.x, b.y); }
 console.log('  lang', await ev('GlobalState.lang'));
 await shot('00-intro');
-console.log('  voice clips', await ev('JSON.stringify({ ko: Object.keys(voiceClips.ko).length, en: Object.keys(voiceClips.en).length })'), '(한국어 29개, 영어 29개)');
+console.log('  voice clips', await ev('JSON.stringify({ ko: Object.keys(voiceClips.ko).length, en: Object.keys(voiceClips.en).length })'), '(한국어 29개, 영어 28개)');
 // 확성기: 끄고 켜기. 끈 모습을 찍고 다시 켜서 시작
 { const b = await ev(`(() => { const r = document.querySelector('.spk').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
   await tap(b.x, b.y); console.log('  speaker off', await ev('GlobalState.voiceOn')); await shot('00-intro-voice-off');
@@ -121,7 +121,8 @@ const control = () => ev('GlobalState.part1.control.toFixed(4)');
 { const c0 = await control(); await drag(150); console.log('  locked', await ev('inputLocked()'), 'swipe ignored', c0 === await control());
   const b = await ev('voiceSliderBox()');
   await tap(b.x1, b.y); console.log('  slider max → level', (await ev('GlobalState.voiceLevel')).toFixed(2), 'gain', (await ev('voiceBus ? voiceBus.gain.value : -1')).toFixed(2));
-  await tap(b.x0 + (b.x1 - b.x0) * 0.63, b.y); console.log('  slider back → level', (await ev('GlobalState.voiceLevel')).toFixed(2), 'value kept', c0 === await control());
+  const voiceStart = await ev('VOICE_LEVEL_START');
+  await tap(b.x0 + (b.x1 - b.x0) * voiceStart, b.y); console.log('  slider back → level', (await ev('GlobalState.voiceLevel')).toFixed(2), 'value kept', c0 === await control());
   // 잠긴 동안 누른 손가락은 풀린 뒤 움직여도 무시
   await mouse('mousePressed', W / 2, 500); await unlocked();
   for (let k = 1; k <= 10; k++) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: W / 2, y: 500 - k * 15, button: 'left', buttons: 1 }); await sleep(16); }
@@ -180,7 +181,7 @@ for (let k = 0; k < 3; k++) {
   if (k === 0) {
     await sleep(300); await shot('07-ear-hint');
     await hdrag(60); console.log('  ear small roll → phase', await ev('GlobalState.part2.phase'), '(answer여야 함)');
-    await tapAntenna(); console.log('  antenna replay → phase', await ev('GlobalState.part2.phase'), 'left', await ev('GlobalState.part2.replayLeft'));
+    await tapAntenna(); console.log('  antenna tap → phase', await ev('GlobalState.part2.phase'), 'left', await ev('GlobalState.part2.replayLeft'));
     await waitPhase('answer');
   }
   if (k === 0) { await hdragHold(-250, async () => { await sleep(700); await shot('07-ear-live-left'); }); }

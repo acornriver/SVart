@@ -211,7 +211,7 @@ function setupAudioPipeline() {
   duckGain.input.gain.value = 1;
   duckGain.amp(1);
   masterGain.connect(duckGain);
-  duckGain.connect();
+  duckGain.connect(AudioMix.bus('program')); // all application audio shares the final output protector
 
   setupBeat(lowShelfFilter.input);
   Object.keys(sampleSources).forEach(connectSample);
@@ -521,18 +521,19 @@ function applyEQ() {
 
 /**
  * EQ가 바꾼 체감 음량을 되돌리는 보정값(dB).
- * 소스 스펙트럼 × A-가중치로 EQ 전후 파워를 비교한다.
+ * 소스 스펙트럼 × K-가중치로 EQ 전후 파워를 비교한다.
  */
 function getLoudnessCompDb(spectrum, mix = 1) {
   const profile = window.GlobalState.userEQProfile;
   let before = 0;
   let after = 0;
+  const weights = kBandPowers(getAudioContext().sampleRate);
 
   for (let i = 0; i < SPECTRUM_BANDS; i++) {
     const f = spectrumBandFreq(i); // 20Hz ~ 20kHz 로그 간격
     // 로그 간격 한 칸에 들어있는 파워: 잰 값, 아니면 white ∝ f, pink 일정, brown ∝ 1/f
     const s = Array.isArray(spectrum) ? spectrum[i] : spectrum === 'white' ? f : spectrum === 'brown' ? 1 / f : 1;
-    const w = s * Math.pow(aWeighting(f), 2);
+    const w = s * weights[i];
     const eqDb = getEQResponseDb(f, profile, mix);
     before += w;
     after += w * Math.pow(10, eqDb / 10);
@@ -595,13 +596,6 @@ function biquadResponseDb(type, f0, gainDb, q, f, fs) {
   return 10 * Math.log10(mag2);
 }
 
-function aWeighting(f) {
-  const f2 = f * f;
-  const ra = (12194 * 12194 * f2 * f2) /
-    ((f2 + 20.6 * 20.6) * Math.sqrt((f2 + 107.7 * 107.7) * (f2 + 737.9 * 737.9)) * (f2 + 12194 * 12194));
-  return ra * 1.2589; // 1kHz에서 1
-}
-
 /**
  * 결과 단계: 내 EQ ↔ 원래 소리 슬라이더(0 = 원래 소리, 1 = 내 EQ) 및 비교
  */
@@ -638,7 +632,7 @@ async function introRegister() {
   await say(voicePlan('registerIntro'));
   if (token !== registerPlayToken) return;
   if (!(await playAllRegisterCards())) return;
-  // 4-3·4-4까지 들은 뒤에 세 자리를 눌러 보고 확정할 수 있음 (지시문)
+  // 언어별 선택 안내가 끝난 뒤 세 자리를 눌러 보고 확정할 수 있음
   const playedToken = registerPlayToken;
   if (await sayGuide(voicePlan('registerAfter')) && playedToken === registerPlayToken) voiceCue.picked = true;
 }
@@ -678,7 +672,7 @@ async function tapRegisterCard(i) {
 
 function confirmRegister() {
   const reg = window.GlobalState.part1.register;
-  if (reg.isAutoPlaying || reg.selectedCard < 0 || !voiceCue.picked) return; // 4-4·4-7 안내 전에는 확정 안 됨
+  if (reg.isAutoPlaying || reg.selectedCard < 0 || !voiceCue.picked) return; // 선택 안내가 끝나기 전에는 확정 안 됨
 
   const chosen = REGISTERS.find((r) => r.id === reg.order[reg.selectedCard]);
   const peak = window.GlobalState.userEQProfile.registerPeak;
@@ -696,15 +690,20 @@ function confirmRegister() {
  */
 function playRegister(registerId) {
   stopVoice();
+  const voice = createRegisterVoice(registerId, getAudioContext(), masterGain.input);
+  currentVoice = voice;
+  setTimeout(() => disposeVoice(voice), voice.duration * 1000);
+}
 
+// Shared by playback and OfflineAudioContext mix verification.
+function createRegisterVoice(registerId, ctx, destination) {
   const reg = REGISTERS.find((r) => r.id === registerId);
   const level = Math.min(0.95, MELODY_BASE_AMP * dbToGain(getRegisterOffset(reg)));
-  const ctx = getAudioContext();
   const t0 = ctx.currentTime + 0.03;
 
   const out = ctx.createGain();
-  out.gain.value = 1;
-  out.connect(masterGain.input);
+  out.gain.value = dbToGain(AudioMix.settings.melodyTrimDb);
+  out.connect(destination);
   // 메아리: 원래 소리 + 지연(되먹임)된 옅은 소리
   const delay = ctx.createDelay(1);
   delay.delayTime.value = MELODY_ECHO.time;
@@ -746,9 +745,7 @@ function playRegister(registerId) {
     t += MELODY_DURS[k];
   });
 
-  const voice = { oscs, out, nodes: [dry, delay, fb, wet], disposed: false };
-  currentVoice = voice;
-  setTimeout(() => disposeVoice(voice), (t - t0 + 2.5) * 1000); // 메아리가 사라진 뒤
+  return { oscs, out, nodes: [dry, delay, fb, wet], disposed: false, duration: t - t0 + 2.5 };
 }
 
 function stopVoice() {

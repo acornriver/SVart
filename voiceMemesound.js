@@ -42,7 +42,6 @@ const MEME_VOICE_COPY_EN = {
   "m3-2": "When you find the sound that feels most comfortable, press and hold me on the screen. I’ll go with that one!",
   "m4-1": "Hey, everyone! I’ve got a tune for you! I’ll play the same tune three times, with a different sound each time.",
   "m4-2": "As each sound plays, a spot will be marked on the screen. Watch for it!",
-  "m4-3": "Want to hear one of those sounds again? Tap its spot on the screen.",
   "m4-4": "Listen to all three sounds, one at a time. Choose the spot for the sound that feels most comfortable. Then press and hold me on the screen.",
   "m4-5": "Look, everyone! I’m changing little by little. What am I turning into?",
   "m5-1": "Hey, everyone! This time, the sound is going to disappear. Let’s find the moment you stop hearing it.",
@@ -136,7 +135,6 @@ const VOICE_PLANS = {
       "m4-4"
     ],
     "en": [
-      "m4-3",
       "m4-4"
     ]
   },

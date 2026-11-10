@@ -114,3 +114,19 @@ function measureSpectrum(channels, sr, maxFrames = 48) {
 function bufferChannels(buffer) {
   return Array.from({ length: buffer.numberOfChannels }, (_, ch) => buffer.getChannelData(ch));
 }
+
+// Match EQ level compensation to the same K-weighting used for source calibration.
+const kBandPowerCache = new Map();
+function kBandPowers(sr) {
+  if (kBandPowerCache.has(sr)) return kBandPowerCache.get(sr);
+  const filters = kWeightCoeffs(sr);
+  const powers = Array.from({ length: SPECTRUM_BANDS }, (_, i) => {
+    const w = 2 * Math.PI * spectrumBandFreq(i) / sr;
+    return filters.reduce((power, [b0, b1, b2, a1, a2]) => {
+      const nr = b0 + b1 * Math.cos(w) + b2 * Math.cos(2 * w), ni = -b1 * Math.sin(w) - b2 * Math.sin(2 * w);
+      const dr = 1 + a1 * Math.cos(w) + a2 * Math.cos(2 * w), di = -a1 * Math.sin(w) - a2 * Math.sin(2 * w);
+      return power * (nr * nr + ni * ni) / (dr * dr + di * di);
+    }, 1);
+  });
+  kBandPowerCache.set(sr, powers); return powers;
+}

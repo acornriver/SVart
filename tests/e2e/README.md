@@ -38,3 +38,7 @@ node tests/e2e/beat-level.mjs /tmp/svart-beat
 ## 밈 효과음 브랜치의 실제 시간 검증
 
 `node tests/e2e/meme-sfx.mjs /tmp/svart-sfx-realtime ko`로 크기·껍질·완성 효과·자막을 실제 속도로 재생하고, 음성 끄기와 중간 리셋·파일 누락 대체 타이머를 검증합니다. 가로·세로 첫 화면과 슬라이더, 장면별 FX 화면 PNG도 남깁니다. 출발·도착 FX가 제거됐는지, 완성 장면의 좌우·가로세로 화면 이탈, 보내기 중 리셋·모션 줄이기 설정도 확인합니다. 이 검증에는 가속을 적용하지 않습니다.
+
+## 믹스 레벨·헤드룸 검증
+
+`node tests/e2e/mix-level.mjs /tmp/svart-mix-audit`는 실제 소스 생성기와 공통 믹서로 비트·EQ 극단값·감상 피크 구간·멜로디·한영 안내 기본/최대값·효과 조합·Part 2/HRIR를 렌더링합니다. `mix-report.json`과 WAV를 남기며 샘플 피크·검사음 이득·EQ 음량 편차 기준을 검사합니다. 이어 `python3 scripts/check-mix-truepeak.py /tmp/svart-mix-audit`로 FFmpeg 트루피크와 LUFS를 검증합니다. [설정과 측정 기준](../../docs/audio-mix.md).

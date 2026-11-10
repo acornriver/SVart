@@ -12,9 +12,9 @@
 // 작가 곡 3개가 오기 전까지 북서울 사운드스케이프 3개를 선택해 들을 수 있게 구성 (사용자 지시 11/06)
 // spectrum은 음량 보정용 대략적 기울기. 장소 이름은 copy.js의 place.<key>
 const TOUR_PLACES = [
-  { key: 'water',      audio: './media/audio/water.m4a',      video: './media/video/water.mp4',      spectrum: 'pink' },  // 당현천 물소리
-  { key: 'train-go',   audio: './media/audio/train-go.m4a',   video: './media/video/train-go.mp4',   spectrum: 'brown' }, // 중계역 지하철
-  { key: 'car-move',   audio: './media/audio/car-move.m4a',   video: './media/video/car-move.mp4',   spectrum: 'pink' }   // 북서울미술관 앞 지나가는 차
+  { artistKey: 'artist.wonwoori', key: 'water',      audio: './media/audio/water.m4a',      video: './media/video/water.mp4',      spectrum: 'pink' },  // 당현천 물소리
+  { artistKey: 'artist.felix', key: 'train-go',   audio: './media/audio/train-go.m4a',   video: './media/video/train-go.mp4',   spectrum: 'brown' }, // 중계역 지하철
+  { artistKey: 'artist.collaboration', key: 'car-move',   audio: './media/audio/car-move.m4a',   video: './media/video/car-move.mp4',   spectrum: 'pink' }   // 북서울미술관 앞 지나가는 차
 ];
 const TOUR_SECONDS = 15;
 const TOUR_FADE = 1.2;          // 장소 사이 소리 크로스페이드 (초)

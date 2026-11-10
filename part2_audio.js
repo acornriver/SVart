@@ -58,7 +58,7 @@ function p2Out() {
   if (!part2Bus) {
     const ctx = p2Ctx();
     part2Bus = ctx.createGain();
-    part2Bus.connect(ctx.destination);
+    part2Bus.connect(AudioMix.bus('part2'));
     const fft = window.GlobalState.audioNodes.fft;
     if (fft && fft.analyser) part2Bus.connect(fft.analyser);
   }
@@ -288,13 +288,17 @@ function prepareCenter() {
         if (p && p.then) p.then(res, rej);
       });
     }
-    // 정면 HRIR 에너지만큼 소리가 커지므로 그만큼 나눔
-    const e = (d) => d.reduce((s, x) => s + x * x, 0);
-    const g0 = Math.sqrt((e(irs[0].getChannelData(0)) + e(irs[0].getChannelData(1))) / 2);
-    const v = voice.getChannelData(0);
-    let vs = 0;
-    for (let i = 0; i < v.length; i++) vs += v[i] * v[i];
-    const gain = splToAmp(CENTER_TEST.spl) / Math.SQRT2 / (Math.sqrt(vs / v.length) * g0);
+    // Calibrate the actual filtered beat. IR energy alone assumes white noise rather
+    // than the spectrum of this band-limited source. One gain for all angles
+    // preserves the HRIR's left/right balance, phase and directional level differences.
+    const Off = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const reference = new Off(2, voice.length + n, ctx.sampleRate);
+    const src = reference.createBufferSource(), conv = reference.createConvolver();
+    src.buffer = voice; conv.normalize = false; conv.buffer = irs[0];
+    src.connect(conv); conv.connect(reference.destination); src.start(0);
+    const rendered = await reference.startRendering();
+    const measured = measureLoudness(bufferChannels(rendered), rendered.sampleRate);
+    const gain = splToAmp(CENTER_TEST.spl) / Math.SQRT2 / measured.kRms;
     return { irs, voice, gain };
   })();
   centerAssets.catch(() => { centerAssets = null; }); // 실패하면 다음에 다시 읽음
@@ -595,7 +599,7 @@ function part2Next() {
   if (!tr) return finishPart2Stage();
   p2.trial = tr;
   const stage = window.GlobalState.currentStage;
-  p2.replayLeft = PART2_TESTS[stage].replay || 0;
+  p2.replayLeft = currentLang() === 'en' ? 0 : (PART2_TESTS[stage].replay || 0);
   if (stage === 'PART2_CENTER' && tr.index > 1) {
     // 두 번째 검사음은 안내 없이 1초 뒤 (지시문)
     p2.phase = 'lead';
@@ -839,6 +843,7 @@ function confirmPart2() {
 
 // 더듬이 톡 = 한 번 더 듣기 (⑦⑧ 시행마다 한 번. ⑤는 슬라이더 방식이므로 다시 듣기 없음)
 function canReplayPart2() {
+  if (currentLang() === 'en') return false;
   const p2 = part2State();
   const stage = window.GlobalState.currentStage;
   return (stage === 'PART2_EAR' || stage === 'PART2_PITCH') && p2.phase === 'answer' && p2.replayLeft > 0;

@@ -1255,7 +1255,7 @@ function drawResultControls(L, a) {
     rect(b.x, b.y, b.w, b.h, 4);
     if (on) { noStroke(); fill(...COLORS.accent, a); rect(b.x, b.y + b.h - 6, b.w, 6); }
     pop();
-    label(`${i + 1} · ${t(`place.${b.key}`)}`, b.cx, b.cy, { size: min(23, b.w / 9), weight: on ? 700 : 500, c: on ? COLORS.ink : COLORS.mute, a, align: CENTER });
+    label(t(TOUR_PLACES[i].artistKey), b.cx, b.cy, { size: min(23, b.w / 9), weight: on ? 700 : 500, c: on ? COLORS.ink : COLORS.mute, a, align: CENTER });
   });
   const b = resultEqSliderBox(L), mix = gs().part1.eqMix;
   const x = lerp(b.x0, b.x1, mix);

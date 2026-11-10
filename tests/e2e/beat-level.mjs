@@ -49,7 +49,7 @@ const expect = async (s) => { const cur = await stage(); if (cur !== s) throw ne
 await send('Runtime.enable'); await send('Page.enable');
 await send('Page.navigate', { url: URL });
 await sleep(4000);
-await ev(`(() => { const i = document.querySelector('.intro input'); i.value = 'm'; document.querySelector('.intro form').requestSubmit(); })()`);
+await ev("document.querySelector('.intro .title-btn').click()");
 await sleep(2500);
 await ev(`window.__an = getAudioContext().createAnalyser(); __an.fftSize = 2048; beatOut.connect(__an); setActiveSource(null); true`);
 await ev('beatCalibrated');
@@ -63,4 +63,4 @@ for (const mix of ['FULL', 'LOW', 'HIGH']) {
   console.log(mix, 'live plain rms dBFS', (20 * Math.log10(rms)).toFixed(1));
 }
 console.log('errors:', errors.length ? errors : 'none');
-ws.close(); chrome.kill(); process.exit(0);
+ws.close(); chrome.kill(); process.exit(errors.length ? 1 : 0);
