@@ -16,7 +16,7 @@ const STAGE_COPY = {
   PART1_REGISTER: { ko: { title: '껍질 얹기' }, en: { title: 'Place the shell' } },
   PART2_SENSITIVITY: { ko: { title: '어디까지 들리나요?' }, en: { title: 'How high can you hear?' } },
   PART2_CENTER: { ko: { title: '가운데는 어디인가요?' }, en: { title: 'Where is the middle?' } },
-  PART2_EAR: { ko: { title: '높은 음은 어느 쪽인가요?' }, en: { title: 'Where is the high note?' } },
+  PART2_EAR: { ko: { title: '어느 쪽 소리가 더 높게 들리나요?' }, en: { title: 'Which side sounds higher?' } },
   RESULT: { ko: { title: '나의 청감' }, en: { title: 'My ear profile' } },
   MUSIC: { ko: { title: '세 가지 음악 들어보기' }, en: { title: 'Listen to three tracks' } },
   PART2_PITCH: { ko: { title: '올라갔나요? 내려갔나요?' }, en: { title: 'Up or down?' } }
@@ -84,6 +84,8 @@ const VOICE_COPY = {
 
 const COPY = {
   ko: {
+    'ear.pitchHelp': '소리 크기 말고, 음의 높이를 들어보세요.',
+    'voice.volume': '안내 음량',
     'intro.before': '모든 귀는 ',
     'intro.after': ' 이다',
     'intro.placeholder': '이름',
@@ -142,6 +144,8 @@ const COPY = {
     'highWords': ['보들', '그대로', '쨍'],
   },
   en: {
+    'ear.pitchHelp': 'Listen for pitch, rather than volume.',
+    'voice.volume': 'Voice volume',
     'intro.before': 'Every ear is ',
     'intro.after': '',
     'intro.placeholder': 'name',

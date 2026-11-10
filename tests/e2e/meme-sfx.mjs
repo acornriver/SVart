@@ -87,32 +87,77 @@ await send('Page.navigate', { url: URL });
 const delay = ms => new Promise(r => setTimeout(r,ms));
 const until = async expr => { const start=Date.now(); while(Date.now()-start<12000){if(await ev(expr))return;await delay(30);}throw new Error('timeout '+expr); };
 const check = async (expr,msg) => {if(!await ev(expr))throw new Error(msg);};
-await until("!!document.querySelector('.intro input') && MemeFX.ready()");
-await ev("(() => { document.querySelector('.intro input').value='SFX preview'; document.querySelector('.intro form').requestSubmit(); })()");
+await until("!!document.querySelector('.intro .title-btn') && MemeFX.ready()");
+await ev(`GlobalState.lang = '${LANG}'; refreshIntroText()`);
+await ev('document.fonts.ready');
+await shot('intro-portrait');
+console.log('intro title', await ev("({size:getComputedStyle(intro.titleBtn).fontSize,width:intro.titleBtn.getBoundingClientRect().width,viewport:innerWidth})"));
+await send('Emulation.setDeviceMetricsOverride', { width: 1133, height: 744, deviceScaleFactor: 1, mobile: false });
+await delay(250); await shot('intro-landscape');
+await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+await ev("document.querySelector('.intro .title-btn').click()");
 await until("GlobalState.currentStage === 'PART1_VOLUME'");
-await delay(800);
-for(const key of ['size','shell','reveal','depart']) {
+await delay(800); await shot('volume-slider-portrait');
+await send('Emulation.setDeviceMetricsOverride', { width: 1133, height: 744, deviceScaleFactor: 1, mobile: false });
+await delay(200); await shot('volume-slider-landscape');
+await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+for(const key of ['size','shell','reveal']) {
   if (key === 'shell') await ev("GlobalState.userEQProfile.registerPeak.register='HIGH';goToStep(3);");
   if (key === 'reveal') await ev("goToStep(8)");
-  if (key === 'depart') await ev("goToStep(9)");
   await ev(`window.__done=false; MemeFX.transition('${key}',()=>{window.__done=true;unlockInput(0)}); true`);
-  await delay(180);await shot('meme-'+key);
+  await delay(key === 'reveal' ? 1150 : 650);await shot('meme-'+key);
   await check("MemeFX.busy() && inputLocked() && !voiceBusy() && activeSourceKey === null",'SFX overlaps guide/source or fails to lock');
   await until('window.__done');
   const record=await ev('MemeFX.history.at(-1)');
   if(record.status!=='completed')throw new Error('cue did not complete');
   console.log('cue',key,'real duration',Math.round(record.endedAt-record.at),'ms');
 }
+// Reproduce the real transition from the last left/right answer, including large bodies.
+for (const [w,h] of [[744,1133],[1133,744]]) {
+  await send('Emulation.setDeviceMetricsOverride', {width:w,height:h,deviceScaleFactor:1,mobile:false});
+  for (const side of [-1,1]) {
+    await ev(`goToStep(7);GlobalState.userEQProfile.masterVolume=1;GlobalState.userEQProfile.lowShelf.gain=10;GlobalState.userEQProfile.highShelf.gain=10;GlobalState.part2.roll=${side}*PART2_SNAP;Object.assign(cur,targetParams(calculateUILayout()));window.__done=false;MemeFX.transition('reveal',()=>{goToStep(8);window.__done=true});true`);
+    for(const pause of [40,160,650,600,800]) {
+      await delay(pause);
+      await check("getComputedStyle(document.querySelector('canvas')).transform === 'none'", 'Reveal zoomed the whole canvas');
+      await check("bodyShape().pts.concat(antennaTips).every(p=>p.x>=0 && p.x<=width && p.y>=0 && p.y<=height)", 'Reveal pushed the snail outside the viewport');
+    }
+    await shot(`reveal-${w}-${side<0?'left':'right'}`);
+    await until('window.__done');
+    await check('Math.abs(cur.cx-width/2)<2', 'Reveal did not recenter the snail');
+  }
+}
+await send('Emulation.setDeviceMetricsOverride', {width:W,height:H,deviceScaleFactor:1,mobile:false});
+console.log('reveal left/right bounds in portrait/landscape passed');
 await ev("setVoiceOn(false); window.__done=false; MemeFX.transition('shell',()=>{window.__done=true;unlockInput(0)}); true");
 await delay(100);await check('MemeFX.gain() === 0','voice mute did not mute SFX');await until('window.__done');
 console.log('mute passed');
+await ev("setVoiceOn(true);goToStep(9);sendToTower()");
+await delay(700);
+await check("!MemeFX.busy() && !document.body.dataset.memeCue", 'Departure still played an effect');
+await until('sendProgress() === 1');
+await delay(700); await shot('plain-arrival');
+await check("!MemeFX.busy() && !document.querySelector('.meme-pop.on')", 'Arrival still played an effect');
+await until("GlobalState.currentStage === 'INIT'");
+await check("!MemeFX.busy() && !document.querySelector('.meme-pop.on')", 'Arrival leaked after reset');
+console.log('departure/arrival without FX passed');
+// Also cancel during the walk: no delayed arrival may survive a reset.
+await ev("goToStep(9);sendToTower();restartFlow()");
+await delay(4400);
+await check("GlobalState.currentStage === 'INIT' && !MemeFX.busy()", 'Reset left an arrival timer');
+await send('Emulation.setEmulatedMedia', {features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+await ev("window.__done=false;MemeFX.transition('reveal',()=>{window.__done=true;unlockInput(0)});true");
+await delay(100); await shot('meme-reduced-motion');
+await check("getComputedStyle(document.querySelector('.meme-finish')).animationName === 'none' && getComputedStyle(document.querySelector('.meme-finish')).opacity === '1'", 'Reduced motion hid the final title');
+await until('window.__done');
+await send('Emulation.setEmulatedMedia', {features:[]});
 await ev("setVoiceOn(true); window.__unexpected=false; MemeFX.transition('shell',()=>window.__unexpected=true); true");
 await delay(100);await ev('restartFlow()');await delay(1900);
 await check("!window.__unexpected && GlobalState.currentStage === 'INIT' && !MemeFX.busy() && !document.querySelector('.meme-pop.on')",'reset left a stale transition/caption');
 console.log('cancel/reset passed');
 await send('Network.setBlockedURLs',{urls:['*media/sfx/memes/*']});await send('Page.reload',{ignoreCache:true});
-await until("!!document.querySelector('.intro input') && typeof MemeFX !== 'undefined'");
-await ev("(() => { document.querySelector('.intro input').value='Missing audio'; document.querySelector('.intro form').requestSubmit(); })()");
+await until("!!document.querySelector('.intro .title-btn') && typeof MemeFX !== 'undefined'");
+await ev("document.querySelector('.intro .title-btn').click()");
 await until("GlobalState.currentStage === 'PART1_VOLUME'");
 await ev("window.__done=false;MemeFX.transition('shell',()=>{window.__done=true;unlockInput(0)});true");
 await until('window.__done');await check('!MemeFX.ready() && !MemeFX.busy() && !inputLocked()','Missing SFX stalled flow');

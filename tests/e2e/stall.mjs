@@ -50,7 +50,7 @@ await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceSc
 await send('Network.enable'); await send('Network.setCacheDisabled', { cacheDisabled: true });
 await send('Page.navigate', { url: URL });
 await sleep(4000);
-await ev(`(() => { const i = document.querySelector('.intro input'); i.value = '시험'; document.querySelector('.intro form').requestSubmit(); })()`);
+await ev("document.querySelector('.intro .title-btn').click()");
 await sleep(2500); await expect('PART1_VOLUME');
 const hits = () => ev('beatHits.kick.length + ":" + beatHits.kick[beatHits.kick.length-1]?.toFixed(2)');
 console.log('beat running', await hits());

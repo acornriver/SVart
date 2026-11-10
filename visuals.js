@@ -55,7 +55,7 @@ const FONT = {
 const SIZE_MIN = 0.72;      // ① 가장 작게 골랐을 때 덩어리 크기 배율
 const SIZE_MAX = 1.28;      // ① 가장 크게 골랐을 때
 const NAME_FADE_MS = 1900;  // 이름을 넣고 첫 검사로 넘어가기까지
-const VOICE_SLIDER = { width: 120, hit: 26 }; // 음성 크기 슬라이더: 길이, 손끝 판정 여유 (Claude가 정함)
+const VOICE_SLIDER = { width: 180, hit: 32 }; // 음성 크기 슬라이더: 길이, 손끝 판정 여유 (Claude가 정함)
 const RESULT_TEXT_DELAY = 1200;
 const BACKDROP_WASH = 110;  // 결과 화면 영상 위에 덮는 검정 (0~255). 글자 자리는 따로 더 어둡게
 const OUTLINE_POINTS = 160;
@@ -107,6 +107,12 @@ function renderVisuals() {
   smoothAll(L);
 
   if (isIntroStage(stage)) {
+    return;
+  }
+
+  if (MemeFX.activeKey()) {
+    // An edited interstitial: keep the character, clear the instructional overlays.
+    if (sendProgress() < 1) drawSnail(L);
     return;
   }
 
@@ -463,12 +469,13 @@ function targetParams(L) {
   // ⑦⑧: 달팽이 자체가 좌우로 기어감. 화면 안에서 오갈 수 있게 조금 작게
   const crawlStage = stage === 'PART2_SENSITIVITY' || stage === 'PART2_EAR' || stage === 'PART2_PITCH';
   const R0 = L.R0 * size * (crawlStage ? CRAWL_SCALE : 1);
+  const reveal = MemeFX.activeKey() === 'reveal';
   const musicX = stage === 'MUSIC' ? constrain(resultTrackBoxes(L)[tourState().index].cx, L.m + R0 * 2.8, width - L.m - R0 * 2.8) : L.cx;
   const sh = shellTarget(L, R0);
   const tw = isIntroStage(stage) ? null : part2Twist();
   const pressing = millis() - gs.part1.lastDragAt < 180 && (stage === 'PART1_LOW' || stage === 'PART1_HIGH');
   return {
-    cx: musicX + (crawlStage ? (gs.part2.roll / (typeof PART2_SNAP !== 'undefined' ? PART2_SNAP : 0.85)) * crawlTravel(L, R0) : 0), groundY: L.groundY, R0,
+    cx: musicX + (crawlStage && !reveal ? (gs.part2.roll / (typeof PART2_SNAP !== 'undefined' ? PART2_SNAP : 0.85)) * crawlTravel(L, R0) : 0), groundY: L.groundY, R0,
     tailF: v.low === null ? 0 : 1,
     tailG: v.low === null ? 0 : v.low / 10,
     headF: v.high === null ? 0 : 1,
@@ -1005,10 +1012,20 @@ function drawHeader(L) {
   const subtitleSize = width < 768 ? 27 : 25;
   const subtitleLineH = width < 768 ? 42 : 38;
   label(`${i < 4 ? 'PART 1' : 'PART 2'}   ${i + 1} / ${N_TESTS}`, L.m, L.m, { family: FONT.mono, size: 18, c: COLORS.accent, valign: TOP });
-  label(copy.title, L.m, L.m + 30, { size: titleSize, weight: 700, valign: TOP });
+  const titleY = L.m + 74;
+  const titleRows = wrapText(copy.title, width - L.m * 2, titleSize, 700);
+  titleRows.forEach((line, k) => label(line, L.m, titleY + k * (titleSize + 8), { size: titleSize, weight: 700, valign: TOP }));
+  let subtitleY = titleY + titleRows.length * (titleSize + 8) + 14;
+  if (stage === 'PART2_EAR') {
+    wrapText(t('ear.pitchHelp'), width - L.m * 2, 22, 500).forEach(line => {
+      label(line, L.m, subtitleY, { size: 22, c: COLORS.ink, valign: TOP });
+      subtitleY += 30;
+    });
+    subtitleY += 10;
+  }
 
   // 음성 안내 자막
-  wrapText(voiceLine(), width - L.m * 2, subtitleSize, 500).forEach((s, k) => label(s, L.m, L.m + (width < 768 ? 92 : 86) + k * subtitleLineH, { size: subtitleSize, weight: 500, valign: TOP }));
+  wrapText(voiceLine(), width - L.m * 2, subtitleSize, 500).forEach((s, k) => label(s, L.m, subtitleY + k * subtitleLineH, { size: subtitleSize, weight: 500, valign: TOP }));
 
   // 디버그 값 (프로토타입용)
   const p = gs.userEQProfile;
@@ -1018,15 +1035,15 @@ function drawHeader(L) {
     PART1_HIGH: `high ${fmtDb(p.highShelf.gain)}dB`,
     PART2_SENSITIVITY: gs.part2.phase // ⑥은 각도를 보여 주면 답이 드러나서 숫자 없음
   }[stage];
-  if (debug) label(debug, width - L.m, L.m, { family: FONT.mono, size: 9, c: COLORS.mute, a: 160, align: RIGHT, valign: TOP });
+  if (debug) label(debug, width - L.m, L.m + 48, { family: FONT.mono, size: 9, c: COLORS.mute, a: 160, align: RIGHT, valign: TOP });
   drawVoiceSlider();
 }
 
 /* 음성 안내 크기 슬라이더: 오른쪽 위. 음성을 끄면 없음 (차민휘 전달사항 11/06) */
 function voiceSliderBox() {
   const L = calculateUILayout();
-  const w = VOICE_SLIDER.width;
-  return { x0: width - L.m - w, x1: width - L.m, y: L.m + 34 };
+  const w = min(VOICE_SLIDER.width, width * 0.36);
+  return { x0: width - L.m - w, x1: width - L.m, y: L.m + 24 };
 }
 
 function voiceSliderShown() {
@@ -1049,15 +1066,19 @@ function drawVoiceSlider() {
   if (!voiceSliderShown()) return;
   const b = voiceSliderBox();
   const x = lerp(b.x0, b.x1, window.GlobalState.voiceLevel);
-  const glyph = b.x0 - 14;
+  label(t('voice.volume'), b.x0, b.y - 18, { size: 18, weight: 700, valign: BOTTOM });
+  const glyph = b.x0 - 22;
   stroke(...COLORS.line);
-  strokeWeight(2);
+  strokeWeight(8);
   line(b.x0, b.y, b.x1, b.y);
   stroke(...COLORS.ink);
   line(b.x0, b.y, x, b.y);
   noStroke();
   fill(...COLORS.ink);
-  circle(x, b.y, 12);
+  circle(x, b.y, 32);
+  fill(...COLORS.bg);
+  circle(x, b.y, 8);
+  fill(...COLORS.ink);
   // 확성기 표시
   rect(glyph - 7, b.y - 3, 5, 6);
   triangle(glyph - 4, b.y, glyph + 4, b.y - 7, glyph + 4, b.y + 7);
@@ -1205,7 +1226,7 @@ function drawMusic(L) {
     // 기어 나간 뒤
     const a = 255 * constrain((millis() - tourState().sendAt - SEND_WALK_MS) / 600, 0, 1);
     label(t('sent.title'), width / 2, height * 0.45, { size: min(32, width * 0.065), weight: 700, a, align: CENTER });
-    label(t('sent.sub'), width / 2, height * 0.45 + 44, { size: 14, c: COLORS.mute, a, align: CENTER });
+    label(t('sent.sub'), width / 2, height * 0.65, { size: 20, c: COLORS.mute, a, align: CENTER });
     return;
   }
   const fadeOut = sp < 0 ? 1 : 1 - constrain(sp * 3, 0, 1);

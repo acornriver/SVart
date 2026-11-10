@@ -192,12 +192,13 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   await drag(744 * 0.25, 0, p);
   await check('GlobalState.tour.sendAt !== null', 'Snail did not send');
   await stage('INIT');
+  await until("!!document.querySelector('.intro:not(.started):not(.gone) .title-btn')"); // Wait for the next draw to show the intro before the next visitor clicks.
   await ev("document.querySelector('.intro .title-btn').click()");
   await stage('PART1_VOLUME');
   await ev('lastActivity -= (IDLE_RESET_SECONDS + 1) * 1000');
   await stage('INIT');
   await check('!isBeatOn() && !voiceBusy() && !inputLocked()', 'Idle reset did not stop audio/guides');
-  await check("JSON.stringify(MemeFX.history.map(x => x.key)) === JSON.stringify(['size','shell','reveal','depart'])", 'Wrong meme cue order');
+  await check("JSON.stringify(MemeFX.history.map(x => x.key)) === JSON.stringify(['size','shell','reveal'])", 'Wrong meme cue order');
   await check('MemeFX.history.every(x => !x.voice && x.source === null)', 'Meme SFX overlapped a guide or inspection source');
   await check('!MemeFX.busy() && !document.querySelector(".meme-pop.on")', 'Meme SFX/caption leaked after reset');
   const seconds = +((Date.now() - started) / 1000).toFixed(1);

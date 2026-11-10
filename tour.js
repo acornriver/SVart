@@ -87,7 +87,7 @@ function sendToTower() {
   const tour = tourState();
   if (tour.sendAt !== null) return;
   tour.sendAt = millis();
-  MemeFX.depart();
+  hushVoice();
   if (window.svartCloud && window.EAR_RESULT) {
     try { tour.earId = window.svartCloud.sendEar(window.EAR_RESULT); }
     catch (error) { console.warn('[cloud] unable to persist outbox:', error.message); }

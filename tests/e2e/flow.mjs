@@ -108,7 +108,7 @@ console.log('  voice clips', await ev('JSON.stringify({ ko: Object.keys(voiceCli
 { const b = await ev(`(() => { const r = document.querySelector('.spk').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
   await tap(b.x, b.y); console.log('  speaker off', await ev('GlobalState.voiceOn')); await shot('00-intro-voice-off');
   await tap(b.x, b.y); console.log('  speaker on', await ev('GlobalState.voiceOn')); }
-await ev(`(() => { const i = document.querySelector('.intro input'); i.value = '${LANG === 'en' ? 'Mina' : '민혁'}'; i.dispatchEvent(new Event('input')); document.querySelector('.intro form').requestSubmit(); })()`);
+await ev("document.querySelector('.intro .title-btn').click()");
 await sleep(2500); await expect('PART1_VOLUME');
 console.log('  subtitle', await ev('voiceLine()'), 'duck', await ev('duckGain.output.gain.value.toFixed(2)'));
 await shot('00-voice-subtitle');
@@ -221,7 +221,7 @@ await sleep(5000); await expect('INIT');
 console.log('  after send: source', await ev('String(activeSourceKey)'), 'video', await ev('String(backdropKey)'));
 
 // 다음 관람객 → 중간에 자리를 뜨면 첫 화면으로
-await ev(`(() => { const i = document.querySelector('.intro input'); i.value = 'two'; document.querySelector('.intro form').requestSubmit(); })()`);
+await ev("document.querySelector('.intro .title-btn').click()");
 await sleep(2500); await expect('PART1_VOLUME');
 console.log('  2nd visitor beat on', await ev('isBeatOn()'), 'lang', await ev('GlobalState.lang'));
 await ev('lastActivity -= (IDLE_RESET_SECONDS + 1) * 1000'); await sleep(300); await expect('INIT');
@@ -229,7 +229,7 @@ console.log('  idle reset → beat on', await ev('isBeatOn()'), 'voice', await e
 console.log('  level reset', (await ev('GlobalState.voiceLevel')).toFixed(2), 'voice on', await ev('GlobalState.voiceOn'));
 
 // 음성을 꺼도 자막 시간만큼 잠기고, 슬라이더는 없음
-await ev(`(() => { setVoiceOn(false); const i = document.querySelector('.intro input'); i.value = 'three'; document.querySelector('.intro form').requestSubmit(); })()`);
+await ev("setVoiceOn(false); document.querySelector('.intro .title-btn').click()");
 await sleep(2500); await expect('PART1_VOLUME');
 console.log('  voice off → subtitle', await ev('voiceLine()'), 'locked', await ev('inputLocked()'), 'slider', await ev('voiceSliderShown()'));
 await ev('lastActivity -= (IDLE_RESET_SECONDS + 1) * 1000'); await sleep(300); await expect('INIT');

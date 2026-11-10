@@ -1,121 +1,131 @@
-/** Experimental accents. Only after committed choices / sending; never on individual answers.
- * Original SFX and edit manifest: source/sfx/memes/. Playback ignores the participant EQ.
+/** Caption edits happen only between committed choices, never during a listening trial.
+ * Sound cuts: scripts/prepare-capcut-sfx.py, source/sfx/memes/capcut-edits.json.
  */
 window.MemeFX = (() => {
   const cues = {
-    size: { duration: .65, ko: ['크기 접수.', '이 정도가 딱이네'], en: ['SIZE LOCKED.', 'That feels right.'] },
-    shell: { duration: 1.7, ko: ['껍질 착붙.', '제법 달팽이 같아졌는데?'], en: ['SHELL ACQUIRED.', 'Looking suspiciously snail-like.'] },
-    reveal: { duration: 1.41, ko: ['나… 달팽이 됐다.', '내가 고른 소리로 완성'], en: ['WAIT. I’M A SNAIL.', 'Made from the sounds you chose.'] },
-    depart: { duration: .87, ko: ['청감타워로 퇴근 ↗', '내 귀는 먼저 가볼게요'], en: ['OFF TO THE TOWER ↗', 'My ears are heading out.'] }
+    size: { duration: 2, sounds: [['size', 0], ['sting', .28]], beats: [[.28, 'hit']],
+      ko: ['크기', '접수', '이 정도가 딱.', '접수 완료'], en: ['SIZE', 'LOCKED', 'That’s the one.', 'LOCKED IN'] },
+    shell: { duration: 2.65, sounds: [['gasp', 0], ['shell', .42]], beats: [[.42, 'hit']],
+      ko: ['껍질', '착붙', '어머. 내 껍질이잖아?', '찰떡궁합'], en: ['SHELL', 'ACQUIRED', 'Oh. That’s my shell.', 'A PERFECT FIT'] },
+    reveal: { duration: 3.4, sounds: [['roll', 0], ['fanfare', .8], ['clap', 1.45]], beats: [[.8, 'hit'], [1.45, 'encore']],
+      ko: ['나…', '달팽이 됐다.', '인생 첫 달팽이 데뷔', '축  달팽이 탄생  하'], en: ['WAIT…', 'I’M A SNAIL.', 'My snail era starts now.', 'A SNAIL IS BORN'] }
   };
-  const buffers = {};
-  const history = [];
+  const buffers = {}, history = [];
   let loading, active = null, epoch = 0, transitioning = false, caption;
+  const soundKeys = [...new Set(Object.values(cues).flatMap(cue => cue.sounds.map(([key]) => key)))];
 
   function load() {
     if (loading) return loading;
-    loading = Promise.all(Object.keys(cues).map(async key => {
+    loading = Promise.all(soundKeys.map(async key => {
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           const response = await fetch(`./media/sfx/memes/${key}.mp3`);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           buffers[key] = await getAudioContext().decodeAudioData(await response.arrayBuffer());
           return;
-        } catch { /* Missing accents must never prevent a visitor from continuing. */ }
+        } catch { /* Caption edits still finish if a sound is missing. */ }
       }
     }));
     return loading;
   }
 
+  function textNode(tag, className, text) {
+    const node = document.createElement(tag); node.className = className; node.textContent = text; return node;
+  }
+
   function show(key) {
     if (!caption) {
-      caption = document.createElement('div');
-      caption.className = 'meme-pop';
-      caption.setAttribute('role', 'status');
-      caption.setAttribute('aria-live', 'polite');
+      caption = document.createElement('div'); caption.className = 'meme-pop';
+      caption.setAttribute('role', 'status'); caption.setAttribute('aria-live', 'polite');
       document.body.appendChild(caption);
     }
-    const [title, detail] = cues[key][currentLang()];
-    const strong = document.createElement('strong'); strong.textContent = title;
-    const small = document.createElement('span'); small.textContent = detail;
-    caption.replaceChildren(strong, small);
-    caption.dataset.cue = key;
+    const [lead, finish, detail, stamp] = cues[key][currentLang()];
+    caption.setAttribute('aria-label', `${lead} ${finish}. ${detail}`);
+    const scene = document.createElement('div'); scene.className = 'meme-scene'; scene.setAttribute('aria-hidden', 'true');
+    scene.append(textNode('span', 'meme-lead', lead), textNode('strong', 'meme-finish', finish),
+      textNode('span', 'meme-detail', detail), textNode('span', 'meme-stamp', stamp));
+    const decoration = document.createElement('div'); decoration.className = 'meme-decoration';
+    decoration.setAttribute('aria-hidden', 'true');
+    const marks = key === 'shell' ? ['♥', '♥', '♥', '♥', '♥', '♥', '♥', '♥']
+      : key === 'reveal' ? [currentLang() === 'ko' ? '축' : '★', currentLang() === 'ko' ? '하' : '★', '✧', '✧'] : ['✦', '✦', '✧', '✧'];
+    marks.forEach((text, i) => {
+      const mark = textNode('i', 'meme-mark', text); mark.style.setProperty('--i', i); decoration.appendChild(mark);
+    });
     caption.classList.remove('on');
+    caption.replaceChildren(decoration, scene);
+    caption.dataset.cue = key; caption.dataset.beat = 'setup'; caption.dataset.lang = currentLang();
+    document.body.dataset.memeCue = key; document.body.dataset.memeBeat = 'setup';
     void caption.offsetWidth;
     caption.classList.add('on');
   }
 
-  function stop() {
-    if (caption) caption.classList.remove('on');
-    if (!active) return;
-    const current = active; active = null;
-    clearTimeout(current.timer);
-    try { current.src?.stop(); current.src?.disconnect(); current.gain?.disconnect(); } catch { /* Already finished. */ }
-    current.record.status = 'cancelled';
-    current.resolve(false);
+  function clearPicture() {
+    caption?.classList.remove('on');
+    delete document.body.dataset.memeCue; delete document.body.dataset.memeBeat;
   }
-
+  function dispose(current) {
+    clearTimeout(current.timer); current.beatTimers.forEach(clearTimeout);
+    current.sources.forEach(src => { try { src.stop(); src.disconnect(); } catch {} });
+    try { current.gain?.disconnect(); } catch {}
+  }
+  function stop() {
+    clearPicture();
+    if (!active) return;
+    const current = active; active = null; dispose(current);
+    current.record.status = 'cancelled'; current.resolve(false);
+  }
   function cancel() { epoch++; transitioning = false; stop(); }
   function updateGain() {
     if (active?.gain) active.gain.gain.setTargetAtTime(voiceGain() * .8, getAudioContext().currentTime, .01);
   }
-
   function play(key) {
-    stop();
-    show(key);
-    const record = { key, stage: GlobalState.currentStage, voice: voiceBusy(), source: activeSourceKey, status: 'playing', silent: !GlobalState.voiceOn, at: performance.now() };
+    stop(); show(key);
+    const cue = cues[key];
+    const record = { key, stage: GlobalState.currentStage, voice: voiceBusy(), source: activeSourceKey,
+      status: 'playing', silent: !GlobalState.voiceOn, at: performance.now(), sounds: cue.sounds.map(([sound, at]) => ({sound, at})) };
     history.push(record);
     return new Promise(resolve => {
-      const current = active = { resolve, record, src: null, gain: null, timer: null };
+      const current = active = { resolve, record, sources: [], gain: null, timer: null, beatTimers: [] };
       try {
-        if (buffers[key] && GlobalState.isAudioInitialized) {
+        if (GlobalState.isAudioInitialized) {
           const ctx = getAudioContext();
-          current.src = ctx.createBufferSource(); current.src.buffer = buffers[key];
           current.gain = ctx.createGain(); current.gain.gain.value = voiceGain() * .8;
-          current.src.connect(current.gain); current.gain.connect(ctx.destination);
-          current.src.start();
+          current.gain.connect(ctx.destination);
+          const start = ctx.currentTime;
+          cue.sounds.forEach(([sound, at]) => {
+            if (!buffers[sound]) return;
+            const src = ctx.createBufferSource(); src.buffer = buffers[sound]; src.connect(current.gain);
+            current.sources.push(src); src.start(start + at);
+          });
         }
-      } catch { /* Caption and timeout still complete if audio is unavailable. */ }
-      // Real-time deadline also completes while audio is suspended or a file is unavailable.
+      } catch { /* Real-time visual cuts and the deadline do not depend on audio. */ }
+      cue.beats.forEach(([at, beat]) => current.beatTimers.push(setTimeout(() => {
+        if (active !== current) return;
+        caption.dataset.beat = beat; document.body.dataset.memeBeat = beat;
+      }, at * 1000)));
       current.timer = setTimeout(() => {
         if (active !== current) return;
-        active = null;
-        try { current.src?.stop(); current.src?.disconnect(); current.gain?.disconnect(); } catch { /* Already ended. */ }
-        if (caption) caption.classList.remove('on');
-        record.status = 'completed'; record.endedAt = performance.now();
-        resolve(true);
-      }, cues[key].duration * 1000 + 60);
+        active = null; dispose(current); clearPicture();
+        record.status = 'completed'; record.endedAt = performance.now(); resolve(true);
+      }, cue.duration * 1000 + 60);
     });
   }
-
   function cueFor(stage, next) {
     if (next === 'RESULT') return 'reveal';
     if (stage === 'PART1_VOLUME') return 'size';
     if (stage === 'PART1_REGISTER') return 'shell';
     return null;
   }
-
   async function transition(key, proceed) {
     if (transitioning) return;
     transitioning = true;
     const run = ++epoch;
-    hushVoice(); stopVoice(); registerPlayToken++; leavePart2();
-    setActiveSource(null, .04);
-    lockInput();
+    hushVoice(); stopVoice(); registerPlayToken++; leavePart2(); setActiveSource(null, .04); lockInput();
     const done = await play(key);
     if (!done || run !== epoch) return;
-    transitioning = false;
-    proceed(); // goToStep restores the next guide's normal lock lifecycle.
+    transitioning = false; proceed();
   }
-
-  function depart() {
-    hushVoice(); setActiveSource(null, .04);
-    return play('depart');
-  }
-
-  return { load, cancel, transition, depart, cueFor, updateGain, history,
-    ready: () => Object.keys(cues).every(key => !!buffers[key]),
-    busy: () => transitioning || active !== null,
-    activeKey: () => active?.record.key || null,
-    gain: () => active?.gain?.gain.value ?? 0 };
+  return { load, cancel, transition, cueFor, updateGain, history,
+    ready: () => soundKeys.every(key => !!buffers[key]), busy: () => transitioning || active !== null,
+    activeKey: () => active?.record.key || null, gain: () => active?.gain?.gain.value ?? 0 };
 })();
