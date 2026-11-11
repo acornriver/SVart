@@ -1,22 +1,24 @@
 /**
  * 청각 다변기 (Sound Variator) - Main Application Router
  *
- * 이름 입력(언어 고르기) → Part 1 네 단계(위아래로 쓸기) → Part 2 네 단계(톡 / 좌우로 쓸기)
- * → 결과(북서울 산책, 청감타워로 보내기)
+ * 첫 화면(제목을 눌러 시작, 언어·음성 고르기) → Part 1 네 단계 → Part 2 네 단계
+ * → 분석(RESULT) → 세 소리 감상(MUSIC) → 청감타워로 보내기
  * - preload(), setup(), draw(), windowResized() 생명주기 관리
  * - 버튼 없이 손짓으로 조작. 손가락 하나를 짧게 누르기(톡) / 끌기 / 꾹 누르기로 나눔
- *     Part 1 ①②③ : 위아래로 끌기 = 조절,      달팽이 꾹 = 확정
- *     ④ 음역       : 등 위 A/B/C 자리 톡 = 고르기, 달팽이 톡 = 다시 듣기, 달팽이 꾹 = 확정
- *     ⑤ 고역 예민도 : 안 들리게 되는 순간 화면 아무 데나 톡 (손가락이 닿는 순간 바로). 다 들은 뒤 달팽이 톡 = 한 번 더, 달팽이 꾹 = 다음
+ *     ①②③          : 위아래로 끌기 = 조절, 달팽이 꾹 = 확정
+ *     ④ 음역        : 등 위 A/B/C 자리 톡 = 고르기(다시 듣기도 같은 자리), 달팽이 꾹 = 확정
+ *     ⑤ 고역        : 좌우로 끌기 = 높이 조절, 달팽이 꾹 = 확정
  *     ⑥ 중앙        : 좌우로 끌기 = 비트를 머리 둘레로 돌리기, 달팽이 꾹 = 여기가 가운데
- *     ⑦⑧           : 좌우로 끌어 달팽이를 기어가게 하고 손을 떼면 바로 답(왼쪽/오른쪽), 달팽이 톡 = 한 번 더 듣기
- *     결과          : 3곡 버튼 톡 = 그 곡에 고정(달팽이가 들어봄), 슬라이더 = 원래 소리 ↔ 내 귀 EQ 비교,
+ *     ⑦⑧           : 좌우로 끌어 달팽이를 기어가게 하고 손을 떼면 바로 답, 더듬이·달팽이 톡 = 한 번 더 듣기(한국어만)
+ *     분석          : 달팽이 꾹 = 감상으로
+ *     감상          : 곡 버튼 톡 = 그 소리로, 슬라이더 = 원래 소리 ↔ 내 귀 EQ,
  *                     빈 곳을 누르고 있는 동안 = 원래 소리, 달팽이를 오른쪽으로 밀기 = 청감타워로 보내기
- *     쓸기 방향: ①②③은 위아래로, ⑥⑦⑧과 보내기는 좌우로 쓸 때만 동작. 처음 움직인 방향으로 정하고, 대각선은 무시 (사용자 지시 11/06)
+ *     쓸기 방향: ①②③은 위아래로, ⑤⑥⑦⑧과 보내기는 좌우로 쓸 때만 동작. 처음 움직인 방향으로 정하고, 대각선은 무시 (사용자 지시 11/06)
  *     검사 화면 오른쪽 위 슬라이더 : 음성 안내 크기. 잠겨 있어도 움직이고 검사 입력으로 치지 않음
  *     어느 단계든 IDLE_RESET_SECONDS 동안 아무도 안 만지면 첫 화면으로
  * - 안내 잠금(voice.js): 잠긴 동안 시작한 터치는 버리고, 풀린 뒤 새로 시작한 터치부터 반영
- * - 모바일 기본 스크롤 및 바운스 제스처 차단 (이름 입력 화면만 예외)
+ * - 전시 아이패드는 가로 전용: 터치 기기를 세로로 들면 회전 안내(index.html의 .rotate)가 덮이고 입력을 받지 않음
+ * - 모바일 기본 스크롤 및 바운스 제스처 차단 (첫 화면만 예외)
  */
 
 const HOLD_MS = 900;            // 꾹 누르기로 확정되기까지
@@ -63,7 +65,7 @@ function windowResized() {
 }
 
 /**
- * 이름을 넣으면 (키보드의 완료/Enter = 사용자 동작이라 여기서 소리를 켤 수 있음) 잠시 뒤 첫 검사로
+ * 첫 화면 제목을 누르면 (사용자 동작이라 여기서 소리를 켤 수 있음) 잠시 뒤 첫 검사로. 이름은 받지 않아 늘 빈 값
  */
 function submitName(name) {
   const gs = window.GlobalState;
@@ -94,7 +96,13 @@ function checkIdle() {
  * =========================================================================
  */
 
-// 이름 입력 화면에서는 기본 동작을 막지 않음 (막으면 입력칸에 포커스가 안 가고 키보드가 안 뜸)
+// 터치 기기를 세로로 들었는지 (index.html의 .rotate 안내와 같은 조건). 이 동안은 입력을 받지 않음
+const PORTRAIT_QUERY = window.matchMedia('(orientation: portrait) and (pointer: coarse)');
+function portraitBlocked() {
+  return PORTRAIT_QUERY.matches;
+}
+
+// 첫 화면에서는 기본 동작을 막지 않음 (막으면 제목·언어·확성기 버튼의 click이 오지 않음)
 function touchStarted() {
   lastTouchTime = millis();
   if (onIntro()) return;
@@ -113,10 +121,9 @@ function touchMoved() {
 function touchEnded(event) {
   lastTouchTime = millis();
   if (onIntro()) {
-    // iOS는 touchend 안에서만 오디오 언락을 사용자 제스처로 확실히 인정. 이름을 쓰러 입력칸을 누를 때 미리 풀어 둠
+    // iOS는 touchend 안에서만 오디오 언락을 사용자 제스처로 확실히 인정. 첫 화면을 누를 때 미리 풀어 둠
     initAudio();
     ensureAudioRunning();
-    if (!(event && isIntroControl(event.target))) focusIntroInput();
     return;
   }
   pointerUp();
@@ -158,6 +165,7 @@ function pointerDown(px, py) {
   ensureAudioRunning();
   resumeBackdrop();
   lastActivity = millis();
+  if (portraitBlocked()) return;
   if (window.GlobalState.currentStage === 'MUSIC') {
     if (tourState().sendAt !== null) return;
     if (hitResultEqSlider(px, py)) {
@@ -238,7 +246,7 @@ function pointerUp() {
 }
 
 /**
- * 짧게 누르기(톡): 달팽이 본체 = 다시 듣기, ④ 등 위 A/B/C 자리 = 고르기
+ * 짧게 누르기(톡): ④ 등 위 A/B/C 자리 = 고르기, ⑦⑧ 달팽이·더듬이 = 다시 듣기
  */
 function tapAt(px, py, pressedMs) {
   const stage = window.GlobalState.currentStage;
@@ -292,10 +300,12 @@ function holdReady() {
 }
 
 function updateHold() {
+  if (pointer && portraitBlocked()) pointerCancel(); // 누르던 중에 세로로 돌리면 손가락을 놓은 것으로
   if (pointer && pointer.mode !== 'voice' && inputLocked()) pointer = null; // 잠금이 시작되면 누르던 손가락도 버림
   if (!holdReady()) return;
   if (millis() - pointer.t0 < HOLD_MS) return;
   pointer.mode = 'done';
+  triggerConfirmFx(pointer.x0, pointer.y0);
   const stage = window.GlobalState.currentStage;
   if (PART1_ADJUST[stage]) tapConfirmAdjust();
   else if (stage === 'PART1_REGISTER') confirmRegister();

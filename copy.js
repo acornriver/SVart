@@ -95,6 +95,8 @@ const COPY = {
     'intro.voice': '음성 안내',
 
     'hint.listening': '잘 들어보세요…',
+    'hint.analysis': '달팽이를 꾹 눌러 음악 들어보기 →',
+    'music.preview': '지금은 북서울의 소리로 미리 들어보세요',
     'hint.result1': '슬라이더로 원래 소리와 내 귀 소리를 비교해보세요',
     'hint.result2': '달팽이를 오른쪽으로 밀면 청감타워로 가요',
     'result.eqOrig': '원래 소리',
@@ -158,6 +160,8 @@ const COPY = {
     'intro.voice': 'Voice guide',
 
     'hint.listening': 'Listen…',
+    'hint.analysis': 'Press and hold the snail to listen →',
+    'music.preview': 'Preview the sounds around Buk-Seoul',
     'hint.result1': 'Slide to compare the original sound and your ear EQ',
     'hint.result2': 'Push the snail to the right to send it to the Hearing Tower',
     'result.eqOrig': 'Original',

@@ -92,6 +92,16 @@
     .intro .br { color: #ff3b1f; }
     .intro .dots { color: #f5f5f0; letter-spacing: .15em; }
     .intro .hint { white-space: pre-line; line-height: 1.7; font-size: clamp(18px, 2.6vw, 24px); letter-spacing: .04em; color: #bdbdb7; transition: opacity .4s ease; display: block; }
+
+    /* 전시 아이패드는 가로 전용 (11/10 사용자 확정). 터치 기기를 세로로 들면 이 안내가 화면을 덮음. main.js의 portraitBlocked()와 같은 조건 */
+    .rotate {
+      display: none; position: fixed; inset: 0; z-index: 1000; background: #000; color: #f5f5f0;
+      flex-direction: column; align-items: center; justify-content: center; gap: 28px; text-align: center;
+      font: 700 28px/1.5 'Noto Sans KR', -apple-system, sans-serif; touch-action: none;
+    }
+    .rotate svg { width: 96px; height: 96px; color: #ff3b1f; }
+    .rotate small { display: block; font-weight: 500; font-size: 20px; color: #80807c; }
+    @media (orientation: portrait) and (pointer: coarse) { .rotate { display: flex; } }
   </style>
   <link rel="stylesheet" href="./memeFX.css">
 
@@ -139,5 +149,11 @@
 
 </head>
 <body>
+  <div class="rotate" role="alert">
+    <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="6" y="20" width="36" height="22" rx="3"/><path d="M14 14a12 12 0 0 1 20 0M34 14v-6M34 14h-6"/>
+    </svg>
+    <div>화면을 가로로 돌려 주세요<small>Please rotate the screen to landscape</small></div>
+  </div>
 </body>
 </html>

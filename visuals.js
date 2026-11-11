@@ -10,12 +10,15 @@
  *   ③ 고음  → 머리를 빚음 (위로 쓸면 크고 높이, 아래로 쓸면 눌려서 작게)
  *   ④ 음역  → 껍질을 얹을 자리 (저음역 왼쪽 / 중음역 가운데 / 고음역 오른쪽)
  *   Part 2  → ⑦⑧은 오른쪽을 바라본 채 좌우로 이동해 답함 (사용자 확정 11/09). ⑥은 돌리는 동안 선 색이 실시간으로 바뀜
- *             ⑦은 고르는 쪽 더듬이가 과장되게 늘어나 꿈틀대고, ⑧은 고르는 뜻대로 점액(네모/동그라미)을 흘리며 오감
- * - 결과: 다 빚은 달팽이가 북서울 주변을 걷는다 (뒤에 그 장소 영상을 고대비 흑백으로). 보내면 오른쪽으로 기어 나감
+ *             ⑦은 고르는 쪽 더듬이가 과장되게 늘어나 꿈틀대고(고르는 동안만. 결과는 껍질 모양), ⑧은 고르는 뜻대로 점액(네모/동그라미)을 흘리며 오감
+ *             검사음이 울릴 때마다 두 더듬이 끝이 똑같이 울림 (좌우 대칭이라 답의 단서가 아님)
+ * - Part 1 바닥선은 지금 소리의 스펙트럼 (왼쪽 = 낮은 소리, 오른쪽 = 높은 소리). Part 2에서는 직선 (⑤ 안 들리는 고음이 보이면 안 됨)
+ * - 꾹 눌러 확정하는 순간: 파형이 잠깐 멈추고 손끝에서 고리 하나, 가는 가로선 몇 줄 (강한 섬광 없음)
+ * - 결과: 분석(RESULT) → 달팽이 꾹 → 세 소리 감상(MUSIC, 뒤에 그 장소 영상을 고대비 흑백으로). 보내면 오른쪽으로 기어 나감
  * 조절 중에는 dB 값이나 눈금 숫자를 크게 보여주지 않는다. 값은 우상단에 작은 디버그 숫자로만 표시.
  * 섬광은 눈에 부담이 없도록 아주 옅게만 쓴다 (깜빡이는 스트로브 아님).
- * 첫 화면의 확성기·언어 말고는 버튼이 없다. 확정은 달팽이를 꾹 누르기, 다시 듣기는 더듬이 톡, 음역은 등 위 자리를 톡,
- * 결과에서는 누르고 있는 동안 원래 소리, 달팽이를 오른쪽으로 밀면 청감타워로 (입력은 main.js)
+ * 확정은 달팽이를 꾹 누르기, 다시 듣기는 더듬이 톡(한국어 ⑦⑧), 음역은 등 위 자리를 톡,
+ * 감상에서는 곡 버튼·EQ 슬라이더, 달팽이를 오른쪽으로 밀면 청감타워로 (입력은 main.js)
  * 문구는 모두 copy.js의 t()로 가져온다 (한국어 / English). 음성 안내가 나오는 동안은 그 자막을 위에, 조용할 때는 지금 할 일을 아래에 보여 준다.
  */
 
@@ -45,6 +48,12 @@ const SHELL_POP = { spring: 0.2, damp: 0.7 }; // ④ 혹이 튀어나오는 탄�
 const EAR_SHELL = { LEFT: 1, RIGHT: 0 };      // ⑦ 우세 귀 → 껍질 모양: 왼쪽 = 네모, 오른쪽 = 동그라미 (사용자 지시 11/06)
 const RESULT_EQ_SLIDER = { hit: 38 };         // 결과 화면 원래 소리 ↔ 내 귀 EQ 슬라이더 손끝 판정 여유
 const LISTEN_ANIM_MS = 2200;                  // 곡 버튼을 눌렀을 때 달팽이가 더 크게 귀 기울이는 시간
+// Part 1 바닥선 스펙트럼: 세로 가는 선 개수, 주파수 범위(로그), 최대 높이(R0 배율), 내려앉는 빠르기 (Claude가 정함)
+const GROUND_SPEC = { bars: 96, f0: 45, f1: 16000, height: 0.55, fall: 0.18, tilt: 0.42 };
+// Part 2 검사음에 더듬이 끝이 울림: 고리가 퍼지는 시간, 고리 사이 최소 간격, 소리로 치는 최소 크기 (Claude가 정함)
+const TONE_PING = { ringMs: 520, gapMs: 140, floor: 0.004 };
+// 꾹 확정 순간: 전체 길이, 파형이 멈춰 있는 시간, 가로선 개수 (Claude가 정함)
+const CONFIRM_FX = { ms: 520, freezeMs: 160, lines: 4 };
 const HELIX = { bodyTwists: [3, 22], shellTwists: [4, 30], sep: 0.075, rungEvery: 3, spinSpeed: 1.4 };
 
 const FONT = {
@@ -86,6 +95,9 @@ let snailInk = COLORS.ink.slice(); // 지금 달팽이 선 색 (정해진 색을
 let snailGlow = COLORS.accent.slice(); // 선 밑의 잔광. ⑥ 전에는 빨강, 색이 정해지면 그 색 (빨강이 깔리면 파란 선이 보라로 보임, 차민휘 전달사항 11/06)
 let slime = [];             // 점액 파티클 { x, y, vx, vy, born, life, size, sq }
 let slimeAcc = 0;
+let groundSpec = null;      // 바닥선 스펙트럼 막대 높이 (0~1, 부드럽게 내려앉음)
+let tone = { fast: 0, slow: 0, env: 0, rings: [], lastAt: 0 }; // Part 2 검사음 따라가기
+let confirmFx = null;       // { at, x, y, wave, lines: [{ y, x0, x1 }] }
 
 /**
  * 메인 렌더 함수 (main.js의 draw()에서 호출)
@@ -100,7 +112,9 @@ function renderVisuals() {
 
   const fft = window.GlobalState.audioNodes.fft;
   wave = fft ? fft.waveform() : null;
+  if (confirmFx && millis() - confirmFx.at < CONFIRM_FX.freezeMs && confirmFx.wave) wave = confirmFx.wave; // 확정 순간 파형이 잠깐 멈춤
   pulse = getBeatPulse();
+  updateTone(stage);
 
   const L = calculateUILayout();
   if (!cur) cur = targetParams(L);
@@ -113,6 +127,7 @@ function renderVisuals() {
   if (MemeFX.activeKey()) {
     // An edited interstitial: keep the character, clear the instructional overlays.
     if (sendProgress() < 1) drawSnail(L);
+    drawConfirmFx();
     return;
   }
 
@@ -129,6 +144,7 @@ function renderVisuals() {
     drawGuides(L);
   }
   drawHoldRing();
+  drawConfirmFx();
   drawFlash();
 }
 
@@ -136,9 +152,16 @@ function isIntroStage(stage) {
   return stage === 'INIT' || stage === 'NAMED';
 }
 
+// 검사가 끝난 뒤의 두 화면 (분석 · 감상)
+function isResultStage(stage) {
+  return stage === 'RESULT' || stage === 'MUSIC';
+}
+
 function onStageChange(stage) {
-  if (stage === 'RESULT' || stage === 'MUSIC') resultAt = millis();
-  if (stage === 'INIT' || stage === 'RESULT' || stage === 'MUSIC') { slime = []; slimeAcc = 0; }
+  if (isResultStage(stage)) resultAt = millis();
+  if (stage === 'INIT' || isResultStage(stage)) { slime = []; slimeAcc = 0; }
+  if (stage === 'INIT') confirmFx = null;
+  tone.rings = [];
   if (stage === 'INIT' && lastStage !== null) showIntro();
   lastStage = stage;
 }
@@ -222,9 +245,7 @@ function showIntro() {
   refreshIntroText();
 }
 
-function focusIntroInput() { /* 이름 입력 없음 — 하위 호환용 빈 함수 */ }
-
-// Safari에서 주소창과 시계·배터리 줄까지 가리기. iPad는 전체화면에서 글자를 치면 경고가 떠서 첫 화면(이름 입력)에서는 쓰지 않음
+// Safari에서 주소창과 시계·배터리 줄까지 가리기. 제목을 눌러 시작할 때 들어가고 첫 화면으로 돌아오면 풂
 function enterFullscreen() {
   const root = document.documentElement;
   if (document.fullscreenElement || document.webkitFullscreenElement) return;
@@ -240,13 +261,6 @@ function exitFullscreen() {
   const result = exit.call(document);
   if (result && result.catch) result.catch(() => {});
 }
-
-// 첫 화면에서 직접 누를 수 있는 것 (입력칸, 확성기, 언어 버튼). main.js가 이 위의 터치는 그대로 둠
-function isIntroControl(el) {
-  return !!el && (el === intro.input || el === intro.speaker || intro.langs.includes(el));
-}
-
-function fitIntroInput() { /* 이름 입력 없음 — 하위 호환용 빈 함수 */ }
 
 /* =====================================================================
  * 작은 헬퍼
@@ -455,7 +469,7 @@ function shellTarget(L, R0) {
     return { on: settled ? 1 : 0.6, x: spot(reg.order[card]), key: reg.order[card] };
   }
   if (stage.startsWith('PART2_')) return { on: 1, x: chosen ? spot(chosen) : 0, key: chosen || 'MID' }; // 제자리 (⑥은 돌기만 하고, ⑦⑧은 달팽이째 움직임)
-  if ((stage === 'RESULT' || stage === 'MUSIC') && chosen) return { on: 1, x: spot(chosen), key: chosen };
+  if (isResultStage(stage) && chosen) return { on: 1, x: spot(chosen), key: chosen };
   return { on: 0, x: 0, key: null };
 }
 
@@ -485,7 +499,7 @@ function targetParams(L) {
     press: pressing ? 1 : 0,
     pressAngle: stage === 'PART1_VOLUME' ? -HALF_PI : stage === 'PART1_HIGH' ? HEAD_ANGLE : TAIL_ANGLE,
     shellOn: sh.on, shellX: sh.x, shellKey: sh.key,
-    shellSquare: (stage === 'RESULT' || stage === 'MUSIC') ? (EAR_SHELL[gs.psychoProfile.dominantEar] ?? 0) : 0, // ⑦ 우세 귀에 따른 네모/동그라미 등껍질 (결과에서만 표시)
+    shellSquare: isResultStage(stage) ? (EAR_SHELL[gs.psychoProfile.dominantEar] ?? 0) : 0, // ⑦ 우세 귀에 따른 네모/동그라미 등껍질 (결과에서만 표시)
     helix: tw === null ? 0 : 1, twist: tw === null ? 0 : tw,
     dim: stage === 'MUSIC' ? lerp(0.45, 1, typeof gs.part1.eqMix === 'number' ? gs.part1.eqMix : (gs.part1.isBypassed ? 0 : 1)) : 1
   };
@@ -688,6 +702,70 @@ function twistCount(range) {
   return lerp(range[0], range[1], cur.twist);
 }
 
+/**
+ * Part 2 검사음 따라가기: 지금 파형의 크기(RMS)가 갑자기 커지면 더듬이 끝 고리를 하나 내보냄.
+ * 두 귀 소리를 합친 파형이라 좌우가 구분되지 않고, 높낮이도 쓰지 않음 (답의 단서가 되지 않게)
+ */
+function updateTone(stage) {
+  const on = stage.startsWith('PART2_') && !MemeFX.activeKey();
+  let level = 0;
+  if (on && wave && wave.length) {
+    let sum = 0;
+    for (let i = 0; i < wave.length; i += 4) sum += wave[i] * wave[i];
+    level = Math.sqrt(sum / (wave.length / 4));
+  }
+  tone.fast = lerp(tone.fast, level, 0.5);
+  tone.slow = lerp(tone.slow, level, 0.04);
+  tone.env = lerp(tone.env, level > TONE_PING.floor ? 1 : 0, 0.25);
+  const now = millis();
+  tone.rings = tone.rings.filter((born) => now - born < TONE_PING.ringMs);
+  if (on && tone.fast > TONE_PING.floor && tone.fast > tone.slow * 1.6 && now - tone.lastAt > TONE_PING.gapMs) {
+    tone.rings.push(now);
+    tone.lastAt = now;
+  }
+}
+
+// 꾹 확정이 된 순간 main.js가 부름 (손끝 자리)
+function triggerConfirmFx(x, y) {
+  const span = cur ? cur.R0 * 2.2 : 120, gy = cur ? cur.groundY : y;
+  confirmFx = {
+    at: millis(), x, y,
+    wave: wave ? Array.from(wave) : null,
+    lines: Array.from({ length: CONFIRM_FX.lines }, () => {
+      const cx = random(width * 0.1, width * 0.9), w = random(width * 0.12, width * 0.45);
+      return { y: gy - random(-0.3, 1) * span, x0: cx - w / 2, x1: cx + w / 2 };
+    })
+  };
+}
+
+// 확정 순간: 손끝에서 고리 하나가 퍼지고, 가는 가로선 몇 줄이 스쳤다 사라짐
+function drawConfirmFx() {
+  if (!confirmFx) return;
+  const k = (millis() - confirmFx.at) / CONFIRM_FX.ms;
+  if (k >= 1) { confirmFx = null; return; }
+  const ctx = drawingContext;
+  const ease = 1 - (1 - k) * (1 - k);
+  ctx.save();
+  ctx.strokeStyle = rgba(COLORS.ink, 0.9 * (1 - k));
+  ctx.lineWidth = 2.5 * (1 - k) + 0.5;
+  ctx.beginPath();
+  ctx.arc(confirmFx.x, confirmFx.y, HOLD_RING + ease * Math.max(width, height) * 0.22, 0, TWO_PI);
+  ctx.stroke();
+  const lk = constrain(k * 2.2, 0, 1); // 가로선은 앞 절반 안에 사라짐
+  if (lk < 1) {
+    ctx.lineWidth = 1;
+    confirmFx.lines.forEach((ln, i) => {
+      ctx.strokeStyle = rgba(i === 0 ? COLORS.accent : COLORS.ink, 0.7 * (1 - lk));
+      const slide = (i % 2 ? -1 : 1) * lk * 40;
+      ctx.beginPath();
+      ctx.moveTo(ln.x0 + slide, ln.y);
+      ctx.lineTo(ln.x1 + slide, ln.y);
+      ctx.stroke();
+    });
+  }
+  ctx.restore();
+}
+
 function drawSnail() {
   // ⑥ 동안은 돌리는 자리의 색을 실시간으로 (사용자 지시 11/03), 그 밖에는 정해진 색을 천천히 따라감
   const live = part2CenterLiveDeg();
@@ -702,7 +780,7 @@ function drawSnail() {
   ctx.save();
   ctx.globalAlpha = cur.dim;
   ctx.save();
-  if (gs().currentStage === 'RESULT' || gs().currentStage === 'MUSIC') {
+  if (isResultStage(gs().currentStage)) {
     ctx.beginPath();
     ctx.rect(0, cur.groundY - 15, width, gs().currentStage === 'RESULT' ? 70 : 33);
     ctx.clip();
@@ -788,15 +866,6 @@ function drawSlime(ctx, shape) {
   ctx.restore();
 }
 
-// 더듬이 길이 배율 { L, R }. 우세 쪽은 최대 1.7배, 반대쪽은 최대 0.8배 (Claude가 정함)
-function earAntenna() {
-  const psy = window.GlobalState.psychoProfile;
-  if (!psy.dominantEar || typeof psy.earStrength !== 'number') return { L: 1, R: 1 };
-  const k = psy.earStrength / 100;
-  const long = 1 + 0.7 * k, short = 1 - 0.2 * k;
-  return psy.dominantEar === 'LEFT' ? { L: long, R: short } : { L: short, R: long };
-}
-
 // ⑦ 고르는 중의 더듬이 { L, R 길이 배율, wL, wR 꿈틀 크기 }. 달팽이가 가 있는 만큼(roll) 그쪽이 늘어남
 function earLiveAntenna() {
   const gs = window.GlobalState;
@@ -816,12 +885,11 @@ function drawAntennae(ctx, shape) {
   const time = millis() / 1000;
   const len = R0 * (0.6 + 0.25 * cur.headG * cur.headF);
   const flick = pulse.hat * 0.12;
-  // ⑦ 우세 귀 → 그쪽 더듬이가 길어짐 (사용자 지시 11/02). 화면 왼쪽 더듬이 = 왼쪽 귀, 오른쪽 더듬이 = 오른쪽 귀. 세기만큼
-  // ⑦ 고르는 동안(사용자 지시 11/03): 달팽이가 간 쪽 더듬이가 과장되게 쭉 늘어나 꿈틀대고, 반대쪽은 움츠러듦
-  const ear = earAntenna();
+  // ⑦ 고르는 동안만(사용자 지시 11/03): 달팽이가 간 쪽 더듬이가 과장되게 쭉 늘어나 꿈틀대고, 반대쪽은 움츠러듦.
+  // 결과는 더듬이 길이에 남기지 않고 껍질 모양(EAR_SHELL)으로만 보여 줌 (사용자 확정 11/11)
   const live = earLiveAntenna();
-  cur.antL = lerp(cur.antL || 1, ear.L * live.L, 0.12);
-  cur.antR = lerp(cur.antR || 1, ear.R * live.R, 0.12);
+  cur.antL = lerp(cur.antL || 1, live.L, 0.12);
+  cur.antR = lerp(cur.antR || 1, live.R, 0.12);
   cur.wigL = lerp(cur.wigL || 0, live.wL, 0.12);
   cur.wigR = lerp(cur.wigR || 0, live.wR, 0.12);
   // 왼쪽을 보면 뒤집혀서 뒤쪽 더듬이가 화면 오른쪽에 옴. 화면 왼쪽 더듬이 = 왼쪽 귀
@@ -858,8 +926,19 @@ function drawAntennae(ctx, shape) {
       ctx.arc(e.x, e.y, R0 * (0.12 + 0.35 * ph), 0, TWO_PI);
       ctx.stroke();
     }
+    // Part 2 검사음이 울릴 때마다 두 끝에서 같은 고리가 퍼짐
+    const nowMs = millis();
+    tone.rings.forEach((born) => {
+      const ph = (nowMs - born) / TONE_PING.ringMs;
+      if (ph < 0 || ph >= 1) return;
+      ctx.strokeStyle = rgba(snailInk, 0.75 * (1 - ph) * (1 - ph));
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, R0 * (0.1 + 0.55 * ph), 0, TWO_PI);
+      ctx.stroke();
+    });
     ctx.shadowBlur = 0;
-  ctx.strokeStyle = rgba(snailInk, 1);
+    ctx.strokeStyle = rgba(snailInk, 1);
     ctx.lineWidth = 1.5;
     ctx.fillStyle = rgba(COLORS.bg, 1);
     ctx.beginPath();
@@ -868,7 +947,7 @@ function drawAntennae(ctx, shape) {
     ctx.stroke();
     ctx.fillStyle = rgba(COLORS.accent, 1);
     ctx.beginPath();
-    ctx.arc(e.x, e.y, R0 * 0.035, 0, TWO_PI);
+    ctx.arc(e.x, e.y, R0 * (0.035 + 0.04 * tone.env), 0, TWO_PI);
     ctx.fill();
     ctx.restore();
   });
@@ -997,10 +1076,49 @@ function drawGround(L) {
   strokeWeight(1);
   line(L.x0, cur.groundY, L.x1, cur.groundY);
   const stage = window.GlobalState.currentStage;
+  drawGroundSpectrum(L, stage.startsWith('PART1_'));
   if (stage.startsWith('PART1_')) {
     label(t('axis.low'), L.x0, cur.groundY + 10, { c: COLORS.mute, valign: TOP });
     label(t('axis.high'), L.x1, cur.groundY + 10, { c: COLORS.mute, align: RIGHT, valign: TOP });
   }
+}
+
+/**
+ * 바닥선 스펙트럼 (Part 1만): 바닥선 위로 솟는 가는 세로선. 왼쪽 = 낮은 소리, 오른쪽 = 높은 소리 (로그 주파수).
+ * EQ 뒤 소리를 재므로 ②에서 저음을 키우면 꼬리 밑이, ③에서 고음을 키우면 머리 밑이 솟음. 달팽이가 이 위에 그려져 몸 뒤는 가려짐
+ */
+function drawGroundSpectrum(L, on) {
+  const n = GROUND_SPEC.bars;
+  if (!groundSpec) groundSpec = new Array(n).fill(0);
+  const fft = window.GlobalState.audioNodes.fft;
+  const spec = on && fft ? fft.analyze() : null;
+  const nyq = spec ? getAudioContext().sampleRate / 2 : 1;
+  // ①에서 고른 볼륨만큼 되돌려 늘 비슷한 높이로 (waveAt과 같은 이유). 분석기 눈금은 70 dB가 0~1
+  const volLift = -20 * Math.log10(Math.max(0.03, window.GlobalState.userEQProfile.masterVolume)) / 70;
+  const ctx = drawingContext;
+  const maxH = cur.R0 * GROUND_SPEC.height;
+  ctx.save();
+  ctx.lineWidth = 1;
+  for (let i = 0; i < n; i++) {
+    const u = i / (n - 1);
+    let v = 0;
+    if (spec) {
+      const x = GROUND_SPEC.f0 * Math.pow(GROUND_SPEC.f1 / GROUND_SPEC.f0, u) / nyq * spec.length;
+      const b = Math.min(spec.length - 2, Math.floor(x)), f = x - b;
+      v = (spec[b] * (1 - f) + spec[b + 1] * f) / 255 + volLift;
+      v = constrain((v + GROUND_SPEC.tilt * u - 0.5) / 0.45, 0, 1); // 조용한 바닥은 버리고, 에너지가 적은 고음 쪽을 올려 고르게 (11/11 실제 비트를 재서 맞춤)
+    }
+    groundSpec[i] = v > groundSpec[i] ? v : lerp(groundSpec[i], v, GROUND_SPEC.fall);
+    const h = Math.min(1, groundSpec[i]) * maxH;
+    if (h < 0.5) continue;
+    const px = Math.round(lerp(L.x0, L.x1, u)) + 0.5;
+    ctx.strokeStyle = rgba(COLORS.ink, 0.22 + 0.6 * Math.min(1, groundSpec[i]));
+    ctx.beginPath();
+    ctx.moveTo(px, cur.groundY);
+    ctx.lineTo(px, cur.groundY - h);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawHeader(L) {
@@ -1048,7 +1166,7 @@ function voiceSliderBox() {
 
 function voiceSliderShown() {
   const gs = window.GlobalState;
-  return gs.voiceOn && stageIndex(gs.currentStage) >= 0 && gs.currentStage !== 'RESULT' && gs.currentStage !== 'MUSIC';
+  return gs.voiceOn && stageIndex(gs.currentStage) >= 0 && !isResultStage(gs.currentStage);
 }
 
 function hitVoiceSlider(px, py) {
@@ -1208,12 +1326,8 @@ function drawHoldRing() {
 }
 
 
-
-
-
-
 /* =====================================================================
- * 결과 화면: 청감 코드 + 북서울 산책 + 보내기
+ * 결과 화면: 분석(RESULT) · 세 소리 감상(MUSIC) · 보내기
  * ===================================================================== */
 
 function gs() {
@@ -1290,8 +1404,7 @@ function drawTextShade(L, k) {
 function drawMusicText(L, a) {
   label(stageCopy('MUSIC').title, width / 2, L.m + 15, { size: 36, weight: 700, a, align: CENTER, valign: TOP });
   label(getFullEarCode(gs().userEQProfile, gs().psychoProfile), width / 2, L.m + 70, { family: FONT.mono, size: min(32, width * 0.045), a, align: CENTER, valign: TOP });
-  const text = currentLang() === 'ko' ? '지금은 북서울의 소리로 미리 들어보세요' : 'Preview the sounds around Buk-Seoul';
-  wrapText(voiceBusy() ? voiceLine() : text, width - L.m * 2, 23, 500).forEach((line, i) => label(line, width / 2, L.m + 125 + i * 35, { size: 23, a, align: CENTER, valign: TOP }));
+  wrapText(voiceBusy() ? voiceLine() : t('music.preview'), width - L.m * 2, 23, 500).forEach((line, i) => label(line, width / 2, L.m + 125 + i * 35, { size: 23, a, align: CENTER, valign: TOP }));
 }
 
 function drawAnalysis(L) {
@@ -1310,6 +1423,5 @@ function drawAnalysis(L) {
     rows.forEach(line => { label(line, width / 2, y, { size, weight: 500, align: CENTER, valign: TOP }); y += size * 1.55; });
     y += 16;
   });
-  const hint = currentLang() === 'ko' ? '달팽이를 꾹 눌러 음악 들어보기 →' : 'Press and hold the snail to listen →';
-  drawHints(L, [voiceBusy() ? voiceLine() : hint]);
+  drawHints(L, [voiceBusy() ? voiceLine() : t('hint.analysis')]);
 }
