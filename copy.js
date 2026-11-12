@@ -15,7 +15,7 @@ const STAGE_COPY = {
   PART1_HIGH: { ko: { title: '머리 빚기' }, en: { title: 'Shape the head' } },
   PART1_REGISTER: { ko: { title: '껍질 얹기' }, en: { title: 'Place the shell' } },
   PART2_SENSITIVITY: { ko: { title: '어디까지 들리나요?' }, en: { title: 'How high can you hear?' } },
-  PART2_CENTER: { ko: { title: '가운데는 어디인가요?' }, en: { title: 'Where is the middle?' } },
+  PART2_CENTER: { ko: { title: '어디가 가장 편한가요?' }, en: { title: 'Where does it feel most comfortable?' } },
   PART2_EAR: { ko: { title: '어느 쪽 소리가 더 높게 들리나요?' }, en: { title: 'Which side sounds higher?' } },
   RESULT: { ko: { title: '나의 청감' }, en: { title: 'My ear profile' } },
   MUSIC: { ko: { title: '세 가지 음악 들어보기' }, en: { title: 'Listen to three tracks' } },
@@ -25,8 +25,9 @@ const STAGE_COPY = {
 // 음성 안내의 자막 (차민휘 지시문 그대로, media/voice 파일과 번호가 같음). 재생 시점은 part1_audio.js · part2_audio.js
 // 녹음이 아직 없는 줄. 녹음이 오면 media/voice에 넣고 여기서 지움. 그 전까지는 소리 없이 자막만 나옴
 const VOICE_PENDING = {
-  ko: ['m9-4', 'm9-5', 'm9-6', 'm9-7'], // 분석 화면 새 대사 (11/12). 차민휘 녹음 대기
-  en: ['m9-4', 'm9-5', 'm9-6', 'm9-7']
+  // m6-1 · m6-3: ⑥ 문구를 '편한 자리'로 바꿔 옛 녹음('가운데')을 틀지 않음. m9-4~7: 분석 화면 새 대사 (11/12). 모두 차민휘 녹음 대기
+  ko: ['m6-1', 'm6-3', 'm9-4', 'm9-5', 'm9-6', 'm9-7'],
+  en: ['m6-1', 'm6-3', 'm9-4', 'm9-5', 'm9-6', 'm9-7']
 };
 
 const VOICE_COPY = {
@@ -247,7 +248,7 @@ const LOUD_WORDS_DB = { loud: -12, quiet: -26 }; // ① 이보다 크면 "크게
 
 /**
  * 분석 화면 글 (원우리 작가 지시 11/12: 항목별로). { title 유형 제목 한 줄, items 항목 문장들 }
- * 항목 순서: ⑦ 우세 귀 · ②③ 저음/고음 · ⑤ 들리는 높이 · ① 크기 · ⑥ 가운데 · ④ 음역 · ⑧ 바탕음/배음. 재지 못한 검사는 빠짐
+ * 항목 순서: ⑦ 우세 귀 · ②③ 저음/고음 · ⑤ 들리는 높이 · ① 크기 · ⑥ 편한 자리 · ④ 음역 · ⑧ 바탕음/배음. 재지 못한 검사는 빠짐
  */
 function getSnailAnalysis(profile, psycho, name) {
   const ko = currentLang() === 'ko';
@@ -288,9 +289,9 @@ function getSnailAnalysis(profile, psycho, name) {
 
   const center = psycho.centerImage;
   if (center) items.push(pick({
-    L: ['소리의 중앙이 조금 왼쪽에 있어요. 왼쪽 귀가 더 편한가 봐요.', 'Your center of sound sits a little to the left. Maybe your left ear feels more at home.'],
-    C: ['소리의 중앙이 한가운데에 있어요. 두 귀가 고르게 들어요.', 'Your center of sound sits right in the middle. Both ears hear evenly.'],
-    R: ['소리의 중앙이 조금 오른쪽에 있어요. 오른쪽 귀가 더 편한가 봐요.', 'Your center of sound sits a little to the right. Maybe your right ear feels more at home.']
+    L: ['소리가 조금 왼쪽에 있을 때 편해요. 왼쪽 귀가 더 편한가 봐요.', 'Sound feels most comfortable a little to your left. Maybe your left ear feels more at home.'],
+    C: ['소리가 한가운데에 있을 때 편해요. 두 귀가 고르게 들어요.', 'Sound feels most comfortable right in the middle. Both ears hear evenly.'],
+    R: ['소리가 조금 오른쪽에 있을 때 편해요. 오른쪽 귀가 더 편한가 봐요.', 'Sound feels most comfortable a little to your right. Maybe your right ear feels more at home.']
   }[center]));
 
   const register = profile.registerPeak.register;

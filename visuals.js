@@ -9,7 +9,7 @@
  *   ② 저음  → 꼬리를 빚음 (위로 쓸면 통통하게, 아래로 쓸면 눌려서 작게)
  *   ③ 고음  → 머리를 빚음 (위로 쓸면 크고 높이, 아래로 쓸면 눌려서 작게)
  *   ④ 음역  → 껍질을 얹을 자리 (저음역 왼쪽 / 중음역 가운데 / 고음역 오른쪽)
- *   Part 2  → ⑦⑧은 오른쪽을 바라본 채 좌우로 이동해 답함 (사용자 확정 11/09). ⑥은 끈 각도만큼 달팽이가 2.5D로 돌고 선 색이 실시간으로 바뀜
+ *   Part 2  → ⑦⑧은 오른쪽을 바라본 채 좌우로 이동해 답함 (사용자 확정 11/09). ⑥은 끄는 만큼 껍질이 제자리에서 돌고 선 색이 실시간으로 바뀜
  *             ⑦은 고르는 쪽 더듬이가 과장되게 늘어나 꿈틀대고, 결과가 나오면 우세 귀 쪽 더듬이만 뻗어 더듬다 움찔하기를 되풀이(껍질 모양은 그대로). ⑧은 고르는 뜻대로 점액(네모/동그라미)을 흘리며 오감
  *             검사음이 울릴 때마다 두 더듬이 끝이 똑같이 울림 (좌우 대칭이라 답의 단서가 아님)
  * - Part 1에는 바닥선이 없고 ①에만 세로 크기 축(위 = 큰 소리, 아래 = 작은 소리). Part 2에는 바닥선 (⑦⑧ 답 자리가 그 위에 놓임)
@@ -45,8 +45,6 @@ const SLIME = { perSec: 14, lifeMs: 3200, speed: [18, 46], size: [2, 5] };
 const EAR_LIVE = { long: 2.6, short: 0.6, wiggle: 0.22 };
 const CRAWL_SCALE = 0.6;  // ⑦⑧ 기어가는 동안 몸 크기 배율 (Claude가 정함)
 const TAIL_CURL = { lift: 0.75, back: 0.12 };   // ② 꼬리 끝이 말려 올라가는 높이(R0 배율, 가장 올렸을 때)와 안쪽으로 말리는 정도 (Claude가 정함)
-// ⑥ 2.5D 회전 (사용자 지시 11/12: Live2D 같은 느낌): 정면에서 본 몸 너비(R0 배율), 껍질 두께 비율, 끈 각도를 따라가는 빠르기
-const TURN_25D = { front: 0.66, shell: 0.42, follow: 0.5 };
 const SHELL_POP = { spring: 0.2, damp: 0.7 }; // ④ 혹이 튀어나오는 탄성 (Claude가 정함)
 // ⑦ 우세 귀 → 그쪽 더듬이의 움직임 (ref/7번_더듬이_시안.html 값 그대로, 사용자 지시 11/12). 껍질 모양은 바꾸지 않음
 // look: 두리번 정도, in/hold/out: 움찔해 들어가고·머물고·다시 나오는 시간(초), retract: 들어가는 비율, reach: 탐색하며 더 뻗는 양
@@ -541,8 +539,6 @@ function smoothAll(L) {
   cur.helix = lerp(cur.helix || 0, tp.helix, 0.05);
   cur.twist = lerp(cur.twist || 0, tp.twist, 0.2); // 소리가 높아지는 동안 바짝 따라옴
   cur.pressAngle = tp.pressAngle;
-  // ⑥ 끈 각도만큼 몸을 돌림. ⑥이 아니면 가까운 쪽으로 돌아 옆모습(0)으로
-  cur.yaw = (cur.yaw || 0) + angDiff(part2CenterTurnDeg() * Math.PI / 180, cur.yaw || 0) * TURN_25D.follow;
   // 자리가 바뀌면 옮겨 가지 않고 새 자리에서 튀어나옴
   if (tp.shellKey !== cur.shellKey) {
     cur.shellKey = tp.shellKey;
@@ -602,8 +598,6 @@ function bodyShape() {
   const headNod = (listen.level * 0.08 + listen.boost * 0.14) * Math.sin(time * 4.4);
   const headAngle = HEAD_ANGLE - headNod;
 
-  // 2.5D: 옆모습(x)과 정면 모습(둥근 덩어리)을 각도에 따라 섞음. cos가 음수면 저절로 왼쪽을 봄
-  const yawC = Math.cos(cur.yaw || 0), yawS = Math.abs(Math.sin(cur.yaw || 0));
   const pointAt = (th) => {
     const wob = cur.wobble * (0.045 * Math.sin(3 * th + 1.1 * time) + 0.03 * Math.sin(5 * th - 1.7 * time + 1) +
       0.02 * Math.sin(2 * th + 0.6 * time));
@@ -630,44 +624,12 @@ function bodyShape() {
     y -= y / len * dent;
 
     if (y > flatY) y = flatY + (y - flatY) * 0.2;
-    return { x, y }; // 가운데 기준 옆모습
+    return { x: cx + face * x, y: cy + y };
   };
 
-  const side = [];
-  for (let i = 0; i < OUTLINE_POINTS; i++) side.push(pointAt((i / OUTLINE_POINTS) * TWO_PI));
-  const turn = turnOutline(side, R0 * TURN_25D.front * hs, yawC, yawS);
-  const place = (p) => ({ x: cx + face * turn(p), y: cy + p.y });
-  return { pts: side.map(place), cx, cy, R0, face, yaw: cur.yaw || 0, headTip: place(pointAt(headAngle)), pressPt: place(pointAt(cur.pressAngle)) };
-}
-
-/**
- * ⑥ 2.5D 회전: 옆모습 윤곽을 두께가 있는 덩어리처럼 세로축 둘레로 돌렸을 때의 가로 자리를 돌려주는 함수를 만듦.
- * 높이마다 옆모습의 가로 범위(가운데 m, 반길이 h)와 그 높이의 몸 두께 w로 타원 단면을 가정:
- *   돌린 뒤 가운데 = m·cos, 반너비 = √((h·cos)² + (w·sin)²). 점은 그 범위 안의 제 자리 비율(u)을 지킴.
- * 각도가 0이면 옆모습 그대로이고, cos가 음수면 왼쪽을 본 모습이 됨. 돌지 않을 때(⑥ 밖)는 계산하지 않음
- */
-function turnOutline(side, frontW, yawC, yawS) {
-  if (yawS < 1e-4 && yawC > 0) return (p) => p.x;
-  const n = side.length;
-  let top = Infinity, bottom = -Infinity;
-  side.forEach((p) => { top = Math.min(top, p.y); bottom = Math.max(bottom, p.y); });
-  const midY = (top + bottom) / 2, halfH = Math.max(1, (bottom - top) / 2);
-  return (p) => {
-    // 이 높이에서 옆모습이 차지하는 가로 범위
-    let x0 = p.x, x1 = p.x;
-    for (let i = 0; i < n; i++) {
-      const a = side[i], b = side[(i + 1) % n];
-      if ((a.y - p.y) * (b.y - p.y) > 0 || a.y === b.y) continue;
-      const x = a.x + (b.x - a.x) * (p.y - a.y) / (b.y - a.y);
-      if (x < x0) x0 = x;
-      if (x > x1) x1 = x;
-    }
-    const m = (x0 + x1) / 2, h = (x1 - x0) / 2;
-    const u = h > 1e-6 ? (p.x - m) / h : 0;
-    const k = (p.y - midY) / halfH; // -1 위 ~ 1 바닥
-    const w = frontW * (k < 0 ? Math.sqrt(Math.max(0, 1 - k * k)) : 1 - 0.12 * k * k); // 위는 둥글게 좁아지고 바닥은 넓게 깔림
-    return m * yawC + u * (yawC < 0 ? -1 : 1) * Math.hypot(h * yawC, Math.min(w, Math.max(h, frontW * 0.35)) * yawS);
-  };
+  const pts = [];
+  for (let i = 0; i < OUTLINE_POINTS; i++) pts.push(pointAt((i / OUTLINE_POINTS) * TWO_PI));
+  return { pts, cx, cy, R0, face, headTip: pointAt(headAngle), pressPt: pointAt(cur.pressAngle) };
 }
 
 // 등 위(또는 바닥)의 높이: x 근처 외곽선 중 가장 위. 몸을 벗어나면 바닥
@@ -970,8 +932,8 @@ function antennaStalks(shape) {
     antLook.next = time + random(3.5, 6.5);
   }
   antLook.yaw = lerp(antLook.yaw, antLook.target, 0.012);
-  const yaw = antLook.yaw * ANTENNA.look + shape.yaw; // 두리번 + ⑥ 몸 회전
-  const tip = { x: shape.headTip.x - Math.abs(antLook.yaw * ANTENNA.look) * R0 * 0.1 * Math.cos(shape.yaw), y: shape.headTip.y };
+  const yaw = antLook.yaw * ANTENNA.look;
+  const tip = { x: shape.headTip.x - Math.abs(yaw) * R0 * 0.1, y: shape.headTip.y };
 
   const live = earLiveAntenna();
   cur.antL = lerp(cur.antL || 1, live.L, 0.12);
@@ -1091,9 +1053,7 @@ function drawShell(ctx, shape) {
     prevShellX = null;
     return;
   }
-  const yawC = Math.cos(shape.yaw), yawS = Math.abs(Math.sin(shape.yaw));
-  const wide = Math.sqrt(yawC * yawC + sq(TURN_25D.shell * yawS)) * (yawC < 0 ? -1 : 1); // ⑥ 돌면 껍질이 얇아졌다가 뒤집힘
-  const x = shape.cx + cur.shellX * yawC; // shape.cx는 보내기 중·⑦⑧ 기어간 거리까지 포함
+  const x = shape.cx + cur.shellX; // shape.cx는 보내기 중·⑦⑧ 기어간 거리까지 포함
   if (prevShellX !== null) shellRot += (x - prevShellX) / Math.max(rs, 1);
   prevShellX = x;
   const y = topYAt(shape, x) - rs * 0.9 - pulse.kick * R0 * 0.1;
@@ -1103,16 +1063,16 @@ function drawShell(ctx, shape) {
   ctx.globalAlpha *= Math.min(1, cur.shellOn * 1.6);
   ctx.fillStyle = rgba(COLORS.bg, 1);
   ctx.beginPath();
-  ctx.ellipse(x, y, rs * 1.02 * Math.abs(wide), rs * 1.02, 0, 0, TWO_PI);
+  ctx.arc(x, y, rs * 1.02, 0, TWO_PI);
   ctx.fill();
 
   const turns = 3 * TWO_PI;
   const spiral = [];
   for (let a = 0; a <= turns; a += 0.07) {
     const u = a / turns;
-    const rot = shellRot;
+    const rot = shellRot + part2ShellSpin();
     const rr = rs * (0.06 + 0.9 * u) + waveAt(u) * rs * 0.35 * u;
-    spiral.push({ x: x + Math.cos(a + rot) * rr * wide, y: y + Math.sin(a + rot) * rr });
+    spiral.push({ x: x + Math.cos(a + rot) * rr, y: y + Math.sin(a + rot) * rr });
   }
   helixStroke(ctx, spiral, false, twistCount(HELIX.shellTwists), rs * HELIX.sep * 0.8);
   ctx.restore();
