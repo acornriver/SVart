@@ -34,4 +34,4 @@ npm test --prefix tests/cloud
 
 테스트는 `demo-svart-contract` 프로젝트만 사용합니다. 실제 SDK로 규칙 허용·거부, 전송→Firestore→타워 피드→매핑, 오프라인 재시도와 중복 방지를 검증합니다. Node VM 간 객체 원형 차이만 테스트 전송 경계에서 정규화합니다.
 
-**이 작업은 로컬 파일 수정과 에뮬레이터 검증까지이며 운영 배포는 하지 않았습니다.** 실제 연결 전 새 `firestore.rules`와 `firestore.indexes.json`을 `svart-tower` 프로젝트에 배포해야 합니다. 새 스키마 규칙은 과거 앱의 v1 쓰기를 거부하므로 앱·타워 공개 시점도 함께 맞춥니다.
+**2026-11-12에 `firestore.rules`와 `firestore.indexes.json`을 운영 `svart-tower` 프로젝트에 배포 완료했습니다.** 새 스키마 규칙은 과거 앱의 v1 쓰기를 거부하고 v2 문서 생성만 허용합니다.
