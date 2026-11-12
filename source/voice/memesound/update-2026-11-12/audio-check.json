@@ -73,6 +73,18 @@
       "id": "m9-7",
       "lufs": -27.0,
       "truePeakDbfs": -14.28
+    },
+    {
+      "language": "ko",
+      "id": "m4-5",
+      "lufs": -27.0,
+      "truePeakDbfs": -11.72
+    },
+    {
+      "language": "en",
+      "id": "m4-5",
+      "lufs": -27.01,
+      "truePeakDbfs": -12.21
     }
   ]
 }

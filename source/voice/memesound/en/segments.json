@@ -140,12 +140,22 @@
     },
     {
       "id": "m4-5",
-      "text": "Look, everyone! I’m changing little by little. What am I turning into?",
+      "text": "What am I turning into?",
       "start": 62.14746,
       "end": 66.074649,
       "sourceLufs": -16.8,
       "sourceTruePeakDbfs": -1.0,
-      "gainDb": -9.7
+      "gainDb": -9.7,
+      "parts": [
+        {
+          "source": "../update-2026-11-12/a-8.mp3",
+          "start": 0,
+          "end": 1.92,
+          "gainDb": -0.66
+        }
+      ],
+      "outputGainDb": 3.45,
+      "update": "2026-11-12: latest a-7/a-8 recording after shell placement."
     },
     {
       "id": "m5-1",

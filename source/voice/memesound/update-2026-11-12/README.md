@@ -1,11 +1,12 @@
 # 2026-11-12 최신 안내 음원
 
-`ref/update/f-1, f-2, w, a /`에서 전달받은 MP3를 이름의 앞뒤 공백만 정리하여 보관합니다. 원본 SHA-256은 `originals.json`에 있습니다. `a-5(1).mp3`는 `a-5.mp3`와 바이트까지 같아 하나로 합쳤습니다. 원본 보존을 확인한 뒤 `ref/update`를 정리했습니다.
+`ref/update/f-1, f-2, w, a /`에서 전달받은 MP3를 이름의 앞뒤 공백만 정리하여 보관합니다. 추가 전달된 `a-7.mp3`, `a-8.mp3`는 `ref/update/`에서 옮겼습니다. 원본 SHA-256은 `originals.json`에 있습니다. `a-5(1).mp3`는 `a-5.mp3`와 바이트까지 같아 하나로 합쳤습니다. 원본 보존을 확인한 뒤 `ref/update`를 정리했습니다.
 
 | 한국어 / 영어 원본 | 앱 안내 | 반영 위치 |
 | --- | --- | --- |
 | w-1 / w-2 | m3-1 | ③ 머리 빚기 첫 문장 (속삭임) |
 | a-1 / a-2 | m4-1 | ④ 껍질 얹기 첫 문장 (화내는 말투) |
+| a-7 / a-8 | m4-5 | ④ 종료 후 “저 지금 뭐가 되는 거죠?” / “What am I turning into?” |
 | w-3 / w-4 | m5-1 | ⑤ 고역 한계 첫 문장 (속삭임) |
 | a-3 / a-4 | m5-5 | ⑤ 종료 후 “감겼어욕!” / “All curled up, yup!” |
 | a-5 / a-6 | m8-3 | ⑧ 최초 횟수 안내의 완성 멘트 |
@@ -14,8 +15,8 @@
 ③④⑤의 뒤쪽 조작 안내와 ⑧의 “여섯 번 해볼게요” / “Let’s do this six times.”는 기존 FLAC에서 유지합니다. 문장 사이 무음에서 연결하고 속도·음정·말투는 바꾸지 않습니다. 새 원본은 gain만 조절해 기존 안내와 같은 약 −27 LUFS로 맞췄습니다. 한/영 `segments.json`의 `parts`가 실제 재생 파일을 만드는 순서·원본·구간·gain을 기록합니다. 연결 후 통합 음량의 보정은 `outputGainDb`로 기록합니다. `parts`가 있으면 기존 `start`/`end`/`gainDb`는 과거 통합 녹음의 이력이며 재생성에는 쓰지 않습니다.
 
 ```sh
-python3 scripts/split-memesound.py --ids m3-1 m4-1 m5-1 m5-5 m8-3 m9-7
-python3 scripts/split-memesound.py --lang en --ids m3-1 m4-1 m5-1 m5-5 m8-3 m9-7
+python3 scripts/split-memesound.py --ids m3-1 m4-1 m4-5 m5-1 m5-5 m8-3 m9-7
+python3 scripts/split-memesound.py --lang en --ids m3-1 m4-1 m4-5 m5-1 m5-5 m8-3 m9-7
 python3 scripts/split-memesound.py --verify-only
 python3 scripts/split-memesound.py --lang en --verify-only
 ```

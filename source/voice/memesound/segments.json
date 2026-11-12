@@ -140,12 +140,22 @@
     },
     {
       "id": "m4-5",
-      "text": "어? 여러분, 저 조금씩 달라지고 있어요. 저 지금 뭐가 되는 거죠?",
+      "text": "저 지금 뭐가 되는 거죠?",
       "start": 70.324785,
       "end": 75.065624,
       "sourceLufs": -17.3,
       "sourceTruePeakDbfs": -4.4,
-      "gainDb": -9.4
+      "gainDb": -9.4,
+      "parts": [
+        {
+          "source": "update-2026-11-12/a-7.mp3",
+          "start": 0,
+          "end": 2.64,
+          "gainDb": -3.52
+        }
+      ],
+      "outputGainDb": 3.46,
+      "update": "2026-11-12: latest a-7/a-8 recording after shell placement."
     },
     {
       "id": "m5-1",
