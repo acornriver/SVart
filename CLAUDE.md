@@ -88,9 +88,9 @@
 - **운영 Firebase 규칙·인덱스는 아직 배포하지 않았습니다.** v2 규칙은 옛 앱의 v1 생성을 거부하므로 공개 시점을 맞춰야 합니다.
 
 ### 1-7. 브랜치와 배포
-- GitHub Pages는 **`experiment/meme-sfx-captions` 브랜치의 `/`**에서 배포됩니다. `main`은 뒤처져 있고 병합은 사용자가 따로 요청할 때 합니다.
-- 11/11 효과·정리 작업(`feature/visual-effects-cleanup`)은 이 브랜치에 들어와 있습니다. 11/12 수정은 이 브랜치의 작업 폴더에 있고 **아직 커밋하지 않았습니다**.
-- 커밋과 푸시는 사용자가 요청할 때만 합니다. 산출물이 약 327MB라 Pages 배포가 `syncing_files`에서 시간 초과된 적이 있습니다(11/10).
+- 11/12까지 `experiment/meme-sfx-captions`에서 작업한 내용을 **`main`에 병합**했습니다.
+- **Firebase Hosting (`svart-tower`)**: `firebase.json`에서 루트(`"public": "."`)를 배포하며, 개발·원본 폴더(`source/`, `tests/`, `docs/`, `scripts/`, `ref/`, `render/`, `media/img/` 등)는 `hosting.ignore`로 제외합니다. `main` 브랜치에 푸시하면 `.github/workflows/firebase-hosting-merge.yml`을 통해 자동 배포됩니다.
+- 커밋과 푸시는 사용자가 요청할 때만 합니다. 산출물이 약 327MB라 GitHub Pages 배포가 `syncing_files`에서 시간 초과된 적이 있습니다(11/10).
 
 ### 1-8. 결과 문구 작업 (진행 중)
 - 다른 작성자가 채울 문서: `docs/result-copy-guide.md`(분기·작성 기준), `docs/result-copy-worksheet.md`(채울 표). 받은 뒤 조건·자리표시자와 함께 코드에 반영합니다.
