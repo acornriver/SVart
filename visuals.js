@@ -107,7 +107,7 @@ function setupResultAction() {
   resultAction.type = 'button';
   resultAction.className = 'analysis-next';
   resultAction.hidden = true;
-  ['mousedown', 'touchstart'].forEach(name => resultAction.addEventListener(name, event => event.stopPropagation()));
+  ['mousedown', 'touchstart', 'touchend'].forEach(name => resultAction.addEventListener(name, event => event.stopPropagation()));
   resultAction.addEventListener('click', () => {
     if (gs().currentStage !== 'RESULT' || !canConfirmResult() || voiceBusy() || inputLocked() || portraitBlocked()) return;
     pointerCancel();
@@ -136,7 +136,7 @@ function setupTowerCard() {
   towerCard.hidden = true;
   towerCard.innerHTML = '<div class="tower-scan"><h2></h2><div class="tower-qr"></div><p class="tower-lead"></p><p class="tower-tap"></p></div>'
     + '<div class="tower-credits"><h3></h3><p class="tower-artist"></p><p class="tower-caption"></p><p class="tower-staff"></p><p class="tower-tracks"></p></div>';
-  ['mousedown', 'touchstart'].forEach(name => towerCard.addEventListener(name, event => event.stopPropagation()));
+  ['mousedown', 'touchstart', 'touchend'].forEach(name => towerCard.addEventListener(name, event => event.stopPropagation()));
   towerCard.addEventListener('click', () => {
     if (towerCard.hidden || millis() - towerCardAt < TOWER_CARD_GUARD_MS) return;
     lastActivity = millis();

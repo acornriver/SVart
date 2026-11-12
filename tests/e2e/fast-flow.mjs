@@ -192,7 +192,8 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   await ready();
   await check("__fastFlow.voices.every(x => x.id.startsWith('m'))", 'Legacy guide played');
   await check("__fastFlow.voices.every(x => !/drum\\s*roll|드럼\\s*롤|두두둥/i.test(voiceText(x.id)))", 'Production direction leaked into subtitles');
-  await check("JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'PART2_CENTER').map(x => x.id)) === JSON.stringify(['m5-5','m6-1','m6-2','m6-4','m6-3'])", 'Wrong center guide order');
+  // ⑥ skips the two caption-only lines (m6-1, m6-3) in both languages until they are recorded.
+  await check(`JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'PART2_CENTER').map(x => x.id)) === '["m5-5","m6-2","m6-4"]'`, 'Wrong center guide order');
   await check("!__fastFlow.buffers.some(x => x.phase === 'example')", 'Unexpected legacy example');
   await check("JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'RESULT').map(x => x.id)) === JSON.stringify(['m9-1','m9-4','m9-5','m9-6','m9-7'])", 'Wrong result guides');
   await check("getSnailAnalysis(GlobalState.userEQProfile,GlobalState.psychoProfile,'').items.length === 7", 'Analysis must list all seven items');
