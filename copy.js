@@ -25,8 +25,8 @@ const STAGE_COPY = {
 // 음성 안내의 자막 (차민휘 지시문 그대로, media/voice 파일과 번호가 같음). 재생 시점은 part1_audio.js · part2_audio.js
 // 녹음이 아직 없는 줄. 녹음이 오면 media/voice에 넣고 여기서 지움. 그 전까지는 소리 없이 자막만 나옴
 const VOICE_PENDING = {
-  ko: [],
-  en: []
+  ko: ['m9-4', 'm9-5', 'm9-6', 'm9-7'], // 분석 화면 새 대사 (11/12). 차민휘 녹음 대기
+  en: ['m9-4', 'm9-5', 'm9-6', 'm9-7']
 };
 
 const VOICE_COPY = {
@@ -103,8 +103,8 @@ const COPY = {
     'result.eqMine': '내 귀 EQ',
 
 
-    'axis.low': '낮은 소리',
-    'axis.high': '높은 소리',
+    'axis.loud': '큰 소리',
+    'axis.quiet': '작은 소리',
     'ear.L': '왼쪽',
     'ear.R': '오른쪽',
     'pitch.L': '내려갔어요',
@@ -136,7 +136,7 @@ const COPY = {
     'row.register': '껍질 · 음역',
     'row.hearing': '꼬임 · 들리는 높이',
     'row.pan': '색 · 가운데',
-    'row.ear': '껍질 모양 · 우세 귀',
+    'row.ear': '더듬이 · 우세 귀',
     'row.pitch': '바탕음/배음',
     'register.LOW': '저음역',
     'register.MID': '중음역',
@@ -168,8 +168,8 @@ const COPY = {
     'result.eqMine': 'My Ear EQ',
 
 
-    'axis.low': 'low',
-    'axis.high': 'high',
+    'axis.loud': 'Loud',
+    'axis.quiet': 'Quiet',
     'ear.L': 'Left',
     'ear.R': 'Right',
     'pitch.L': 'Down',
@@ -201,7 +201,7 @@ const COPY = {
     'row.register': 'Shell · register',
     'row.hearing': 'Twist · highest heard',
     'row.pan': 'Color · middle',
-    'row.ear': 'Shell shape · leading ear',
+    'row.ear': 'Feelers · leading ear',
     'row.pitch': 'Pitch mode',
     'register.LOW': 'Low',
     'register.MID': 'Mid',
@@ -236,21 +236,77 @@ function stageCopy(stage) {
   return c ? c[currentLang()] || c.ko : null;
 }
 
-// Result copy describes this participant's choices, without population rankings.
+// 고역 한계 → 나이 표현. 30대 이하로 나올 때만 말하고 그 밖에는 높이만 알려 줌 (사용자 확정 11/12).
+// 기준 높이는 Claude가 정한 초안 (작가 예시: 16kHz = 10대). 헤드폰·음량에 따라 달라지므로 재미로만
+const HEARING_AGE = [
+  { hz: 16000, ko: '10대 청소년', en: 'a teenager' },
+  { hz: 15000, ko: '20대', en: 'someone in their twenties' },
+  { hz: 14000, ko: '30대', en: 'someone in their thirties' }
+];
+const LOUD_WORDS_DB = { loud: -12, quiet: -26 }; // ① 이보다 크면 "크게", 작으면 "작게" (Claude가 정함)
+
+/**
+ * 분석 화면 글 (원우리 작가 지시 11/12: 항목별로). { title 유형 제목 한 줄, items 항목 문장들 }
+ * 항목 순서: ⑦ 우세 귀 · ②③ 저음/고음 · ⑤ 들리는 높이 · ① 크기 · ⑥ 가운데 · ④ 음역 · ⑧ 바탕음/배음. 재지 못한 검사는 빠짐
+ */
 function getSnailAnalysis(profile, psycho, name) {
   const ko = currentLang() === 'ko';
+  const pick = (pair) => pair[ko ? 0 : 1];
   const low = shelfToLetter(profile.lowShelf.gain, 'LOW');
   const high = shelfToLetter(profile.highShelf.gain, 'HIGH');
   const names = { TV: ['차분한', 'quiet'], TE: ['가벼운', 'light'], TS: ['선명한', 'crisp'], EV: ['부드러운', 'gentle'], EE: ['균형 잡힌', 'balanced'], ES: ['또렷한', 'bright'], WV: ['포근한', 'warm'], WE: ['묵직한', 'deep'], WS: ['풍성한', 'vivid'] };
-  const type = (names[low + high] || ['개성 있는', 'distinctive'])[ko ? 0 : 1];
-  const bass = { T: ['가벼운 저음', 'lighter bass'], E: ['자연스러운 저음', 'natural bass'], W: ['풍성한 저음', 'fuller bass'] }[low][ko ? 0 : 1];
-  const treble = { V: ['부드러운 고음', 'softer treble'], E: ['자연스러운 고음', 'natural treble'], S: ['또렷한 고음', 'brighter treble'] }[high][ko ? 0 : 1];
+  const type = pick(names[low + high] || ['개성 있는', 'distinctive']);
+  const items = [];
+
   const ear = psycho.dominantEar;
-  const side = ear === 'LEFT' ? (ko ? '왼' : 'left') : (ko ? '오른' : 'right');
-  const paragraphs = [ko ? `${bass}과 ${treble}이 편안한 소리로 느껴졌어요.` : `You chose ${bass} and ${treble} as your comfortable sound.`];
-  if (ear) paragraphs.push(ko ? `소리로 비유하면 ${side}손잡이예요. 높은 음을 ${side}쪽에서 더 자주 골랐어요.` : `In sound, think of yourself as ${side}-handed: you chose the higher note on the ${side} more often.`);
+  if (ear) items.push(pick(ear === 'LEFT' ? ['당신의 귀는 왼손잡이예요.', 'Your ears are left-handed.'] : ['당신의 귀는 오른손잡이예요.', 'Your ears are right-handed.']));
+
+  items.push(pick({
+    TV: ['저음도 고음도 덜어낸 담백한 소리를 선호해요.', 'You prefer a plain sound, with less bass and less treble.'],
+    TE: ['저음이 가벼운 소리를 선호해요.', 'You prefer a sound with lighter bass.'],
+    TS: ['고음을 더 선호해요.', 'You prefer more treble.'],
+    EV: ['고음이 부드러운 소리를 선호해요.', 'You prefer a sound with softer treble.'],
+    EE: ['저음과 고음이 고른 소리를 선호해요.', 'You prefer an even balance of bass and treble.'],
+    ES: ['고음을 더 선호해요.', 'You prefer more treble.'],
+    WV: ['저음을 더 선호해요.', 'You prefer more bass.'],
+    WE: ['저음을 더 선호해요.', 'You prefer more bass.'],
+    WS: ['저음도 고음도 풍성한 소리를 선호해요.', 'You prefer a full sound, with more bass and more treble.']
+  }[low + high]));
+
+  if (typeof psycho.maxFreqHz === 'number') {
+    const khz = String(Math.round(psycho.maxFreqHz / 100) / 10);
+    const age = HEARING_AGE.find((a) => psycho.maxFreqHz >= a.hz);
+    items.push(age
+      ? (ko ? `${khz}kHz의 높은 음까지 아주 잘 들어요. 이건 나이로 따지자면 ${age.ko}이에요.` : `You hear very well, all the way up to ${khz} kHz. In ear years, that’s ${age.en}.`)
+      : (ko ? `${khz}kHz의 높은 음까지 들어요.` : `You hear up to ${khz} kHz.`));
+  }
+
+  const volDb = 20 * Math.log10(Math.max(profile.masterVolume, 1e-4));
+  items.push(pick(volDb >= LOUD_WORDS_DB.loud ? ['소리를 크게 듣는 것을 좋아해요.', 'You like to listen loud.']
+    : volDb <= LOUD_WORDS_DB.quiet ? ['소리를 작게 듣는 것을 좋아해요.', 'You like to listen quietly.']
+      : ['적당한 크기의 소리를 좋아해요.', 'You like a moderate volume.']));
+
+  const center = psycho.centerImage;
+  if (center) items.push(pick({
+    L: ['소리의 중앙이 조금 왼쪽에 있어요. 왼쪽 귀가 더 편한가 봐요.', 'Your center of sound sits a little to the left. Maybe your left ear feels more at home.'],
+    C: ['소리의 중앙이 한가운데에 있어요. 두 귀가 고르게 들어요.', 'Your center of sound sits right in the middle. Both ears hear evenly.'],
+    R: ['소리의 중앙이 조금 오른쪽에 있어요. 오른쪽 귀가 더 편한가 봐요.', 'Your center of sound sits a little to the right. Maybe your right ear feels more at home.']
+  }[center]));
+
+  const register = profile.registerPeak.register;
+  if (register) items.push(pick({
+    LOW: ['세 멜로디 중 낮은 멜로디가 가장 편했어요.', 'Of the three tunes, the low one felt most comfortable.'],
+    MID: ['세 멜로디 중 가운데 멜로디가 가장 편했어요.', 'Of the three tunes, the middle one felt most comfortable.'],
+    HIGH: ['세 멜로디 중 높은 멜로디가 가장 편했어요.', 'Of the three tunes, the high one felt most comfortable.']
+  }[register]));
+
   const pitch = psycho.pitchMode;
-  if (pitch) paragraphs.push(ko ? ({ F: '소리를 받쳐주는 낮은 바탕음을 따라 음의 움직임을 느끼는 편이에요.', H: '소리 위로 겹쳐지는 높은 울림을 따라 음의 움직임을 느끼는 편이에요.', B: '낮은 바탕음과 높은 울림을 함께 따라 음의 움직임을 느꼈어요.' }[pitch]) : ({ F: 'You tended to follow the low foundation when hearing a melody move.', H: 'You tended to follow the higher overtones when hearing a melody move.', B: 'You followed both the low foundation and the higher overtones.' }[pitch]));
+  if (pitch) items.push(pick({
+    F: ['소리를 받쳐 주는 낮은 바탕음을 따라 음의 움직임을 느껴요.', 'You follow the low foundation of a sound to hear it move.'],
+    H: ['소리 위에 겹쳐지는 높은 울림을 따라 음의 움직임을 느껴요.', 'You follow the higher overtones of a sound to hear it move.'],
+    B: ['낮은 바탕음과 높은 울림을 함께 따라 음의 움직임을 느껴요.', 'You follow both the low foundation and the higher overtones.']
+  }[pitch]));
+
   const userName = String(name || '').trim();
-  return { title: ko ? `${userName ? userName + '님은 ' : ''}${type} 달팽이예요` : `${userName ? userName + ', your' : 'Your'} snail is ${type}`, paragraphs };
+  return { title: ko ? `${userName ? userName + '님은 ' : ''}${type} 달팽이예요` : `${userName ? userName + ', your' : 'Your'} snail is ${type}`, items };
 }

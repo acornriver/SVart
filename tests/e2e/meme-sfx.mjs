@@ -103,7 +103,7 @@ await delay(200); await shot('volume-slider-landscape');
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
 for(const key of ['size','shell','reveal']) {
   if (key === 'shell') await ev("GlobalState.userEQProfile.registerPeak.register='HIGH';goToStep(3);");
-  if (key === 'reveal') await ev("goToStep(8)");
+  if (key === 'reveal') await ev("goToStep(7)"); // 실제 흐름처럼 ⑧에서 완성 장면으로 (분석 화면은 스스로 안내를 이어 가므로 그 위에서 띄우지 않음)
   await ev(`window.__done=false; MemeFX.transition('${key}',()=>{window.__done=true;unlockInput(0)}); true`);
   await delay(key === 'reveal' ? 1150 : 650);await shot('meme-'+key);
   await check("MemeFX.busy() && inputLocked() && !voiceBusy() && activeSourceKey === null",'SFX overlaps guide/source or fails to lock');

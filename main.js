@@ -23,6 +23,7 @@
 
 const HOLD_MS = 900;            // 꾹 누르기로 확정되기까지
 const TAP_MOVE_PX = 10;         // 이보다 많이 움직이면 톡·꾹이 아니라 끌기
+const HOLD_SLOP_PX = 48;        // 달팽이를 꾹 누르는 중에는 손끝이 이만큼 미끄러져도 계속 누르는 것으로 침 (사용자 지시 11/12 판정 완화. 값은 Claude가 정함)
 const REPLAY_TAP_MS = 500;      // 이보다 오래 누르면 다시 듣기가 아님 (확정이 안 될 때 꾹 눌렀다 뗀 손가락이 다시 듣기가 되지 않게. Claude가 정함)
 const DRAG_AXIS_RATIO = 1.5;    // 처음 움직인 방향이 이 배수만큼 위아래(또는 좌우)여야 쓸기로 침. 대각선은 무시 (56°쯤. Claude가 정함)
 const SEND_PUSH_RATIO = 0.18;   // 결과: 달팽이를 화면 너비의 이만큼 오른쪽으로 밀면 보내기
@@ -215,7 +216,9 @@ function pointerMove(px, py) {
   }
   pointer.x = px;
   pointer.y = py;
-  if (pointer.mode === 'pending' && Math.hypot(px - pointer.x0, py - pointer.y0) > TAP_MOVE_PX) {
+  // 꾹으로 확정할 수 있는 때 달팽이 위에서 시작한 손가락은 조금 끌려도 고리가 계속 차오름
+  const slop = pointer.onSnail && pointer.canHold && canHoldConfirm() ? HOLD_SLOP_PX : TAP_MOVE_PX;
+  if (pointer.mode === 'pending' && Math.hypot(px - pointer.x0, py - pointer.y0) > slop) {
     pointer.mode = dragAxisOk(px - pointer.x0, py - pointer.y0) ? 'drag' : 'ignored';
     pointer.lastX = pointer.x0; // 끌기로 바뀌기 전 움직인 만큼도 반영
     pointer.lastY = pointer.y0;
@@ -290,7 +293,7 @@ function canHoldConfirm() {
   if (voiceBusy() || inputLocked()) return false; // 말이 끝나기 전에 닿아 있던 손가락으로 넘어가지 않게
   if (PART1_ADJUST[stage]) return canConfirmAdjust();
   if (stage === 'PART1_REGISTER') return gs.part1.register.selectedCard >= 0 && !gs.part1.register.isAutoPlaying && !!voiceCue.picked;
-  if (stage === 'RESULT') return true;
+  if (stage === 'RESULT') return canConfirmResult();
   if (stage === 'PART2_CENTER' || stage === 'PART2_SENSITIVITY') return canConfirmPart2(); // ⑦⑧은 손을 떼면 답 (releaseRoll)
   return false;
 }

@@ -13,6 +13,7 @@
  */
 
 const VOICE_LEVEL_START = 0.8; // 제곱 게인 -3.9dB. 공통 출력 +6dB와 함께 기존 기본값보다 약 10dB 크게.
+const VOICE_FOLLOW = { refDb: -20, minDb: -12, maxDb: 6 }; // ① 볼륨이 refDb일 때 안내는 그대로. 그보다 작으면 최대 12dB 작게, 크면 최대 6dB 크게
 const VOICE_GAP_MS = 200;       // 줄 사이 숨 고르기
 const VOICE_FALLBACK_SEC = 0.09; // 파일을 못 읽었을 때 글자당 자막을 보여 줄 시간
 const VOICE_LOAD_TRIES = 3;
@@ -71,9 +72,18 @@ function resetVoiceLevel() {
   setVoiceLevel(VOICE_LEVEL_START);
 }
 
+// ①에서 고른 볼륨을 안내·효과음에도 (사용자 지시 11/12). ①을 확정한 뒤부터, 기준 볼륨에서 벗어난 만큼 1:1로 따라가되
+// 너무 작아 안 들리거나 너무 커지지 않게 범위를 둠 (사용자 확정: 범위 제한. 기준과 범위 값은 Claude가 정함). 슬라이더는 그 위에 곱해짐
+function voiceFollowDb() {
+  const gs = window.GlobalState;
+  if (FLOW_STAGES.indexOf(gs.currentStage) < 1) return 0; // 첫 화면과 ①을 고르는 동안은 그대로
+  const volDb = 20 * Math.log10(Math.max(gs.userEQProfile.masterVolume, 1e-4));
+  return constrain(volDb - VOICE_FOLLOW.refDb, VOICE_FOLLOW.minDb, VOICE_FOLLOW.maxDb);
+}
+
 function voiceGain() {
   const gs = window.GlobalState;
-  return gs.voiceOn ? gs.voiceLevel * gs.voiceLevel : 0;
+  return gs.voiceOn ? gs.voiceLevel * gs.voiceLevel * Math.pow(10, voiceFollowDb() / 20) : 0;
 }
 
 function applyVoiceGain() {

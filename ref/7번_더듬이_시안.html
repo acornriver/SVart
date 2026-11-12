@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7번 더듬이 시안</title>
+<style>
+  body { font-family: -apple-system, sans-serif; background: #000; color: #eee; margin: 24px; max-width: 820px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  p.note { color: #999; font-size: 13px; line-height: 1.6; margin: 0 0 14px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+  button { font: inherit; padding: 8px 14px; background: #1a1a1a; color: #eee; border: 1px solid #555; border-radius: 6px; cursor: pointer; }
+  button.on { background: #eee; color: #111; border-color: #eee; }
+  label { font-size: 13px; color: #bbb; display: flex; gap: 6px; align-items: center; }
+  canvas { display: block; width: 100%; max-width: 800px; }
+</style>
+</head>
+<body>
+<h1>7번 우세 귀 → 더듬이 시안</h1>
+<p class="note">
+  달팽이는 오른쪽을 봅니다. 화면 앞쪽 더듬이 = 오른쪽 귀, 뒤쪽 더듬이 = 왼쪽 귀 (SVart 최신판과 같은 약속).<br>
+  두 더듬이는 V자로 벌어져 늘 두 개로 보입니다. 움직임만 실제 달팽이를 따름: 휘기보다 뿌리에서 방향이 천천히 바뀜.<br>
+  우세 귀 쪽만: 천천히 1.45배까지 뻗으며 이리저리 더듬다가(3.5~6초)
+  → 움찔: 끝부터 말려 들어감(끝 점이 먼저 작아져 사라짐) → 몇 초에 걸쳐 다시 밀려 나오고, 거의 다 나왔을 때 끝 점이 다시 커짐 → 다시 탐색.
+</p>
+<div class="row">
+  <span style="font-size:13px;color:#bbb">우세 귀</span>
+  <button data-ear="L">왼쪽</button>
+  <button data-ear="" class="on">없음</button>
+  <button data-ear="R">오른쪽</button>
+</div>
+<div class="row">
+  <label><input type="checkbox" id="fxRing"> 끝에서 고리</label>
+  <label><input type="checkbox" id="fxRed"> 끝이 빨강</label>
+  <label>세기 <input type="range" id="amt" min="0" max="1" step="0.01" value="1"></label>
+  <label>두리번 정도 <input type="range" id="nod" min="0" max="1" step="0.01" value="0.6"></label>
+</div>
+<canvas id="cv" width="1600" height="900"></canvas>
+
+<script>
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height, INK = [245, 245, 240], RED = [255, 59, 31];
+let ear = '';
+const anim = { L: 0, R: 0 }; // 효과 정도 (부드럽게 따라감)
+// 두리번: 가운데 → 한쪽 → 잠깐 멈춤 → 다른 쪽 … (목표 각을 가끔 바꾸고 부드럽게 따라감)
+const look = { yaw: 0, target: 0, next: 0 };
+function updateLook(t) {
+  if (t > look.next) {
+    const opts = [-0.6, 0, 0.6].filter((v) => v !== look.target);
+    look.target = opts[Math.floor(Math.random() * opts.length)];
+    look.next = t + 3.5 + Math.random() * 3; // 한 방향을 3.5~6.5초 봄
+  }
+  look.yaw += (look.target - look.yaw) * 0.012; // 천천히 고개를 돌림
+}
+// 우세 귀 더듬이 한 바퀴 (실제 달팽이처럼):
+//  탐색: 천천히 쭉 뻗으면서 끝이 이리저리 더듬음 (3.5~6초) → 움찔: 쏙 들어감(0.35초) → 잠깐(0.4초)
+//  → 천천히 다시 나옴(2.5초) → 다시 탐색 …
+const CYCLE = { inSec: 0.35, holdSec: 0.6, outSec: 3.0, retract: 0.82, reach: 0.45 }; // reach: 탐색하며 뻗는 양 (1.45배까지). 다시 나오는 데 몇 초 (관찰 기록)
+const cyc = { start: 0, explore: 4.5 };
+const easeIO = (x) => x * x * (3 - 2 * x);
+function cycleState(t) {
+  const { inSec, holdSec, outSec, retract, reach } = CYCLE;
+  let p = t - cyc.start;
+  const total = cyc.explore + inSec + holdSec + outSec;
+  if (p > total) { cyc.start = t; cyc.explore = 3.5 + Math.random() * 2.5; p = 0; }
+  if (p < cyc.explore) { const e = easeIO(p / cyc.explore); return { len: 1 + reach * e, explore: Math.min(1, p / 1.5), knob: 1 }; } // 탐색하며 뻗음
+  p -= cyc.explore;
+  const full = 1 + reach;
+  // 움찔: 장갑 손가락을 뒤집듯 끝(눈 혹)부터 말려 들어감 → 혹이 먼저 사라지고 줄기가 짧아짐
+  if (p < inSec) { const r = Math.sin(p / inSec * Math.PI / 2); return { len: full + ((1 - retract) - full) * r, explore: 1 - r, knob: Math.max(0, 1 - r * 2.5) }; }
+  p -= inSec;
+  if (p < holdSec) return { len: 1 - retract, explore: 0, knob: 0 };
+  p -= holdSec;
+  // 다시 나옴: 뿌리부터 밀려 나오고, 거의 다 나왔을 때 끝의 혹이 뒤집혀 나타남
+  const qq = p / outSec, q = 1 - Math.pow(1 - qq, 2);
+  return { len: (1 - retract) + retract * q, explore: 0, knob: Math.max(0, Math.min(1, (qq - 0.55) / 0.3)) };
+}
+const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+const $ = (id) => document.getElementById(id);
+
+// SVart scopeStroke 흉내: 넓은 빨간 잔광 + 가는 흰 선
+function scope(pts, closed, weight = 1, alpha = 1) {
+  const path = () => { ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); if (closed) ctx.closePath(); ctx.stroke(); };
+  ctx.save(); ctx.lineJoin = ctx.lineCap = 'round';
+  ctx.strokeStyle = rgba(RED, 0.25 * alpha); ctx.lineWidth = 10 * weight; path();
+  ctx.strokeStyle = rgba(INK, alpha); ctx.lineWidth = 3 * weight; path();
+  ctx.restore();
+}
+
+function frame(ms) {
+  const t = ms / 1000, amt = Number($('amt').value), nodAmt = Number($('nod').value);
+  ['L', 'R'].forEach((s) => { anim[s] += ((ear === s ? 1 : 0) - anim[s]) * 0.08; });
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  const gy = H * 0.72, cx = W * 0.45, R0 = 150;
+  ctx.strokeStyle = '#3a3a38'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(80, gy); ctx.lineTo(W - 80, gy); ctx.stroke();
+
+  updateLook(t);
+  const nod = 0; // 몸통 머리는 그대로, 두리번은 더듬이 쪽에서
+
+  // 몸: 낮고 긴 덩어리, 오른쪽 위로 머리 (뒤 더듬이를 그린 다음에 그려서 그 뿌리를 가림)
+  const drawBody = () => {
+  const body = [];
+  for (let i = 0; i <= 160; i++) {
+    const th = i / 160 * Math.PI * 2;
+    let x = Math.cos(th) * R0 * 1.55, y = Math.sin(th) * R0 * 0.55;
+    const head = Math.exp(-Math.pow((th - (Math.PI * 2 - 0.45 - nod)) % (Math.PI * 2) / 0.5, 2));
+    x += head * R0 * 0.55; y -= head * R0 * (0.55 + nod);
+    if (y > R0 * 0.4) y = R0 * 0.4 + (y - R0 * 0.4) * 0.2;
+    body.push({ x: cx + x, y: gy - R0 * 0.4 + y });
+  }
+  ctx.fillStyle = '#000'; ctx.beginPath(); body.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.fill();
+  scope(body, true);
+
+  // 껍질: 등 위 나선
+  const sx = cx - R0 * 0.25, sy = gy - R0 * 1.35, shell = [];
+  for (let i = 0; i <= 220; i++) { const a = i / 220 * Math.PI * 6, r = R0 * 0.95 * (1 - i / 260); shell.push({ x: sx + Math.cos(a) * r, y: sy + Math.sin(a) * r * 0.92 }); }
+  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(sx, sy, R0 * 0.95, 0, Math.PI * 2); ctx.fill();
+  scope(shell, false, 0.9);
+  };
+
+  // 더듬이: 3D로 놓고 옆에서 봄. 달팽이는 +x를 보고, 화면 앞(+z)이 달팽이의 오른쪽.
+  // 두리번 = 머리를 좌우로 돌림(yaw). 정면 옆모습(yaw 0)이면 왼쪽 더듬이는 오른쪽 더듬이 뒤에 겹쳐 가려짐.
+  const yaw = look.yaw * nodAmt;
+  const tip = { x: cx + R0 * 1.75 - Math.abs(yaw) * R0 * 0.12, y: gy - R0 * 0.95 };
+  const cs = cycleState(t);
+  // 실제 달팽이 윗더듬이(눈자루): 거의 곧은 가는 원통, 끝에 동그란 눈 혹. 둘이 V자로 벌어져 비스듬히 앞위를 향함.
+  // 움직임은 휘기보다 뿌리에서 방향이 천천히 바뀌는 것 (줄기는 살짝만 활처럼). 따로따로 움직임.
+  const rot = (X, Y, Z) => ({ x: tip.x + X * Math.cos(yaw) + Z * Math.sin(yaw), y: tip.y - Y, z: -X * Math.sin(yaw) + Z * Math.cos(yaw) });
+  const stalks = ['L', 'R'].map((side) => {
+    const lat = side === 'R' ? 1 : -1;
+    const k = anim[side] * Math.max(0.3, amt); // 우세 귀 정도 × 세기
+    // 길이: 우세 귀 쪽만 한 바퀴(탐색하며 뻗음 → 움찔 → 천천히 나옴), 반대쪽은 그대로
+    const len = R0 * 0.95 * (1 + (cs.len - 1) * k);
+    const knob = 1 + (cs.knob - 1) * k; // 눈 혹: 움찔하면 끝부터 말려 들어가 사라졌다가, 다 나올 무렵 다시 보임
+    // 방향: 평소 아주 느린 흔들림 + 우세 귀 쪽은 탐색할 때 더 크게 이리저리 (느리게)
+    const ex = cs.explore * k, ph = side === 'R' ? 0 : 2.3;
+    const el = (side === 'L' ? 1.12 : 0.92) + 0.05 * Math.sin(t * 0.45 + ph) + ex * (0.28 * Math.sin(t * 0.55 + 0.4) + 0.08 * Math.sin(t * 1.1 + 2.1));
+    const az = lat * 0.42 + ex * 0.45 * Math.sin(t * 0.38 + 1.3); // 옆으로 벌어진 각
+    // 줄기는 살짝 뒤로 활처럼 (움직이는 반대쪽으로 아주 조금 늦게 따라옴)
+    const bow = 0.06 - ex * 0.05 * Math.cos(t * 0.55 + 0.4);
+    const baseX = side === 'L' ? -R0 * 0.16 : 0; // 왼쪽(뒤)은 조금 뒤에서 나옴 → 둘이 겹치지 않음
+    const dir = [Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az)];
+    const nrm = [-Math.sin(el) * Math.cos(az), Math.cos(el), -Math.sin(el) * Math.sin(az)]; // 활 방향 (위아래 평면)
+    const pts = [];
+    for (let i = 0; i <= 20; i++) {
+      const q = i / 20, b = bow * len * Math.sin(q * Math.PI) * -1;
+      pts.push(rot(baseX + dir[0] * len * q + nrm[0] * b, dir[1] * len * q + nrm[1] * b, lat * R0 * 0.06 + dir[2] * len * q + nrm[2] * b));
+    }
+    return { side, k, pts, knob, depth: pts[pts.length - 1].z };
+  }).sort((a, b) => a.depth - b.depth); // 뒤에 있는 것부터 그림
+
+  // 아랫더듬이: 입 쪽의 짧은 한 쌍 (냄새·땅 더듬기). 작게만
+  const drawLower = () => {
+    [-1, 1].forEach((lat) => {
+      const a = -0.45 + 0.08 * Math.sin(t * 0.7 + lat), L = R0 * 0.28, pts = [];
+      for (let i = 0; i <= 8; i++) { const q = i / 8; pts.push(rot(R0 * 0.18 + Math.cos(a) * L * q, -R0 * 0.32 + Math.sin(a) * L * q, lat * R0 * 0.1)); }
+      scope(pts, false, 0.7, lat > 0 ? 1 : 0.5);
+      const e = pts[pts.length - 1]; ctx.fillStyle = rgba(INK, lat > 0 ? 1 : 0.5); ctx.beginPath(); ctx.arc(e.x, e.y, 4, 0, Math.PI * 2); ctx.fill();
+    });
+  };
+
+  stalks.forEach((s, idx) => {
+    const behind = idx === 0;
+    if (!behind) drawBody(); // 뒤 더듬이 → 몸 → 앞 더듬이 순서
+    s.alpha = behind ? 0.5 : 1;
+    const k = s.k;
+    const pts = s.pts;
+    scope(pts, false, 0.9, s.alpha);
+    const e = pts[pts.length - 1];
+    // 끝 점 (원래 SVart처럼 채운 동그라미). 움찔하면 작아져 사라졌다가 다시 커짐 (빨강 효과면 그쪽만 빨강)
+    const red = $('fxRed').checked ? k * amt : 0;
+    const kr = (7 + 5 * red) * s.knob;
+    if (kr > 0.5) {
+      ctx.fillStyle = `rgba(${245 + 10 * red},${245 - 186 * red},${240 - 209 * red},${s.alpha})`;
+      ctx.beginPath(); ctx.arc(e.x, e.y, kr, 0, Math.PI * 2); ctx.fill();
+    }
+    if ($('fxRing').checked && k > 0.05) {
+      for (let j = 0; j < 2; j++) {
+        const ph = ((t / 1.4) + j / 2) % 1;
+        ctx.strokeStyle = rgba(RED, 0.7 * (1 - ph) * k * Math.max(0.3, amt)); ctx.lineWidth = 2.4;
+        ctx.beginPath(); ctx.arc(e.x, e.y, R0 * (0.1 + 0.4 * ph), 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+    ctx.fillStyle = rgba(INK, 0.45 * s.alpha); ctx.font = '26px sans-serif';
+    ctx.fillText(s.side === 'L' ? '왼귀' : '오른귀', e.x + 16, e.y - 10);
+  });
+  requestAnimationFrame(frame);
+}
+document.querySelectorAll('[data-ear]').forEach((b) => b.addEventListener('click', () => {
+  ear = b.dataset.ear;
+  document.querySelectorAll('[data-ear]').forEach((x) => x.classList.toggle('on', x === b));
+}));
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

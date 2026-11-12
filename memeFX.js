@@ -110,6 +110,16 @@ window.MemeFX = (() => {
       }, cue.duration * 1000 + 60);
     });
   }
+  // 장면 없이 효과음 하나만 (분석 화면의 드럼롤·짜잔). 안내 음량 슬라이더를 따름
+  function sound(key) {
+    if (!buffers[key] || !GlobalState.isAudioInitialized) return;
+    try {
+      const ctx = getAudioContext(), gain = ctx.createGain(), src = ctx.createBufferSource();
+      gain.gain.value = voiceGain(); gain.connect(AudioMix.bus('effects'));
+      src.buffer = buffers[key]; src.connect(gain); src.onended = () => { try { gain.disconnect(); } catch {} };
+      src.start();
+    } catch { /* 소리가 없어도 화면은 진행 */ }
+  }
   function cueFor(stage, next) {
     if (next === 'RESULT') return 'reveal';
     if (stage === 'PART1_VOLUME') return 'size';
@@ -125,7 +135,7 @@ window.MemeFX = (() => {
     if (!done || run !== epoch) return;
     transitioning = false; proceed();
   }
-  return { load, cancel, transition, cueFor, updateGain, history,
+  return { load, cancel, transition, cueFor, sound, updateGain, history,
     ready: () => soundKeys.every(key => !!buffers[key]), busy: () => transitioning || active !== null,
     activeKey: () => active?.record.key || null, gain: () => active?.gain?.gain.value ?? 0 };
 })();

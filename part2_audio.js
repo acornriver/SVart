@@ -4,7 +4,7 @@
  * 검사 설계·소리·횟수·채점은 ref 그대로이고, 답하는 방식만 이 앱의 손짓(톡 · 쓸기 · 껍질 굴리기 · 달팽이 꾹)으로 바꿨습니다.
  * ⑤ 고역 예민도 : 8→20 kHz 슬라이더. 달팽이를 오른쪽으로 밀어 소리가 사라지는 지점에서 멈추고 달팽이 꾹으로 답 확정 (사용자 지시 11/09)
  *               x축이 음고: 왼쪽 = 8kHz, 오른쪽 = 20kHz. 연속 사인파가 현재 위치의 주파수로 울림 → maxFreqHz, twist
- * ⑥ 중앙       : 머리 둘레의 비트(HRIR 68번 귀). 좌우로 쓸면 소리가 머리 둘레를 돎. 가운데면 달팽이 꾹 (2번) → centerDeg, centerImage
+ * ⑥ 중앙       : 가상의 방에 놓인 음원 6개(HRIR 68번 귀). 좌우로 쓸면 방 안에서 바라보는 방향이 돌고 달팽이도 같이 돎. 가운데면 달팽이 꾹 (2번) → centerDeg, centerImage
  * ⑦ 우세 귀     : 옥타브 착청(Deutsch 1974). 높은 음이 들린 쪽으로 달팽이를 기어가게 하고 손을 떼면 바로 답 (3번) → dominantEar
  * ⑧ 바탕음·배음 : 바탕음 없는 복합음 두 개. 올라감 = 오른쪽, 내려감 = 왼쪽으로 달팽이를 보내고 손을 떼면 바로 답 (예시 + 6번) → pitchMode
  *   ⑦⑧은 껍질이 아니라 달팽이가 직접 몸을 돌려 기어감 (사용자 지시 11/03). roll = 달팽이 자리
@@ -217,8 +217,10 @@ function sensToneStop() {
 
 /* =====================================================================
  * ⑥ 중앙 (ref js/tests/center.js)
- * 68번 귀 HRIR(36방향)로 비트(120 BPM, 못 그리면 말소리)를 머리 둘레에 놓음. 시작은 좌우로 45–90° 치우친 곳(얼굴 쪽이나 뒤통수 쪽).
- * 앞뒤는 묻지 않음: 결과는 좌우 치우침(°, + 오른쪽). 껍질은 제자리에서 돌기만 해서 방향을 알려 주지 않음.
+ * 가상의 방 안 정해진 자리에 모노 음원 6개를 놓고(CENTER_ROOM), 좌우로 끌면 방 안에서 바라보는 방향이 돎 (사용자 지시 11/12).
+ * 음원마다 68번 귀 HRIR(36방향)로 자리를 만들고, 고개를 돌리면 여섯 자리가 함께 돎. 지금 음원은 비트의 악기 6개(임시. 파일 6개가 오면 교체).
+ * 가운데의 기준은 정면에 놓인 킥(사용자 확정): 결과 = 킥의 좌우 치우침(°, + 오른쪽). 앞뒤는 묻지 않음. 시작은 킥이 좌우로 45–90° 치우친 곳.
+ * 달팽이는 끈 각도만큼 정확히 따라 돎(visuals.js의 turnOutline). 시작 자세는 늘 같아서 어디가 가운데인지 알려 주지 않음.
  * ===================================================================== */
 
 const CENTER_TEST = {
@@ -226,7 +228,16 @@ const CENTER_TEST = {
   hrirFile: 'media/part2/ear068.f32', voiceFile: 'media/part2/voice.wav',
   nDir: 36, taps: 256, irRate: 48000, rampSec: 0.02, fadeInSec: 1.0
 };
-let centerAssets = null; // Promise → { irs, voice, gain }
+// 방 안의 음원 자리: stem 비트 악기, deg 정면(킥) 기준 방위(+ 오른쪽), dist 거리(멀수록 작게). 자리와 거리는 Claude가 정함
+const CENTER_ROOM = [
+  { stem: 'kick', deg: 0, dist: 1 },
+  { stem: 'sub', deg: 180, dist: 1.5 },
+  { stem: 'snare', deg: -55, dist: 1.25 },
+  { stem: 'blip', deg: 55, dist: 1.25 },
+  { stem: 'hat', deg: -125, dist: 1.45 },
+  { stem: 'chop', deg: 125, dist: 1.45 }
+];
+let centerAssets = null; // Promise → { irs, sources: [{ buf, deg, dist }], gain }
 
 function centerLogic() {
   const finals = [];
@@ -278,15 +289,19 @@ function prepareCenter() {
       b.getChannelData(1).set(tap((CENTER_TEST.nDir - k) % CENTER_TEST.nDir));
       irs.push(b);
     }
-    let voice;
+    // 크기 기준은 전체 비트로 재고, 같은 게인을 악기 6개에 똑같이 씀 (악기 사이 비율 유지)
+    let voice, sources;
     try {
       voice = await renderBeatLoop(P2_GROOVE.bpm, 'FULL');
+      sources = [];
+      for (const spot of CENTER_ROOM) sources.push({ ...spot, buf: await renderBeatLoop(P2_GROOVE.bpm, 'FULL', 1, spot.stem) });
     } catch (e) {
       const ab = await (await fetch(CENTER_TEST.voiceFile)).arrayBuffer();
       voice = await new Promise((res, rej) => {
         const p = ctx.decodeAudioData(ab, res, rej);
         if (p && p.then) p.then(res, rej);
       });
+      sources = [{ buf: voice, deg: 0, dist: 1 }]; // 비트를 못 그리면 말소리 하나만 정면에
     }
     // Calibrate the actual filtered beat. IR energy alone assumes white noise rather
     // than the spectrum of this band-limited source. One gain for all angles
@@ -299,17 +314,17 @@ function prepareCenter() {
     const rendered = await reference.startRendering();
     const measured = measureLoudness(bufferChannels(rendered), rendered.sampleRate);
     const gain = splToAmp(CENTER_TEST.spl) / Math.SQRT2 / measured.kRms;
-    return { irs, voice, gain };
+    return { irs, sources, gain };
   })();
   centerAssets.catch(() => { centerAssets = null; }); // 실패하면 다음에 다시 읽음
   return centerAssets;
 }
 
-// 소리(비트)를 각도 a 에 놓는 장치 (ref와 같음: 두 칸의 컨볼버를 섞고, 램프를 취소하지 않아 돌릴 때 지지직이 없음)
-function startCenter(tr, A) {
-  const ctx = p2Ctx(), bus = p2Out(), N = CENTER_TEST.nDir;
+// 음원 하나를 각도 a 에 놓는 장치 (ref와 같음: 두 칸의 컨볼버를 섞고, 램프를 취소하지 않아 돌릴 때 지지직이 없음)
+function centerPlacer(ctx, bus, A, buf, startAngle) {
+  const N = CENTER_TEST.nDir;
   const src = ctx.createBufferSource();
-  src.buffer = A.voice;
+  src.buffer = buf;
   src.loop = true;
   const level = ctx.createGain();
   level.gain.value = 0;
@@ -329,11 +344,10 @@ function startCenter(tr, A) {
   }
   const kOf = (a) => ((-a / 10) % N + N) % N;
   const slotOf = (dir) => slots[dir % 2];
-  let angle = tr.off, moved = 0, stopped = false, timer = null;
+  let angle = startAngle, stopped = false, timer = null;
   const k0 = kOf(angle);
   let cell = Math.floor(k0) % N, frac = k0 - Math.floor(k0);
   let endAt = 0;
-  const t0 = performance.now();
   setConv(slotOf(cell), cell);
   setConv(slotOf((cell + 1) % N), (cell + 1) % N);
   slotOf(cell).wt = 1 - frac;
@@ -369,30 +383,52 @@ function startCenter(tr, A) {
     endAt = tE;
     later(CENTER_TEST.rampSec);
   }
-  const tF = ctx.currentTime; // 갑자기 귀에 붙지 않게 천천히 들어옴
-  level.gain.setValueAtTime(0, tF);
-  level.gain.linearRampToValueAtTime(A.gain, tF + CENTER_TEST.fadeInSec);
-  src.start();
+  return {
+    src, level,
+    setAngle(a) { angle = a; if (!timer && !stopped) pump(); },
+    stop() {
+      stopped = true;
+      if (timer) { clearTimeout(timer); timer = null; }
+      setTimeout(() => { slots.forEach((s) => { try { s.g.disconnect(); if (s.conv) s.conv.disconnect(); } catch (e) { /* 무시 */ } }); }, 150);
+    }
+  };
+}
+
+// 방 전체: 음원마다 자리 장치를 하나씩. angle = 정면 기준(킥)이 지금 들리는 방위(+ 오른쪽). 돌리면 모든 음원이 같이 돎
+function startCenter(tr, A) {
+  const ctx = p2Ctx(), bus = p2Out();
+  let angle = tr.off, moved = 0, stopped = false;
+  const t0 = performance.now();
+  const tF = ctx.currentTime + 0.03; // 여섯 음원을 같은 순간에 시작해 박자가 어긋나지 않게
+  const placers = A.sources.map((spot) => {
+    const pl = centerPlacer(ctx, bus, A, spot.buf, wrap180(angle + spot.deg));
+    pl.gain = A.gain / spot.dist;
+    pl.level.gain.setValueAtTime(0, tF); // 갑자기 귀에 붙지 않게 천천히 들어옴
+    pl.level.gain.linearRampToValueAtTime(pl.gain, tF + CENTER_TEST.fadeInSec);
+    pl.src.start(tF);
+    return { pl, deg: spot.deg };
+  });
   return {
     turn(deltaDeg) {
       if (!deltaDeg || stopped) return;
       const a = wrap180(angle + deltaDeg);
       moved += Math.abs(wrap180(a - angle));
       angle = a;
-      if (!timer) pump();
+      placers.forEach(({ pl, deg }) => pl.setAngle(wrap180(angle + deg)));
     },
     state() { return { angle, moved, ms: Math.round(performance.now() - t0) }; },
     alive() { return !stopped; },
     stop() {
       if (stopped) return;
       stopped = true;
-      if (timer) { clearTimeout(timer); timer = null; }
-      const now = ctx.currentTime, v = A.gain * Math.min(1, Math.max(0, (now - tF) / CENTER_TEST.fadeInSec));
-      level.gain.cancelScheduledValues(now);
-      level.gain.setValueAtTime(v, now);
-      level.gain.linearRampToValueAtTime(0, now + 0.05);
-      try { src.stop(now + 0.07); } catch (e) { /* 이미 멈춤 */ }
-      setTimeout(() => { slots.forEach((s) => { try { s.g.disconnect(); if (s.conv) s.conv.disconnect(); } catch (e) { /* 무시 */ } }); }, 150);
+      const now = ctx.currentTime, k = Math.min(1, Math.max(0, (now - tF) / CENTER_TEST.fadeInSec));
+      placers.forEach(({ pl }) => {
+        pl.level.gain.cancelScheduledValues(now);
+        pl.level.gain.setValueAtTime(pl.gain * k, now);
+        pl.level.gain.linearRampToValueAtTime(0, now + 0.05);
+        try { pl.src.stop(Math.max(now, tF) + 0.07); } catch (e) { /* 이미 멈춤 */ }
+        pl.stop();
+      });
     }
   };
 }
@@ -886,9 +922,9 @@ function part2Twist() {
   return live !== null ? live : 0;
 }
 
-// ⑥ 껍질이 제자리에서 도는 각도 (라디안). 방향과는 상관없는 회전
-function part2ShellSpin() {
-  return window.GlobalState.currentStage === 'PART2_CENTER' ? part2State().spin * Math.PI / 180 : 0;
+// ⑥ 끌어서 돌린 각도(°). 달팽이가 이만큼 정확히 따라 돎. 시행이 시작될 때의 자세가 0이라 가운데가 어딘지는 알려 주지 않음
+function part2CenterTurnDeg() {
+  return window.GlobalState.currentStage === 'PART2_CENTER' ? part2State().spin : 0;
 }
 
 // 앞이든 뒤든 좌우 치우침(°, + 오른쪽)

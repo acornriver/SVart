@@ -12,7 +12,7 @@
  * - 한 단계에 한 파트, 한 축(위아래 쓸기)만 조절. 시작값은 매번 무작위.
  * - 충분히 움직인 뒤 달팽이 꾹으로 확정.
  * - 음성 안내(voice.js)는 지시문 순서대로. 할 일을 알려 주는 동안은 터치를 받지 않음 (안내 잠금, 차민휘 전달사항 11/06)
- * - EQ를 바꿔도 체감 음량이 같도록 자동 음량 보정 (큰 소리를 고르는 편향 방지).
+ * - EQ를 바꿔도 체감 음량이 같도록 자동 음량 보정 (큰 소리를 고르는 편향 방지). ②를 조절하는 동안만 쉼 (고음이 따라 변하지 않게)
  *
  * 신호 흐름:
  *   비트(①②③) · 북서울 녹음(결과) → lowShelf → registerPeak → highShelf → loudnessComp → masterGain → 출력
@@ -59,6 +59,8 @@ const PART1_ADJUST = {
   PART1_HIGH:   { min: -10, max: 10, startMin: -6,  startMax: 6,   span: 30, moveThreshold: 3 }
 };
 
+const RESULT_CODE_HOLD_MS = 1400; // 코드만 보여 주는 시간 ("짜잔" 뒤. Claude가 정함)
+const RESULT_READ_MS = 10000;     // 항목별 분석을 읽는 시간. 지나면 음악 안내가 나옴 (작가 지시: 10초쯤)
 const MIN_STEP_SECONDS = 1.5; // 단계 시작 직후 오확정 방지
 const SOURCE_WATCH_SECONDS = 1; // 이 간격으로 오디오가 살아 있는지 확인
 
@@ -77,15 +79,17 @@ const MELODY_ECHO = { time: 0.3, feedback: 0.22, wet: 0.18 };
 const MELODY_BASE_AMP = 0.42;   // 삼각파 서스테인 0.3과 비슷하게 들리도록 (귀로 다시 맞출 것)
 const MELODY_GAP = 0.7;
 
-// defaultOffsetDb: 등청감 보정 출발점. tests/register 페이지에서 보정한 값이 있으면 그걸 씀
+// 세 멜로디의 높이: B(가운데, C4)는 그대로, A는 완전5도 아래(F3), C는 완전5도 위(G4) (원우리 작가 지시 11/12.
+// 예전에는 두 옥타브씩 떨어진 C2·C6이었는데 A가 너무 낮아 헤드폰에서 지저분하게 들림). peakHz(음역 EQ와 코드 글자)는 그대로 둠
+// defaultOffsetDb: 등청감 보정 출발점 (간격이 좁아져 작게. Claude가 정함). tests/register 페이지에서 보정한 값이 있으면 그걸 씀
 const REGISTERS = [
-  { id: 'LOW',  name: '저음역', range: 'C2–A2', baseMidi: 36, peakHz: 100,  defaultOffsetDb: 6 },
-  { id: 'MID',  name: '중음역', range: 'C4–A4', baseMidi: 60, peakHz: 400,  defaultOffsetDb: 0 },
-  { id: 'HIGH', name: '고음역', range: 'C6–A6', baseMidi: 84, peakHz: 2500, defaultOffsetDb: -2 }
+  { id: 'LOW',  name: '저음역', range: 'F3–F4', baseMidi: 53, peakHz: 100,  defaultOffsetDb: 2 },
+  { id: 'MID',  name: '중음역', range: 'C4–C5', baseMidi: 60, peakHz: 400,  defaultOffsetDb: 0 },
+  { id: 'HIGH', name: '고음역', range: 'G4–G5', baseMidi: 67, peakHz: 2500, defaultOffsetDb: -1 }
 ];
 const REGISTER_PEAK_GAIN = 3;
 const REGISTER_PEAK_Q = 1;
-const REGISTER_CALIB_KEY = 'svart.registerTest';
+const REGISTER_CALIB_KEY = 'svart.registerTest.v2'; // v2: 완전5도 간격. 예전(두 옥타브 간격) 보정값은 쓰지 않음
 
 // 오디오 노드 내부 참조
 let lowShelfFilter = null;
@@ -109,6 +113,7 @@ let voiceCue = {};         // 이 단계에서 이미 나온 조건부 안내
 // 음역 고르기 내부 상태
 let registerOffsets = {};
 let registerPlayToken = 0;
+let resultRun = 0;          // 분석 화면 순서를 도는 중에 단계가 바뀌면 멈추게
 let currentVoice = null;
 
 /**
@@ -278,6 +283,7 @@ function goToStep(index) {
   gs.currentStage = stage;
   gs.part1.stepIndex = index;
   gs.part1.hasMoved = false;
+  applyVoiceGain(); // ①을 지나면 안내 크기가 고른 볼륨을 따라감
 
   hushVoice();
   unlockInput(0);
@@ -285,6 +291,8 @@ function goToStep(index) {
   stopVoice();
   leavePart2();
   registerPlayToken++;
+  resultRun++;
+  gs.part1.resultPhase = null;
 
   if (stage === 'PART1_VOLUME') {
     setActiveSource('VOLUME');
@@ -304,7 +312,7 @@ function goToStep(index) {
   } else if (stage === 'RESULT') {
     setActiveSource(null);
     saveEarResult();
-    say(voicePlan('result'));
+    runResultReveal();
   } else if (stage === 'MUSIC') {
     gs.part1.isBypassed = false;
     gs.part1.eqMix = 1;
@@ -324,6 +332,44 @@ function confirmStep() {
   MemeFX.transition(cue, () => {
     if (state.currentStage === from) goToStep(next);
   });
+}
+
+/**
+ * 분석 화면의 순서 (원우리 작가 지시 11/12). 단계는 gs.part1.resultPhase, 바뀐 시각은 resultPhaseAt
+ *   tease : "저 됐어요!" → "자, 당신의 청감 코드는…! 두두둥!" (드럼롤)
+ *   code  : 화면이 바뀌고 코드만 크게 "짜잔!"
+ *   list  : 코드가 위로 올라가고 아래에 항목별 분석이 하나씩. "당신의 청감은 이런 특징이 있어요."
+ *   ready : RESULT_READ_MS 뒤 "이제 음악을 들으러 가볼까요? 달팽이를 꾹 눌러주세요." 이때부터 꾹으로 넘어감
+ * 새 대사(m9-4 ~ m9-7)는 녹음 전이라 자막만 나옴 (copy.js의 VOICE_PENDING)
+ */
+async function runResultReveal() {
+  const run = ++resultRun;
+  const alive = () => run === resultRun && window.GlobalState.currentStage === 'RESULT';
+  const phase = (name) => { window.GlobalState.part1.resultPhase = name; window.GlobalState.part1.resultPhaseAt = millis(); };
+  phase('tease');
+  await say(voicePlan('result'));
+  if (!alive()) return;
+  MemeFX.sound('roll');
+  await say(voicePlan('resultTease'));
+  if (!alive()) return;
+  phase('code');
+  MemeFX.sound('sting');
+  await say(voicePlan('resultCode'));
+  if (!alive()) return;
+  await wait(RESULT_CODE_HOLD_MS);
+  if (!alive()) return;
+  phase('list');
+  await say(voicePlan('resultList'));
+  if (!alive()) return;
+  await wait(RESULT_READ_MS);
+  if (!alive()) return;
+  phase('ready');
+  sayGuide(voicePlan('resultReady'));
+}
+
+// 분석을 다 보여 준 뒤에만 달팽이 꾹으로 감상으로 넘어감
+function canConfirmResult() {
+  return window.GlobalState.part1.resultPhase === 'ready';
 }
 
 /**
@@ -373,11 +419,14 @@ function restartFlow() {
   leavePart2();
   stopTour();
   registerPlayToken++;
+  resultRun++;
+  gs.part1.resultPhase = null;
   if (gs.isAudioInitialized) {
     setActiveSource(null, 1);
     applyEQ();
   }
   gs.currentStage = 'INIT';
+  applyVoiceGain();
 }
 
 /**
@@ -515,7 +564,10 @@ function applyEQ() {
   highShelfFilter.gain(profile.highShelf.gain * mix);
 
   const spectrum = sourceSpectrum(activeSourceKey);
-  const compDb = mix <= 0 ? 0 : getLoudnessCompDb(spectrum, mix);
+  // ② 꼬리(저음)를 조절하는 동안은 음량 보정을 쉼: 보정이 전체 크기를 반대로 움직여 고음이 줄었다 늘었다 하는 게 들림 (원우리 작가 지시 11/12).
+  // 저음만 움직이고 고음은 그대로. 다음 단계부터는 다시 보정
+  const holdComp = window.GlobalState.currentStage === 'PART1_LOW';
+  const compDb = mix <= 0 || holdComp ? 0 : getLoudnessCompDb(spectrum, mix);
   loudnessComp.amp(dbToGain(compDb), 0.08);
 }
 

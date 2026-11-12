@@ -9,12 +9,12 @@
  *   ② 저음  → 꼬리를 빚음 (위로 쓸면 통통하게, 아래로 쓸면 눌려서 작게)
  *   ③ 고음  → 머리를 빚음 (위로 쓸면 크고 높이, 아래로 쓸면 눌려서 작게)
  *   ④ 음역  → 껍질을 얹을 자리 (저음역 왼쪽 / 중음역 가운데 / 고음역 오른쪽)
- *   Part 2  → ⑦⑧은 오른쪽을 바라본 채 좌우로 이동해 답함 (사용자 확정 11/09). ⑥은 돌리는 동안 선 색이 실시간으로 바뀜
- *             ⑦은 고르는 쪽 더듬이가 과장되게 늘어나 꿈틀대고(고르는 동안만. 결과는 껍질 모양), ⑧은 고르는 뜻대로 점액(네모/동그라미)을 흘리며 오감
+ *   Part 2  → ⑦⑧은 오른쪽을 바라본 채 좌우로 이동해 답함 (사용자 확정 11/09). ⑥은 끈 각도만큼 달팽이가 2.5D로 돌고 선 색이 실시간으로 바뀜
+ *             ⑦은 고르는 쪽 더듬이가 과장되게 늘어나 꿈틀대고, 결과가 나오면 우세 귀 쪽 더듬이만 뻗어 더듬다 움찔하기를 되풀이(껍질 모양은 그대로). ⑧은 고르는 뜻대로 점액(네모/동그라미)을 흘리며 오감
  *             검사음이 울릴 때마다 두 더듬이 끝이 똑같이 울림 (좌우 대칭이라 답의 단서가 아님)
- * - Part 1 바닥선은 지금 소리의 스펙트럼 (왼쪽 = 낮은 소리, 오른쪽 = 높은 소리). Part 2에서는 직선 (⑤ 안 들리는 고음이 보이면 안 됨)
+ * - Part 1에는 바닥선이 없고 ①에만 세로 크기 축(위 = 큰 소리, 아래 = 작은 소리). Part 2에는 바닥선 (⑦⑧ 답 자리가 그 위에 놓임)
  * - 꾹 눌러 확정하는 순간: 파형이 잠깐 멈추고 손끝에서 고리 하나, 가는 가로선 몇 줄 (강한 섬광 없음)
- * - 결과: 분석(RESULT) → 달팽이 꾹 → 세 소리 감상(MUSIC, 뒤에 그 장소 영상을 고대비 흑백으로). 보내면 오른쪽으로 기어 나감
+ * - 결과: 분석(RESULT: 두두둥 → 코드만 → 코드가 올라가고 항목별 분석) → 달팽이 꾹 → 세 소리 감상(MUSIC, 뒤에 그 장소 영상을 고대비 흑백으로). 보내면 오른쪽으로 기어 나감
  * 조절 중에는 dB 값이나 눈금 숫자를 크게 보여주지 않는다. 값은 우상단에 작은 디버그 숫자로만 표시.
  * 섬광은 눈에 부담이 없도록 아주 옅게만 쓴다 (깜빡이는 스트로브 아님).
  * 확정은 달팽이를 꾹 누르기, 다시 듣기는 더듬이 톡(한국어 ⑦⑧), 음역은 등 위 자리를 톡,
@@ -44,12 +44,19 @@ const SLIME = { perSec: 14, lifeMs: 3200, speed: [18, 46], size: [2, 5] };
 // ⑦ 고르는 동안 그쪽 더듬이: 최대 길이 배율, 반대쪽 배율, 꿈틀대는 크기 (Claude가 정함)
 const EAR_LIVE = { long: 2.6, short: 0.6, wiggle: 0.22 };
 const CRAWL_SCALE = 0.6;  // ⑦⑧ 기어가는 동안 몸 크기 배율 (Claude가 정함)
+const TAIL_CURL = { lift: 0.75, back: 0.12 };   // ② 꼬리 끝이 말려 올라가는 높이(R0 배율, 가장 올렸을 때)와 안쪽으로 말리는 정도 (Claude가 정함)
+// ⑥ 2.5D 회전 (사용자 지시 11/12: Live2D 같은 느낌): 정면에서 본 몸 너비(R0 배율), 껍질 두께 비율, 끈 각도를 따라가는 빠르기
+const TURN_25D = { front: 0.66, shell: 0.42, follow: 0.5 };
 const SHELL_POP = { spring: 0.2, damp: 0.7 }; // ④ 혹이 튀어나오는 탄성 (Claude가 정함)
-const EAR_SHELL = { LEFT: 1, RIGHT: 0 };      // ⑦ 우세 귀 → 껍질 모양: 왼쪽 = 네모, 오른쪽 = 동그라미 (사용자 지시 11/06)
+// ⑦ 우세 귀 → 그쪽 더듬이의 움직임 (ref/7번_더듬이_시안.html 값 그대로, 사용자 지시 11/12). 껍질 모양은 바꾸지 않음
+// look: 두리번 정도, in/hold/out: 움찔해 들어가고·머물고·다시 나오는 시간(초), retract: 들어가는 비율, reach: 탐색하며 더 뻗는 양
+const ANTENNA = { look: 0.6, inSec: 0.35, holdSec: 0.6, outSec: 3.0, retract: 0.82, reach: 0.45 };
 const RESULT_EQ_SLIDER = { hit: 38 };         // 결과 화면 원래 소리 ↔ 내 귀 EQ 슬라이더 손끝 판정 여유
 const LISTEN_ANIM_MS = 2200;                  // 곡 버튼을 눌렀을 때 달팽이가 더 크게 귀 기울이는 시간
-// Part 1 바닥선 스펙트럼: 세로 가는 선 개수, 주파수 범위(로그), 최대 높이(R0 배율), 내려앉는 빠르기 (Claude가 정함)
-const GROUND_SPEC = { bars: 96, f0: 45, f1: 16000, height: 0.55, fall: 0.18, tilt: 0.42 };
+// ① 세로 크기 축: 길이(R0 배율), 글자 크기 (Claude가 정함)
+const VOLUME_AXIS = { height: 2.6, text: 17 };
+// 분석 화면: 코드가 위로 올라가는 시간, 항목이 하나씩 나타나는 간격·걸리는 시간 (Claude가 정함)
+const ANALYSIS = { riseMs: 700, firstMs: 600, stepMs: 450, fadeMs: 400 };
 // Part 2 검사음에 더듬이 끝이 울림: 고리가 퍼지는 시간, 고리 사이 최소 간격, 소리로 치는 최소 크기 (Claude가 정함)
 const TONE_PING = { ringMs: 520, gapMs: 140, floor: 0.004 };
 // 꾹 확정 순간: 전체 길이, 파형이 멈춰 있는 시간, 가로선 개수 (Claude가 정함)
@@ -88,14 +95,17 @@ let lastStage = null;
 let intro = {};
 let wave = null;            // 이번 프레임의 파형 (-1 ~ 1)
 let lastShape = null;       // 이번 프레임에 그린 달팽이 (터치 판정용)
-let antennaTips = [];
+let antennaTips = [];       // [왼쪽 귀(뒤), 오른쪽 귀(앞)] 끝 점
+let antLook = { yaw: 0, target: 0, next: 0 };   // 두리번: 지금 고개 각, 목표 각, 다음에 바꿀 시각(초)
+let antCycle = { start: 0, explore: 4.5 };      // 우세 귀 더듬이 한 바퀴의 시작 시각, 탐색 길이(초)
+let antDom = { L: 0, R: 0 };                    // 우세 귀 효과 정도 (부드럽게 따라감)
 let shellAt = null;         // { x, y, r }
 let pulse = { kick: 0, snare: 0, hat: 0 };
 let snailInk = COLORS.ink.slice(); // 지금 달팽이 선 색 (정해진 색을 천천히 따라감)
 let snailGlow = COLORS.accent.slice(); // 선 밑의 잔광. ⑥ 전에는 빨강, 색이 정해지면 그 색 (빨강이 깔리면 파란 선이 보라로 보임, 차민휘 전달사항 11/06)
 let slime = [];             // 점액 파티클 { x, y, vx, vy, born, life, size, sq }
 let slimeAcc = 0;
-let groundSpec = null;      // 바닥선 스펙트럼 막대 높이 (0~1, 부드럽게 내려앉음)
+let shownResultPhase = null; // 분석 화면에서 지금 그리고 있는 단계 (바뀌는 순간을 잡으려고)
 let tone = { fast: 0, slow: 0, env: 0, rings: [], lastAt: 0 }; // Part 2 검사음 따라가기
 let confirmFx = null;       // { at, x, y, wave, lines: [{ y, x0, x1 }] }
 
@@ -132,7 +142,7 @@ function renderVisuals() {
   }
 
   if (stage === 'RESULT') {
-    drawSnail(L);
+    if (window.GlobalState.part1.resultPhase !== 'code') drawSnail(L); // 코드만 보이는 순간에는 달팽이도 숨김
     drawAnalysis(L);
   } else if (stage === 'MUSIC') {
     drawSnail(L);
@@ -339,16 +349,20 @@ function calculateUILayout() {
   const btn = { x: m, y: height - m - btnH, w: width - m * 2, h: btnH };
 
   // 달팽이 무대: 바닥선 높이와 덩어리 기준 반지름
-  let stageTop = height < 850 ? 210 : 240;
-  let stageBottom = btn.y - 110;
-  let groundK = 0.72;
-  if (stage === 'RESULT') { stageTop = m + 185; stageBottom = btn.y - 230; groundK = 0.72; }
+  const stageTop = height < 850 ? 210 : 240;
+  const stageBottom = btn.y - 110;
+  const groundK = 0.72;
   const stageH = max(160, stageBottom - stageTop);
-  let R0 = min(width * (stage === 'RESULT' ? 0.155 : 0.15), stageH * 0.24); // 11/07 아이패드 미니에서 작아 보여 약 1.25배로 키움
+  let R0 = min(width * 0.15, stageH * 0.24); // 11/07 아이패드 미니에서 작아 보여 약 1.25배로 키움
   let groundY = stageTop + stageH * groundK;
   if (isIntroStage(stage)) { R0 = min(width, height) * 0.075; groundY = height * 0.86; }
 
-  if (stage === 'RESULT') { R0 = min(width * 0.065, height * 0.04); groundY = height * (height > width ? 0.45 : 0.43); }
+  // 분석: "두두둥" 동안은 달팽이가 가운데 아래에 크게, 코드가 올라간 뒤에는 코드와 항목 사이에 작게
+  if (stage === 'RESULT') {
+    const tease = (window.GlobalState.part1.resultPhase || 'tease') === 'tease';
+    R0 = tease ? min(width * 0.1, height * 0.085) : min(width * 0.065, height * 0.04);
+    groundY = height * (tease ? 0.7 : height > width ? 0.4 : 0.36);
+  }
   if (stage === 'MUSIC') { R0 = min(width * 0.07, height * 0.045); groundY = height * (height < 850 ? 0.61 : 0.65) - 24; }
 
   // btn: 예전 버튼 자리. 지금은 아래쪽 안내 문구 자리로만 씀
@@ -499,9 +513,8 @@ function targetParams(L) {
     press: pressing ? 1 : 0,
     pressAngle: stage === 'PART1_VOLUME' ? -HALF_PI : stage === 'PART1_HIGH' ? HEAD_ANGLE : TAIL_ANGLE,
     shellOn: sh.on, shellX: sh.x, shellKey: sh.key,
-    shellSquare: isResultStage(stage) ? (EAR_SHELL[gs.psychoProfile.dominantEar] ?? 0) : 0, // ⑦ 우세 귀에 따른 네모/동그라미 등껍질 (결과에서만 표시)
     helix: tw === null ? 0 : 1, twist: tw === null ? 0 : tw,
-    dim: stage === 'MUSIC' ? lerp(0.45, 1, typeof gs.part1.eqMix === 'number' ? gs.part1.eqMix : (gs.part1.isBypassed ? 0 : 1)) : 1
+    dim: stage === 'RESULT' && gs.part1.resultPhase === 'code' ? 0 : stage === 'MUSIC' ? lerp(0.45, 1, typeof gs.part1.eqMix === 'number' ? gs.part1.eqMix : (gs.part1.isBypassed ? 0 : 1)) : 1
   };
 }
 
@@ -520,7 +533,7 @@ function smoothAll(L) {
   cur.faceT = 1;
   cur.face = 1;
   cur.move = lerp(cur.move || 0, constrain(Math.abs(dx) / (cur.R0 * 0.6), 0, 1), 0.2); // 기어가는 중이면 꿈틀
-  ['groundY', 'R0', 'tailF', 'tailG', 'headF', 'headG', 'wobble', 'crawl', 'shellSquare', 'dim'].forEach((key) => {
+  ['groundY', 'R0', 'tailF', 'tailG', 'headF', 'headG', 'wobble', 'crawl', 'dim'].forEach((key) => {
     cur[key] = lerp(cur[key], tp[key], k);
   });
   cur.cx = lerp(cur.cx, tp.cx, crawlStage ? 0.12 : k);
@@ -528,6 +541,8 @@ function smoothAll(L) {
   cur.helix = lerp(cur.helix || 0, tp.helix, 0.05);
   cur.twist = lerp(cur.twist || 0, tp.twist, 0.2); // 소리가 높아지는 동안 바짝 따라옴
   cur.pressAngle = tp.pressAngle;
+  // ⑥ 끈 각도만큼 몸을 돌림. ⑥이 아니면 가까운 쪽으로 돌아 옆모습(0)으로
+  cur.yaw = (cur.yaw || 0) + angDiff(part2CenterTurnDeg() * Math.PI / 180, cur.yaw || 0) * TURN_25D.follow;
   // 자리가 바뀌면 옮겨 가지 않고 새 자리에서 튀어나옴
   if (tp.shellKey !== cur.shellKey) {
     cur.shellKey = tp.shellKey;
@@ -577,13 +592,18 @@ function bodyShape() {
   const cy = cur.groundY - flatY;
 
   const tailSigma = 0.32 + 0.2 * cur.tailG;
-  const tailLen = cur.tailF * R0 * (1.0 + 0.45 * cur.tailG);
+  // ② 저음을 올리면 꼬리 끝이 위로 말려 올라가고 내리면 바닥에 납작하게 (원우리 작가 제안 11/12: 머리처럼 위아래로 움직여야 위아래 쓸기가 자연스러움).
+  // 예전에는 좌우로 길어지기만 해서 좌우로 끌어야 할 것처럼 보였음. 수치는 Claude가 정함
+  const tailLen = cur.tailF * R0 * (1.05 + 0.3 * cur.tailG);
+  const tailLift = cur.tailF * R0 * TAIL_CURL.lift * constrain((cur.tailG + 1) / 2, 0, 1);
   const headSigma = 0.4 + 0.14 * cur.headG;
   const headLen = cur.headF * R0 * (0.75 + 0.35 * cur.headG);
   // 결과 화면에서 소리를 들어보는 고개 까딱임
   const headNod = (listen.level * 0.08 + listen.boost * 0.14) * Math.sin(time * 4.4);
   const headAngle = HEAD_ANGLE - headNod;
 
+  // 2.5D: 옆모습(x)과 정면 모습(둥근 덩어리)을 각도에 따라 섞음. cos가 음수면 저절로 왼쪽을 봄
+  const yawC = Math.cos(cur.yaw || 0), yawS = Math.abs(Math.sin(cur.yaw || 0));
   const pointAt = (th) => {
     const wob = cur.wobble * (0.045 * Math.sin(3 * th + 1.1 * time) + 0.03 * Math.sin(5 * th - 1.7 * time + 1) +
       0.02 * Math.sin(2 * th + 0.6 * time));
@@ -595,6 +615,9 @@ function bodyShape() {
     const wt = Math.exp(-sq(angDiff(th, TAIL_ANGLE) / tailSigma));
     x -= tailLen * wt;
     y += 0.25 * tailLen * wt;
+    const tipW = wt * wt; // 끝 쪽만 들림
+    y -= tailLift * tipW;
+    x += tailLift * TAIL_CURL.back * tipW * wt;
     // 머리: 끝이 둥근 혹(4제곱 창)을 오른쪽 위로 (결과 화면에서는 리듬에 맞춰 고개를 까딱임)
     const wh = Math.exp(-sq(sq(angDiff(th, headAngle) / headSigma)));
     x += headLen * wh * 0.9;
@@ -607,12 +630,44 @@ function bodyShape() {
     y -= y / len * dent;
 
     if (y > flatY) y = flatY + (y - flatY) * 0.2;
-    return { x: cx + face * x, y: cy + y }; // 왼쪽을 보면 좌우로 뒤집음
+    return { x, y }; // 가운데 기준 옆모습
   };
 
-  const pts = [];
-  for (let i = 0; i < OUTLINE_POINTS; i++) pts.push(pointAt((i / OUTLINE_POINTS) * TWO_PI));
-  return { pts, cx, cy, R0, face, headTip: pointAt(headAngle), pressPt: pointAt(cur.pressAngle) };
+  const side = [];
+  for (let i = 0; i < OUTLINE_POINTS; i++) side.push(pointAt((i / OUTLINE_POINTS) * TWO_PI));
+  const turn = turnOutline(side, R0 * TURN_25D.front * hs, yawC, yawS);
+  const place = (p) => ({ x: cx + face * turn(p), y: cy + p.y });
+  return { pts: side.map(place), cx, cy, R0, face, yaw: cur.yaw || 0, headTip: place(pointAt(headAngle)), pressPt: place(pointAt(cur.pressAngle)) };
+}
+
+/**
+ * ⑥ 2.5D 회전: 옆모습 윤곽을 두께가 있는 덩어리처럼 세로축 둘레로 돌렸을 때의 가로 자리를 돌려주는 함수를 만듦.
+ * 높이마다 옆모습의 가로 범위(가운데 m, 반길이 h)와 그 높이의 몸 두께 w로 타원 단면을 가정:
+ *   돌린 뒤 가운데 = m·cos, 반너비 = √((h·cos)² + (w·sin)²). 점은 그 범위 안의 제 자리 비율(u)을 지킴.
+ * 각도가 0이면 옆모습 그대로이고, cos가 음수면 왼쪽을 본 모습이 됨. 돌지 않을 때(⑥ 밖)는 계산하지 않음
+ */
+function turnOutline(side, frontW, yawC, yawS) {
+  if (yawS < 1e-4 && yawC > 0) return (p) => p.x;
+  const n = side.length;
+  let top = Infinity, bottom = -Infinity;
+  side.forEach((p) => { top = Math.min(top, p.y); bottom = Math.max(bottom, p.y); });
+  const midY = (top + bottom) / 2, halfH = Math.max(1, (bottom - top) / 2);
+  return (p) => {
+    // 이 높이에서 옆모습이 차지하는 가로 범위
+    let x0 = p.x, x1 = p.x;
+    for (let i = 0; i < n; i++) {
+      const a = side[i], b = side[(i + 1) % n];
+      if ((a.y - p.y) * (b.y - p.y) > 0 || a.y === b.y) continue;
+      const x = a.x + (b.x - a.x) * (p.y - a.y) / (b.y - a.y);
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+    }
+    const m = (x0 + x1) / 2, h = (x1 - x0) / 2;
+    const u = h > 1e-6 ? (p.x - m) / h : 0;
+    const k = (p.y - midY) / halfH; // -1 위 ~ 1 바닥
+    const w = frontW * (k < 0 ? Math.sqrt(Math.max(0, 1 - k * k)) : 1 - 0.12 * k * k); // 위는 둥글게 좁아지고 바닥은 넓게 깔림
+    return m * yawC + u * (yawC < 0 ? -1 : 1) * Math.hypot(h * yawC, Math.min(w, Math.max(h, frontW * 0.35)) * yawS);
+  };
 }
 
 // 등 위(또는 바닥)의 높이: x 근처 외곽선 중 가장 위. 몸을 벗어나면 바닥
@@ -787,8 +842,12 @@ function drawSnail() {
   }
   drawSlime(ctx, shape);
   ctx.restore();
-  drawAntennae(ctx, shape);
+  const stalks = antennaStalks(shape); // 뒤 더듬이 → 몸 → 앞 더듬이 순서로 그려 뒤쪽 뿌리를 몸이 가림
+  drawAntenna(ctx, shape, stalks[0], true);
   drawBody(ctx, shape);
+  drawAntenna(ctx, shape, stalks[1], false);
+  // 달팽이가 소리를 들어보는 음파 고리 (감상 화면)
+  if (gs().currentStage === 'MUSIC' && sendProgress() < 0) drawListeningWaves(ctx, antennaTips, shape.R0, resultListenState());
   if (cur.press > 0.02) drawFingertip(ctx, shape);
   if (cur.shellOn > 0.01) drawShell(ctx, shape);
   if (pulse.snare > 0.05) drawSplash(ctx, shape);
@@ -878,84 +937,126 @@ function earLiveAntenna() {
   return r < 0 ? { L: long, R: short, wL: wig, wR: 0 } : { L: short, R: long, wL: 0, wR: wig };
 }
 
-// 더듬이 두 개: 머리 위에서 보는 쪽 위로 (오른쪽을 보면 오른쪽 위). 머리를 키울수록 길어지고, 하이햇에 까딱임
-function drawAntennae(ctx, shape) {
-  const R0 = shape.R0;
-  const tip = shape.headTip;
-  const time = millis() / 1000;
-  const len = R0 * (0.6 + 0.25 * cur.headG * cur.headF);
-  const flick = pulse.hat * 0.12;
-  // ⑦ 고르는 동안만(사용자 지시 11/03): 달팽이가 간 쪽 더듬이가 과장되게 쭉 늘어나 꿈틀대고, 반대쪽은 움츠러듦.
-  // 결과는 더듬이 길이에 남기지 않고 껍질 모양(EAR_SHELL)으로만 보여 줌 (사용자 확정 11/11)
+// 우세 귀 쪽 더듬이의 한 바퀴 (시안 그대로): 탐색하며 천천히 뻗음 → 움찔(끝부터 말려 들어감) → 잠깐 → 천천히 다시 나옴
+// 돌려주는 값 { len 길이 배율, explore 이리저리 더듬는 정도 0~1, knob 끝 점 크기 0~1 }
+function antennaCycle(t) {
+  const { inSec, holdSec, outSec, retract, reach } = ANTENNA;
+  const ease = (x) => x * x * (3 - 2 * x);
+  let p = t - antCycle.start;
+  if (p > antCycle.explore + inSec + holdSec + outSec) { antCycle.start = t; antCycle.explore = random(3.5, 6); p = 0; }
+  if (p < antCycle.explore) return { len: 1 + reach * ease(p / antCycle.explore), explore: Math.min(1, p / 1.5), knob: 1 };
+  p -= antCycle.explore;
+  const full = 1 + reach;
+  if (p < inSec) { const r = Math.sin(p / inSec * HALF_PI); return { len: full + ((1 - retract) - full) * r, explore: 1 - r, knob: Math.max(0, 1 - r * 2.5) }; }
+  p -= inSec;
+  if (p < holdSec) return { len: 1 - retract, explore: 0, knob: 0 };
+  const qq = (p - holdSec) / outSec, q = 1 - sq(1 - qq);
+  return { len: (1 - retract) + retract * q, explore: 0, knob: constrain((qq - 0.55) / 0.3, 0, 1) };
+}
+
+/**
+ * 더듬이 두 개의 모양 (ref/7번_더듬이_시안.html, 사용자 지시 11/12). 뒤에 있는 것부터 [뒤, 앞].
+ * 3D로 놓고 옆에서 봄: 달팽이는 +x를 보고 화면 앞(+z)이 달팽이의 오른쪽. 앞쪽 더듬이 = 오른쪽 귀, 뒤쪽 = 왼쪽 귀.
+ * 거의 곧은 줄기 둘이 V자로 벌어지고, 휘기보다 뿌리에서 방향이 천천히 바뀜. 가끔 고개를 좌우로 돌려 두리번거림.
+ * ⑦에서 정해진 우세 귀 쪽만 한 바퀴(antennaCycle)를 돎. ⑦을 고르는 동안에는 간 쪽이 과장되게 늘어나 꿈틀댐 (사용자 지시 11/03)
+ */
+function antennaStalks(shape) {
+  const R0 = shape.R0, time = millis() / 1000;
+  const stage = window.GlobalState.currentStage;
+  // 두리번: 가운데 → 한쪽 → 잠깐 멈춤 → 다른 쪽 (목표 각을 가끔 바꾸고 천천히 따라감)
+  if (time > antLook.next) {
+    const opts = [-0.6, 0, 0.6].filter((v) => v !== antLook.target);
+    antLook.target = random(opts);
+    antLook.next = time + random(3.5, 6.5);
+  }
+  antLook.yaw = lerp(antLook.yaw, antLook.target, 0.012);
+  const yaw = antLook.yaw * ANTENNA.look + shape.yaw; // 두리번 + ⑥ 몸 회전
+  const tip = { x: shape.headTip.x - Math.abs(antLook.yaw * ANTENNA.look) * R0 * 0.1 * Math.cos(shape.yaw), y: shape.headTip.y };
+
   const live = earLiveAntenna();
   cur.antL = lerp(cur.antL || 1, live.L, 0.12);
   cur.antR = lerp(cur.antR || 1, live.R, 0.12);
   cur.wigL = lerp(cur.wigL || 0, live.wL, 0.12);
   cur.wigR = lerp(cur.wigR || 0, live.wR, 0.12);
-  // 왼쪽을 보면 뒤집혀서 뒤쪽 더듬이가 화면 오른쪽에 옴. 화면 왼쪽 더듬이 = 왼쪽 귀
-  const face = shape.face === undefined ? 1 : shape.face;
-  const back = face >= 0 ? 'L' : 'R', front = face >= 0 ? 'R' : 'L';
-  const stalks = [
-    { bx: -R0 * 0.24, by: R0 * 0.12, a: -1.25 - flick + Math.sin(time * 1.3) * 0.08, side: back, ph: 0 },
-    { bx: -R0 * 0.04, by: R0 * 0.14, a: -0.72 - flick + Math.sin(time * 1.3 + 1.2) * 0.08, side: front, ph: 1.7 }
-  ].map((st) => ({ ...st, k: st.side === 'L' ? cur.antL : cur.antR, wig: st.side === 'L' ? cur.wigL : cur.wigR }));
-  antennaTips = [];
-  let listen = { boost: 0, level: 0, dir: 0 }, replay = false;
-  try { listen = resultListenState(); replay = canReplay(); } catch (_) { /* 더듬이 그리기는 계속 */ }
-  stalks.forEach((s) => {
+  const dom = stage === 'PART2_EAR' || isIntroStage(stage) ? null : { LEFT: 'L', RIGHT: 'R' }[window.GlobalState.psychoProfile.dominantEar];
+  const cs = antennaCycle(time);
+  const len0 = R0 * (0.66 + 0.25 * cur.headG * cur.headF);
+  const flick = pulse.hat * 0.12; // 하이햇에 까딱
+  const rot = (X, Y, Z) => ({ x: tip.x + X * Math.cos(yaw) + Z * Math.sin(yaw), y: tip.y - Y, z: -X * Math.sin(yaw) + Z * Math.cos(yaw) });
+
+  return ['L', 'R'].map((side) => {
+    const lat = side === 'R' ? 1 : -1;
+    antDom[side] = lerp(antDom[side], dom === side ? 1 : 0, 0.08);
+    const k = antDom[side];
+    const liveK = side === 'L' ? cur.antL : cur.antR, wig = side === 'L' ? cur.wigL : cur.wigR;
+    const len = len0 * liveK * (1 + (cs.len - 1) * k);
+    const knob = 1 + (cs.knob - 1) * k;
+    const ex = cs.explore * k, ph = side === 'R' ? 0 : 2.3;
+    const el = (side === 'L' ? 1.12 : 0.92) + flick + 0.05 * Math.sin(time * 0.45 + ph) + ex * (0.28 * Math.sin(time * 0.55 + 0.4) + 0.08 * Math.sin(time * 1.1 + 2.1));
+    const az = lat * 0.42 + ex * 0.45 * Math.sin(time * 0.38 + 1.3);
+    const bow = 0.06 - ex * 0.05 * Math.cos(time * 0.55 + 0.4);
+    const baseX = -R0 * (side === 'L' ? 0.2 : 0.03), baseY = -R0 * (side === 'L' ? 0.08 : 0.03); // 뿌리는 머리 윤곽 바로 안쪽. 왼쪽(뒤)은 조금 뒤에서 나와 둘이 겹치지 않음
+    const dir = [Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az)];
+    const nrm = [-Math.sin(el) * Math.cos(az), Math.cos(el), -Math.sin(el) * Math.sin(az)];
     const pts = [];
-    for (let k = 0; k <= 20; k++) {
-      const q = k / 20;
-      const bend = Math.sin(q * Math.PI) * 0.18;
-      const dx = Math.cos(s.a - bend) * len * s.k * q, dy = Math.sin(s.a - bend) * len * s.k * q;
-      // 꿈틀: 줄기를 따라 물결이 끝으로 흘러감 (줄기에 수직으로)
-      const w = s.wig * len * q * Math.sin(q * 2.6 * Math.PI - time * 9 + s.ph);
-      const nx = -Math.sin(s.a), ny = Math.cos(s.a);
-      pts.push({ x: tip.x + face * (s.bx + dx + nx * w), y: tip.y + s.by + dy + ny * w });
+    for (let i = 0; i <= 20; i++) {
+      const q = i / 20;
+      const b = -bow * len * Math.sin(q * Math.PI) + wig * len * q * Math.sin(q * 2.6 * Math.PI - time * 9 + ph); // 살짝 활처럼 + ⑦ 고르는 동안의 꿈틀
+      pts.push(rot(baseX + dir[0] * len * q + nrm[0] * b, baseY + dir[1] * len * q + nrm[1] * b, lat * R0 * 0.06 + dir[2] * len * q + nrm[2] * b));
     }
-    scopeStroke(ctx, pts, false, 0.9);
-    const e = pts[pts.length - 1];
-    antennaTips.push(e);
-    ctx.save();
-    // 다시 들을 수 있을 때: 더듬이 끝에서 빨간 고리가 퍼짐 (라디오 신호처럼)
-    if (replay) {
-      const ph = (millis() / 1400) % 1;
-      ctx.strokeStyle = rgba(COLORS.accent, 0.7 * (1 - ph));
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.arc(e.x, e.y, R0 * (0.12 + 0.35 * ph), 0, TWO_PI);
-      ctx.stroke();
-    }
-    // Part 2 검사음이 울릴 때마다 두 끝에서 같은 고리가 퍼짐
-    const nowMs = millis();
-    tone.rings.forEach((born) => {
-      const ph = (nowMs - born) / TONE_PING.ringMs;
-      if (ph < 0 || ph >= 1) return;
-      ctx.strokeStyle = rgba(snailInk, 0.75 * (1 - ph) * (1 - ph));
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.arc(e.x, e.y, R0 * (0.1 + 0.55 * ph), 0, TWO_PI);
-      ctx.stroke();
-    });
+    return { side, pts, knob, depth: pts[pts.length - 1].z };
+  }).sort((a, b) => a.depth - b.depth);
+}
+
+// 더듬이 하나: 줄기 + 끝 점. 뒤쪽 것은 옅게. 고리(다시 듣기 · 검사음)는 앞뒤 똑같은 세기로
+function drawAntenna(ctx, shape, s, behind) {
+  const R0 = shape.R0;
+  const e = s.pts[s.pts.length - 1];
+  antennaTips[s.side === 'L' ? 0 : 1] = e;
+  ctx.save();
+  ctx.globalAlpha *= behind ? 0.5 : 1;
+  scopeStroke(ctx, s.pts, false, 0.9);
+  // 끝 점: 움찔하면 작아져 사라졌다가 다 나올 무렵 다시 커짐
+  if (s.knob > 0.05) {
     ctx.shadowBlur = 0;
     ctx.strokeStyle = rgba(snailInk, 1);
     ctx.lineWidth = 1.5;
     ctx.fillStyle = rgba(COLORS.bg, 1);
     ctx.beginPath();
-    ctx.arc(e.x, e.y, R0 * 0.09, 0, TWO_PI);
+    ctx.arc(e.x, e.y, R0 * 0.09 * s.knob, 0, TWO_PI);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = rgba(COLORS.accent, 1);
     ctx.beginPath();
-    ctx.arc(e.x, e.y, R0 * (0.035 + 0.04 * tone.env), 0, TWO_PI);
+    ctx.arc(e.x, e.y, R0 * (0.035 + 0.04 * tone.env) * s.knob, 0, TWO_PI);
     ctx.fill();
-    ctx.restore();
-  });
-
-  // 달팽이가 소리를 들어보는 음파 고리 애니메이션 (결과 화면)
-  if (window.GlobalState.currentStage === 'MUSIC' && sendProgress() < 0 && antennaTips.length === 2) {
-    drawListeningWaves(ctx, antennaTips, R0, listen);
   }
+  ctx.restore();
+
+  ctx.save();
+  let replay = false;
+  try { replay = canReplay(); } catch (_) { /* 더듬이 그리기는 계속 */ }
+  // 다시 들을 수 있을 때: 더듬이 끝에서 빨간 고리가 퍼짐 (라디오 신호처럼)
+  if (replay) {
+    const ph = (millis() / 1400) % 1;
+    ctx.strokeStyle = rgba(COLORS.accent, 0.7 * (1 - ph));
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, R0 * (0.12 + 0.35 * ph), 0, TWO_PI);
+    ctx.stroke();
+  }
+  // Part 2 검사음이 울릴 때마다 두 끝에서 같은 고리가 퍼짐
+  const nowMs = millis();
+  tone.rings.forEach((born) => {
+    const ph = (nowMs - born) / TONE_PING.ringMs;
+    if (ph < 0 || ph >= 1) return;
+    ctx.strokeStyle = rgba(snailInk, 0.75 * (1 - ph) * (1 - ph));
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, R0 * (0.1 + 0.55 * ph), 0, TWO_PI);
+    ctx.stroke();
+  });
+  ctx.restore();
 }
 
 // 결과 화면에서 더듬이(라디오 안테나) 주변으로 번지는 음파 아크 — 곡을 고르거나 소리가 울릴 때 달팽이가 들어보는 연출
@@ -981,12 +1082,7 @@ function drawListeningWaves(ctx, tips, R0, listen) {
   ctx.restore();
 }
 
-// 껍질 가장자리의 반지름 배율. k 0 = 동그라미, 1 = 네모
-function shellEdge(th, k) {
-  return lerp(1, 0.86 / Math.max(Math.abs(Math.cos(th)), Math.abs(Math.sin(th))), k);
-}
-
-// 껍질: 파형을 나선으로 만 선. 굴러간 거리만큼 돌아가고, 킥에 살짝 튐. ⑦ 결과에 따라 네모·동그라미 (사용자 지시)
+// 껍질: 파형을 나선으로 만 선. 굴러간 거리만큼 돌아가고, 킥에 살짝 튐. 모양은 늘 동그라미 (사용자 지시 11/12)
 function drawShell(ctx, shape) {
   const R0 = shape.R0;
   const rs = R0 * 0.72 * cur.shellOn;
@@ -995,7 +1091,9 @@ function drawShell(ctx, shape) {
     prevShellX = null;
     return;
   }
-  const x = shape.cx + cur.shellX; // shape.cx는 보내기 중·⑦⑧ 기어간 거리까지 포함
+  const yawC = Math.cos(shape.yaw), yawS = Math.abs(Math.sin(shape.yaw));
+  const wide = Math.sqrt(yawC * yawC + sq(TURN_25D.shell * yawS)) * (yawC < 0 ? -1 : 1); // ⑥ 돌면 껍질이 얇아졌다가 뒤집힘
+  const x = shape.cx + cur.shellX * yawC; // shape.cx는 보내기 중·⑦⑧ 기어간 거리까지 포함
   if (prevShellX !== null) shellRot += (x - prevShellX) / Math.max(rs, 1);
   prevShellX = x;
   const y = topYAt(shape, x) - rs * 0.9 - pulse.kick * R0 * 0.1;
@@ -1005,20 +1103,16 @@ function drawShell(ctx, shape) {
   ctx.globalAlpha *= Math.min(1, cur.shellOn * 1.6);
   ctx.fillStyle = rgba(COLORS.bg, 1);
   ctx.beginPath();
-  for (let a = 0; a < TWO_PI; a += 0.1) {
-    const r = rs * 1.02 * shellEdge(a, cur.shellSquare || 0);
-    ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
-  }
-  ctx.closePath();
+  ctx.ellipse(x, y, rs * 1.02 * Math.abs(wide), rs * 1.02, 0, 0, TWO_PI);
   ctx.fill();
 
   const turns = 3 * TWO_PI;
   const spiral = [];
   for (let a = 0; a <= turns; a += 0.07) {
     const u = a / turns;
-    const rot = shellRot + part2ShellSpin();
-    const rr = (rs * (0.06 + 0.9 * u) + waveAt(u) * rs * 0.35 * u) * shellEdge(a + rot, cur.shellSquare || 0);
-    spiral.push({ x: x + Math.cos(a + rot) * rr, y: y + Math.sin(a + rot) * rr });
+    const rot = shellRot;
+    const rr = rs * (0.06 + 0.9 * u) + waveAt(u) * rs * 0.35 * u;
+    spiral.push({ x: x + Math.cos(a + rot) * rr * wide, y: y + Math.sin(a + rot) * rr });
   }
   helixStroke(ctx, spiral, false, twistCount(HELIX.shellTwists), rs * HELIX.sep * 0.8);
   ctx.restore();
@@ -1070,55 +1164,29 @@ function drawFlash() {
  * 검사 화면 UI
  * ===================================================================== */
 
-// 바닥선. Part 1은 양 끝에 낮은 소리 / 높은 소리 (꼬리 쪽이 낮은 소리, 머리 쪽이 높은 소리)
+// 바닥선은 Part 2에만. Part 1은 가로 '낮은 소리—높은 소리' 축과 스펙트럼을 없애고, ①에만 세로 크기 축을 그림 (원우리 작가 지시 11/12)
 function drawGround(L) {
+  const stage = window.GlobalState.currentStage;
+  if (stage.startsWith('PART1_')) {
+    if (stage === 'PART1_VOLUME') drawVolumeAxis(L);
+    return;
+  }
   stroke(...COLORS.line);
   strokeWeight(1);
   line(L.x0, cur.groundY, L.x1, cur.groundY);
-  const stage = window.GlobalState.currentStage;
-  drawGroundSpectrum(L, stage.startsWith('PART1_'));
-  if (stage.startsWith('PART1_')) {
-    label(t('axis.low'), L.x0, cur.groundY + 10, { c: COLORS.mute, valign: TOP });
-    label(t('axis.high'), L.x1, cur.groundY + 10, { c: COLORS.mute, align: RIGHT, valign: TOP });
-  }
 }
 
-/**
- * 바닥선 스펙트럼 (Part 1만): 바닥선 위로 솟는 가는 세로선. 왼쪽 = 낮은 소리, 오른쪽 = 높은 소리 (로그 주파수).
- * EQ 뒤 소리를 재므로 ②에서 저음을 키우면 꼬리 밑이, ③에서 고음을 키우면 머리 밑이 솟음. 달팽이가 이 위에 그려져 몸 뒤는 가려짐
- */
-function drawGroundSpectrum(L, on) {
-  const n = GROUND_SPEC.bars;
-  if (!groundSpec) groundSpec = new Array(n).fill(0);
-  const fft = window.GlobalState.audioNodes.fft;
-  const spec = on && fft ? fft.analyze() : null;
-  const nyq = spec ? getAudioContext().sampleRate / 2 : 1;
-  // ①에서 고른 볼륨만큼 되돌려 늘 비슷한 높이로 (waveAt과 같은 이유). 분석기 눈금은 70 dB가 0~1
-  const volLift = -20 * Math.log10(Math.max(0.03, window.GlobalState.userEQProfile.masterVolume)) / 70;
-  const ctx = drawingContext;
-  const maxH = cur.R0 * GROUND_SPEC.height;
-  ctx.save();
-  ctx.lineWidth = 1;
-  for (let i = 0; i < n; i++) {
-    const u = i / (n - 1);
-    let v = 0;
-    if (spec) {
-      const x = GROUND_SPEC.f0 * Math.pow(GROUND_SPEC.f1 / GROUND_SPEC.f0, u) / nyq * spec.length;
-      const b = Math.min(spec.length - 2, Math.floor(x)), f = x - b;
-      v = (spec[b] * (1 - f) + spec[b + 1] * f) / 255 + volLift;
-      v = constrain((v + GROUND_SPEC.tilt * u - 0.5) / 0.45, 0, 1); // 조용한 바닥은 버리고, 에너지가 적은 고음 쪽을 올려 고르게 (11/11 실제 비트를 재서 맞춤)
-    }
-    groundSpec[i] = v > groundSpec[i] ? v : lerp(groundSpec[i], v, GROUND_SPEC.fall);
-    const h = Math.min(1, groundSpec[i]) * maxH;
-    if (h < 0.5) continue;
-    const px = Math.round(lerp(L.x0, L.x1, u)) + 0.5;
-    ctx.strokeStyle = rgba(COLORS.ink, 0.22 + 0.6 * Math.min(1, groundSpec[i]));
-    ctx.beginPath();
-    ctx.moveTo(px, cur.groundY);
-    ctx.lineTo(px, cur.groundY - h);
-    ctx.stroke();
-  }
-  ctx.restore();
+// ① 달팽이 왼쪽의 세로축: 위 = 큰 소리, 아래 = 작은 소리. 눈금·숫자 없음
+function drawVolumeAxis(L) {
+  const x = Math.max(L.x0 + 40, L.cx - L.R0 * 3.6);
+  const y0 = L.groundY, y1 = L.groundY - L.R0 * VOLUME_AXIS.height;
+  stroke(...COLORS.mute);
+  strokeWeight(1);
+  line(x, y0, x, y1);
+  line(x - 6, y0, x + 6, y0);
+  line(x - 6, y1, x + 6, y1);
+  label(t('axis.loud'), x, y1 - 10, { size: VOLUME_AXIS.text, c: COLORS.mute, align: CENTER, valign: BOTTOM });
+  label(t('axis.quiet'), x, y0 + 10, { size: VOLUME_AXIS.text, c: COLORS.mute, align: CENTER, valign: TOP });
 }
 
 function drawHeader(L) {
@@ -1216,9 +1284,14 @@ function drawGuides(L) {
   if (PART1_ADJUST[stage]) {
     if (!gs.part1.hasMoved && !inputLocked()) {
       const ax = stage === 'PART1_LOW' ? cur.cx - R0 * 1.6 : stage === 'PART1_HIGH' ? cur.cx + R0 * 1.4 : cur.cx;
-      const top = cur.groundY - R0 * (stage === 'PART1_VOLUME' ? 1.9 : 1.5);
+      const top = cur.groundY - R0 * (stage === 'PART1_VOLUME' ? 1.9 : 1.5) - (stage === 'PART1_VOLUME' ? 56 : 0); // ①은 글자가 붙어 달팽이에 닿지 않게 조금 위로
       label('↑', ax, top - 34 + bob, { family: FONT.mono, size: 64, c: COLORS.accent, a: arrowA, align: CENTER });
       label('↓', ax, top + 34 - bob, { family: FONT.mono, size: 64, c: COLORS.accent, a: arrowA, align: CENTER });
+      if (stage === 'PART1_VOLUME') {
+        // ① 위 화살표 = 큰 소리, 아래 화살표 = 작은 소리 (원우리 작가 지시 11/12)
+        label(t('axis.loud'), ax + 36, top - 34 + bob, { size: 22, weight: 700, c: COLORS.accent, a: arrowA });
+        label(t('axis.quiet'), ax + 36, top + 34 - bob, { size: 22, weight: 700, c: COLORS.accent, a: arrowA });
+      }
     }
     hints.push(guideText(canConfirmAdjust() ? ADJUST_VOICE[stage].confirm : ADJUST_VOICE[stage].intro));
   } else if (stage === 'PART1_REGISTER') {
@@ -1407,21 +1480,59 @@ function drawMusicText(L, a) {
   wrapText(voiceBusy() ? voiceLine() : t('music.preview'), width - L.m * 2, 23, 500).forEach((line, i) => label(line, width / 2, L.m + 125 + i * 35, { size: 23, a, align: CENTER, valign: TOP }));
 }
 
+/**
+ * 분석 화면 (원우리 작가 지시 11/12). 순서는 part1_audio.js의 runResultReveal()
+ *   tease: 달팽이 위에 "자, 당신의 청감 코드는…!" 자막만
+ *   code : 화면이 바뀌고 가운데에 코드만 크게
+ *   list · ready: 코드가 위로 올라가 작아지고, 유형 제목 한 줄과 달팽이 아래로 항목이 하나씩 나타남
+ */
 function drawAnalysis(L) {
-  const state = gs();
-  const data = getSnailAnalysis(state.userEQProfile, state.psychoProfile, state.userName);
-  const titleSize = height < 850 ? 32 : 38;
-  const titleLines = wrapText(data.title, width - L.m * 2, titleSize, 700);
-  titleLines.forEach((line, i) => label(line, width / 2, L.m + i * (titleSize + 12), { size: titleSize, weight: 700, align: CENTER, valign: TOP }));
+  const state = gs(), p1 = state.part1;
+  const phase = p1.resultPhase || 'tease';
+  const since = millis() - (p1.resultPhaseAt || 0);
+  if (phase !== shownResultPhase) {
+    if (phase === 'code') triggerConfirmFx(width / 2, height * 0.46); // 화면 전환: 고리 하나와 가는 가로선
+    shownResultPhase = phase;
+  }
+  const said = voiceBusy() ? voiceLine() : '';
+  if (phase === 'tease') {
+    wrapText(said, width - L.m * 2, 38, 700).forEach((row, i) => label(row, width / 2, height * 0.22 + i * 52, { size: 38, weight: 700, align: CENTER }));
+    return;
+  }
+
   const code = getFullEarCode(state.userEQProfile, state.psychoProfile);
-  const codeSize = min(42, (width - L.m * 2) / (code.length * 0.63));
-  label(code, width / 2, L.m + titleLines.length * (titleSize + 12) + 15, { family: FONT.mono, size: codeSize, c: COLORS.accent, align: CENTER, valign: TOP });
-  const size = height < 850 ? 20 : 24;
-  let y = height * (height > width ? 0.57 : 0.52);
-  data.paragraphs.forEach(paragraph => {
-    const rows = wrapText(paragraph, min(width - L.m * 2, 960), size, 500);
-    rows.forEach(line => { label(line, width / 2, y, { size, weight: 500, align: CENTER, valign: TOP }); y += size * 1.55; });
-    y += 16;
+  const fit = (size) => min(size, (width - L.m * 2) / (code.length * 0.63));
+  const up = phase === 'code' ? 0 : constrain(since / ANALYSIS.riseMs, 0, 1);
+  const k = up * up * (3 - 2 * up);
+  const pop = phase === 'code' ? constrain(since / 220, 0, 1) : 1; // 처음 나올 때 살짝 크게 들어옴
+  const codeSize = lerp(fit(96), fit(42), k) * (1.25 - 0.25 * pop);
+  const codeY = lerp(height * 0.46, L.m + fit(42) / 2, k);
+  label(code, width / 2, codeY, { family: FONT.mono, size: codeSize, c: COLORS.accent, a: 255 * pop, align: CENTER });
+  if (phase === 'code') {
+    label(said, width / 2, height * 0.46 - fit(96) * 0.95, { size: 30, weight: 700, a: 255 * pop, align: CENTER });
+    return;
+  }
+
+  const data = getSnailAnalysis(state.userEQProfile, state.psychoProfile, state.userName);
+  const shown = (delayMs) => phase === 'ready' ? 1 : constrain((since - delayMs) / ANALYSIS.fadeMs, 0, 1);
+  const titleSize = height < 850 ? 24 : 28;
+  label(data.title, width / 2, L.m + fit(42) + 14, { size: titleSize, weight: 700, a: 255 * shown(ANALYSIS.riseMs * 0.6), align: CENTER, valign: TOP });
+
+  // 항목: 가운데에 놓은 덩어리 안에서 왼쪽 맞춤, 앞에 빨간 네모 점
+  const size = height < 850 ? 21 : 24, lineH = size * 1.6, bullet = size * 1.1;
+  const maxW = min(width - L.m * 2, 980) - bullet;
+  const items = data.items.map((text) => wrapText(text, maxW, size, 500));
+  const blockW = Math.max(...items.flat().map((row) => textW(row, size, 500)));
+  const x = width / 2 - (blockW + bullet) / 2;
+  let y = L.groundY + 46;
+  items.forEach((rows, i) => {
+    const a = shown(ANALYSIS.firstMs + i * ANALYSIS.stepMs);
+    const dy = (1 - a) * 10;
+    noStroke();
+    fill(COLORS.accent[0], COLORS.accent[1], COLORS.accent[2], 255 * a);
+    rect(x, y + dy + size * 0.38, size * 0.34, size * 0.34);
+    rows.forEach((row) => { label(row, x + bullet, y + dy, { size, weight: 500, a: 255 * a, valign: TOP }); y += lineH; });
+    y += 4;
   });
-  drawHints(L, [voiceBusy() ? voiceLine() : t('hint.analysis')]);
+  drawHints(L, [said || (phase === 'ready' ? t('hint.analysis') : '')]);
 }

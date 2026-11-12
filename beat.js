@@ -160,20 +160,24 @@ function scheduleBeat() {
 }
 
 // B: 소리를 보낼 곳 (기본은 실시간 비트). 미리 그릴 때는 비주얼용 타격 시각을 남기지 않음
+// B.only가 있으면 그 악기만 (Part 2 ⑥에서 악기를 하나씩 방 안에 놓으려고): kick · sub · snare · blip · hat · chop
 function playBeatStep(s, t, stepDur, B = beatLive) {
-  BEAT_PATTERN.kick.forEach(([at, vel]) => { if (at === s) { beatKick(B, t, vel); markHit(B, 'kick', t); } });
-  BEAT_PATTERN.sub.forEach(([at, f, len]) => { if (at === s) beatSub(B, t, f, len * stepDur); });
-  if (BEAT_PATTERN.snare.includes(s)) { beatSnare(B, t); markHit(B, 'snare', t); }
-  BEAT_PATTERN.blip.forEach(([at, f, pan]) => { if (at === s) beatBlip(B, t, f, pan); });
-  // 16분음표 틱: 박 머리가 세고 사이는 약함, 좌우로 번갈아
-  beatTick(B, t, s % 4 === 0 ? 1 : s % 2 === 0 ? 0.6 : 0.38, s % 2 ? 0.35 : -0.35);
-  if (BEAT_PATTERN.openHiss.includes(s)) { beatHiss(B, t, 0.2, 0.1); markHit(B, 'hat', t); }
-  else if (s % 4 === 2) { beatHiss(B, t, 0.04, 0.12); markHit(B, 'hat', t); }
-  if (BEAT_PATTERN.chop.includes(s)) beatChop(B, t, stepDur * 0.5, s % 2 ? 0.5 : -0.5);
-  if (BEAT_PATTERN.ratchet.includes(s)) {
-    for (let k = 0; k < 4; k++) beatGrain(B, t + k * stepDur / 4, 0.4 + 0.2 * k, -0.8 + 0.53 * k);
-    markHit(B, 'hat', t);
+  const on = (name) => !B.only || B.only === name;
+  if (on('kick')) BEAT_PATTERN.kick.forEach(([at, vel]) => { if (at === s) { beatKick(B, t, vel); markHit(B, 'kick', t); } });
+  if (on('sub')) BEAT_PATTERN.sub.forEach(([at, f, len]) => { if (at === s) beatSub(B, t, f, len * stepDur); });
+  if (on('snare') && BEAT_PATTERN.snare.includes(s)) { beatSnare(B, t); markHit(B, 'snare', t); }
+  if (on('blip')) BEAT_PATTERN.blip.forEach(([at, f, pan]) => { if (at === s) beatBlip(B, t, f, pan); });
+  if (on('hat')) {
+    // 16분음표 틱: 박 머리가 세고 사이는 약함, 좌우로 번갈아
+    beatTick(B, t, s % 4 === 0 ? 1 : s % 2 === 0 ? 0.6 : 0.38, s % 2 ? 0.35 : -0.35);
+    if (BEAT_PATTERN.openHiss.includes(s)) { beatHiss(B, t, 0.2, 0.1); markHit(B, 'hat', t); }
+    else if (s % 4 === 2) { beatHiss(B, t, 0.04, 0.12); markHit(B, 'hat', t); }
+    if (BEAT_PATTERN.ratchet.includes(s)) {
+      for (let k = 0; k < 4; k++) beatGrain(B, t + k * stepDur / 4, 0.4 + 0.2 * k, -0.8 + 0.53 * k);
+      markHit(B, 'hat', t);
+    }
   }
+  if (on('chop') && BEAT_PATTERN.chop.includes(s)) beatChop(B, t, stepDur * 0.5, s % 2 ? 0.5 : -0.5);
 }
 
 function markHit(B, type, t) {
@@ -206,14 +210,14 @@ function getBeatPulse() {
  * 비트 2마디를 bpm 템포로 한 바퀴 이음새 없이 도는 버퍼로 그림 (Promise, 기본 모노).
  * 두 바퀴를 그리고 뒤 바퀴만 쓰므로, 끝에서 넘어가는 킥 꼬리가 앞머리에 그대로 붙음
  */
-function renderBeatLoop(bpm, mixName, channels = 1) {
+function renderBeatLoop(bpm, mixName, channels = 1, only = null) {
   const live = getAudioContext();
   const sr = live.sampleRate, stepDur = 60 / bpm / 4;
   const n = Math.round(BEAT.steps * stepDur * sr);
   const Off = window.OfflineAudioContext || window.webkitOfflineAudioContext;
   const off = new Off(channels, n * 2, sr);
   const mix = BEAT_MIXES[mixName];
-  const B = { ctx: off };
+  const B = { ctx: off, only };
   ['low', 'mid', 'high'].forEach((k) => {
     const g = off.createGain();
     g.gain.value = mix[k];

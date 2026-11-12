@@ -1,4 +1,5 @@
 /** 한/영 밈사운드 안내 (2026-11-09). 원본·구간표: source/voice/memesound/.
+ * m9-4 ~ m9-7(분석 화면, 11/12)은 아직 녹음이 없어 자막만 나옴 (copy.js의 VOICE_PENDING). m9-2는 11/12부터 쓰지 않음.
  * 한/영 모두 m 접두어의 새 녹음을 사용합니다. 영어 원본·구간표는 en/에 보관합니다.
  */
 const MEME_VOICE_COPY = {
@@ -30,7 +31,11 @@ const MEME_VOICE_COPY = {
   "m8-3": "여섯 번 해볼게요. 그러면 저, 드디어 완성이에요!",
   "m9-1": "여러분, 저 됐어요! 달팽이가 됐어요!",
   "m9-2": "지금까지 검사해 주셔서 감사합니다!",
-  "m9-3": "아, 여기서 작가님들이 만든 소리도 들어볼 수 있어요! 화면에서 듣고 싶은 소리를 하나씩 골라보세요."
+  "m9-3": "아, 여기서 작가님들이 만든 소리도 들어볼 수 있어요! 화면에서 듣고 싶은 소리를 하나씩 골라보세요.",
+  "m9-4": "자, 당신의 청감 코드는…! 두두둥!",
+  "m9-5": "짜잔! 이게 당신의 청감 코드예요!",
+  "m9-6": "당신의 청감은 이런 특징이 있어요.",
+  "m9-7": "이제 음악을 들으러 가볼까요? 달팽이를 꾹 눌러주세요."
 };
 const MEME_VOICE_COPY_EN = {
   "m1-1": "Hey, everyone! I can grow and shrink! Swipe your finger up and down on the screen.",
@@ -60,7 +65,11 @@ const MEME_VOICE_COPY_EN = {
   "m8-3": "Let’s do this six times. Then I’ll finally be complete!",
   "m9-1": "Everyone, I did it! I’m a snail!",
   "m9-2": "Thanks for taking the listening test with me!",
-  "m9-3": "Oh, you can listen to sounds made by the artists here, too! Pick the ones you’d like to hear from the screen, one at a time."
+  "m9-3": "Oh, you can listen to sounds made by the artists here, too! Pick the ones you’d like to hear from the screen, one at a time.",
+  "m9-4": "And your ear code is…! Drum roll!",
+  "m9-5": "Ta-da! This is your ear code!",
+  "m9-6": "Here’s what makes your hearing yours.",
+  "m9-7": "Shall we go listen to some music? Press and hold the snail."
 };
 const VOICE_PLANS = {
   "adjustVolumeIntro": {
@@ -198,16 +207,11 @@ const VOICE_PLANS = {
       "m8-3"
     ]
   },
-  "result": {
-    "ko": [
-      "m9-1",
-      "m9-2"
-    ],
-    "en": [
-      "m9-1",
-      "m9-2"
-    ]
-  },
+  "result": { "ko": ["m9-1"], "en": ["m9-1"] },
+  "resultTease": { "ko": ["m9-4"], "en": ["m9-4"] },
+  "resultCode": { "ko": ["m9-5"], "en": ["m9-5"] },
+  "resultList": { "ko": ["m9-6"], "en": ["m9-6"] },
+  "resultReady": { "ko": ["m9-7"], "en": ["m9-7"] },
   "music": {
     "ko": [
       "m9-3"
