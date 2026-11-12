@@ -79,17 +79,17 @@ const MELODY_ECHO = { time: 0.3, feedback: 0.22, wet: 0.18 };
 const MELODY_BASE_AMP = 0.42;   // 삼각파 서스테인 0.3과 비슷하게 들리도록 (귀로 다시 맞출 것)
 const MELODY_GAP = 0.7;
 
-// 11/12 사용자 지시: B(C4)는 유지하고 A(E♭3)·C(A4)는 기존 완전5도에서 양끝을 2반음씩 더 벌림 (9반음 간격).
+// 11/12 저음 추가 조정: A는 E♭3에서 D♭3로 2반음 더 내림. B(C4)·C(A4)와의 간격은 11반음·9반음.
 // peakHz(음역 EQ와 코드 글자)는 그대로 유지.
 // defaultOffsetDb: 기존 등청감 보정 출발점을 유지. tests/register 페이지에서 새 음역으로 보정한 값이 있으면 그걸 씀
 const REGISTERS = [
-  { id: 'LOW',  name: '저음역', range: 'E♭3–E♭4', baseMidi: 51, peakHz: 100,  defaultOffsetDb: 2 },
+  { id: 'LOW',  name: '저음역', range: 'D♭3–D♭4', baseMidi: 49, peakHz: 100,  defaultOffsetDb: 2 },
   { id: 'MID',  name: '중음역', range: 'C4–C5', baseMidi: 60, peakHz: 400,  defaultOffsetDb: 0 },
   { id: 'HIGH', name: '고음역', range: 'A4–A5', baseMidi: 69, peakHz: 2500, defaultOffsetDb: -1 }
 ];
 const REGISTER_PEAK_GAIN = 3;
 const REGISTER_PEAK_Q = 1;
-const REGISTER_CALIB_KEY = 'svart.registerTest.v3'; // v3: E♭3·C4·A4. 이전 음역의 보정값은 쓰지 않음
+const REGISTER_CALIB_KEY = 'svart.registerTest.v4'; // v4: D♭3·C4·A4. 이전 음역의 보정값은 쓰지 않음
 
 // 오디오 노드 내부 참조
 let lowShelfFilter = null;
