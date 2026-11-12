@@ -185,6 +185,8 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   await until("GlobalState.part1.resultPhase === 'code'"); await sleep(120); await shot('fast-09-code');
   await until("GlobalState.part1.resultPhase === 'list'");
   await check('!canHoldConfirm()', 'Analysis could be skipped before the music guide');
+  await ev('document.querySelector(".analysis-next").click()');
+  await check("GlobalState.currentStage === 'RESULT' && document.querySelector('.analysis-next').hidden", 'Text click skipped the report before it was ready');
   await until("GlobalState.part1.resultPhase === 'ready'");
   await ready();
   await check("__fastFlow.voices.every(x => x.id.startsWith('m'))", 'Legacy guide played');
@@ -196,11 +198,23 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   await check("cur.shellSquare === undefined && antennaTips.length === 2", 'Shell shape must not change with the leading ear');
   await check(`getSnailAnalysis({...GlobalState.userEQProfile,lowShelf:{gain:-10},highShelf:{gain:-10}},GlobalState.psychoProfile,'').title === ${JSON.stringify(lang==='en'?'Your snail is quiet':'차분한 달팽이예요')}`, 'Nameless analysis title has a dangling prefix');
   await shot('fast-09-analysis');
+  await check('!canHoldConfirm() && !document.querySelector(".analysis-next").hidden', 'Analysis must continue by clicking its text');
+  const beforePet = await ev('({x:cur.cx,y:cur.groundY,profile:JSON.stringify(GlobalState.userEQProfile)})');
+  const pet = (await targets()).snail;
+  await mouse('mousePressed', pet.x, pet.y);
+  await sleep(1100);
+  await check("GlobalState.currentStage === 'RESULT' && cur.press > 0.8", 'Holding the snail must only squash it');
+  await mouse('mouseMoved', pet.x + 120, pet.y - 35);
+  await sleep(180); await shot('fast-09-petting');
+  await check(`Math.abs(cur.cx-${beforePet.x}) < 1 && Math.abs(cur.groundY-${beforePet.y}) < 1 && JSON.stringify(GlobalState.userEQProfile) === ${JSON.stringify(beforePet.profile)}`, 'Petting moved the snail or changed the result');
+  await mouse('mouseReleased', pet.x + 120, pet.y - 35);
+  await sleep(700);
+  await check("GlobalState.currentStage === 'RESULT' && cur.press < 0.05", 'Petting failed to release');
   await send('Emulation.setDeviceMetricsOverride', { width: 1133, height: 744, deviceScaleFactor: 1, mobile: false });
   await sleep(500); await shot('fast-09-analysis-landscape');
   await send('Emulation.setDeviceMetricsOverride', { width: 744, height: 1133, deviceScaleFactor: 1, mobile: false });
   await sleep(500);
-  await confirm(); await stage('MUSIC'); await ready();
+  await tap((await targets()).analysisNext); await stage('MUSIC'); await ready();
   await check("__fastFlow.voices.some(x => x.stage === 'MUSIC' && x.id === 'm9-3')", 'Missing music guide');
   await check(`JSON.stringify(TOUR_PLACES.map(p=>t(p.artistKey))) === ${JSON.stringify(JSON.stringify(lang==='en'?['WONWOORI','Felix Kubin','Collaboration']:['원우리','펠릭스 쿠빈','콜라보 음악']))}`, 'Wrong localized artist labels');
   for (const i of [2, 0, 1]) {

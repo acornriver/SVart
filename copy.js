@@ -25,9 +25,9 @@ const STAGE_COPY = {
 // 음성 안내의 자막 (차민휘 지시문 그대로, media/voice 파일과 번호가 같음). 재생 시점은 part1_audio.js · part2_audio.js
 // 녹음이 아직 없는 줄. 녹음이 오면 media/voice에 넣고 여기서 지움. 그 전까지는 소리 없이 자막만 나옴
 const VOICE_PENDING = {
-  // m6-1 · m6-3: ⑥ 문구를 '편한 자리'로 바꿔 옛 녹음('가운데')을 틀지 않음. m9-4~7: 분석 화면 새 대사 (11/12). 모두 차민휘 녹음 대기
-  ko: ['m6-1', 'm6-3', 'm9-4', 'm9-5', 'm9-6', 'm9-7'],
-  en: ['m6-1', 'm6-3', 'm9-4', 'm9-5', 'm9-6', 'm9-7']
+  // m6-1 · m6-3: ⑥ 문구를 '편한 자리'로 바꿔 옛 녹음('가운데')을 틀지 않음. m9-4~6: 분석 화면 새 대사 (11/12). 모두 차민휘 녹음 대기
+  ko: ['m6-1', 'm6-3', 'm9-4', 'm9-5', 'm9-6'],
+  en: ['m6-1', 'm6-3', 'm9-4', 'm9-5', 'm9-6']
 };
 
 const VOICE_COPY = {
@@ -96,7 +96,7 @@ const COPY = {
     'intro.voice': '음성 안내',
 
     'hint.listening': '잘 들어보세요…',
-    'hint.analysis': '달팽이를 꾹 눌러 음악 들어보기 →',
+    'hint.analysis': '음악 들으러 가기 →',
     'music.preview': '지금은 북서울의 소리로 미리 들어보세요',
     'hint.result1': '슬라이더로 원래 소리와 내 귀 소리를 비교해보세요',
     'hint.result2': '달팽이를 오른쪽으로 밀면 청감타워로 가요',
@@ -161,7 +161,7 @@ const COPY = {
     'intro.voice': 'Voice guide',
 
     'hint.listening': 'Listen…',
-    'hint.analysis': 'Press and hold the snail to listen →',
+    'hint.analysis': 'Listen to music →',
     'music.preview': 'Preview the sounds around Buk-Seoul',
     'hint.result1': 'Slide to compare the original sound and your ear EQ',
     'hint.result2': 'Push the snail to the right to send it to the Hearing Tower',

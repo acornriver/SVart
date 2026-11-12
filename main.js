@@ -10,7 +10,7 @@
  *     ⑤ 고역        : 좌우로 끌기 = 높이 조절, 달팽이 꾹 = 확정
  *     ⑥ 중앙        : 좌우로 끌기 = 비트를 머리 둘레로 돌리기, 달팽이 꾹 = 여기가 가운데
  *     ⑦⑧           : 좌우로 끌어 달팽이를 기어가게 하고 손을 떼면 바로 답, 더듬이·달팽이 톡 = 한 번 더 듣기(한국어만)
- *     분석          : 달팽이 꾹 = 감상으로
+ *     분석          : 아래 텍스트 클릭 = 감상으로, 달팽이 터치·문지르기 = 제자리에서 반응
  *     감상          : 곡 버튼 톡 = 그 소리로, 슬라이더 = 원래 소리 ↔ 내 귀 EQ,
  *                     빈 곳을 누르고 있는 동안 = 원래 소리, 달팽이를 오른쪽으로 밀기 = 청감타워로 보내기
  *     쓸기 방향: ①②③은 위아래로, ⑤⑥⑦⑧과 보내기는 좌우로 쓸 때만 동작. 처음 움직인 방향으로 정하고, 대각선은 무시 (사용자 지시 11/06)
@@ -31,7 +31,7 @@ const IDLE_RESET_SECONDS = 120; // 관람객이 자리를 떠나면 첫 화면�
 
 let lastTouchTime = 0;
 let lastActivity = 0;
-let pointer = null; // 지금 누르고 있는 손가락 { x0, y0, x, y, lastX, lastY, t0, onSnail, canHold, mode: 'pending' | 'drag' | 'ignored' | 'done' | 'voice' | 'eq' }
+let pointer = null; // 지금 누르고 있는 손가락 { x0, y0, x, y, lastX, lastY, t0, onSnail, canHold, mode: 'pending' | 'drag' | 'ignored' | 'done' | 'voice' | 'eq' | 'pet' }
 
 function setup() {
   const cnv = createCanvas(windowWidth, windowHeight);
@@ -40,6 +40,7 @@ function setup() {
   pixelDensity(Math.min(2, window.devicePixelRatio || 1));
   frameRate(60);
   setupIntro(submitName);
+  setupResultAction();
   setupBackdrops();
   loadVoice();
   MemeFX.load();
@@ -167,6 +168,13 @@ function pointerDown(px, py) {
   resumeBackdrop();
   lastActivity = millis();
   if (portraitBlocked()) return;
+  if (window.GlobalState.currentStage === 'RESULT') {
+    if (window.GlobalState.part1.resultPhase !== 'code' && (hitSnail(px, py) || hitAntenna(px, py))) {
+      pointer = { mode: 'pet' };
+      petResultSnail(px, py);
+    }
+    return;
+  }
   if (window.GlobalState.currentStage === 'MUSIC') {
     if (tourState().sendAt !== null) return;
     if (hitResultEqSlider(px, py)) {
@@ -206,6 +214,10 @@ function pointerDown(px, py) {
 function pointerMove(px, py) {
   if (!pointer) return;
   lastActivity = millis();
+  if (pointer.mode === 'pet') {
+    petResultSnail(px, py);
+    return;
+  }
   if (pointer.mode === 'voice') {
     setVoiceLevel(voiceSliderLevelAt(px));
     return;
@@ -243,6 +255,7 @@ function pointerUp() {
   lastActivity = millis();
   const stage = window.GlobalState.currentStage;
 
+  if (p.mode === 'pet') { releaseResultSnail(); return; }
   if (stage === 'MUSIC' && p.holdBypass) setResultEqMix(p.prevEqMix);
   if (p.mode === 'drag' && stage.startsWith('PART2_')) releaseRoll();
   if (p.mode === 'pending') tapAt(p.x0, p.y0, millis() - p.t0);
@@ -280,6 +293,7 @@ function pointerCancel() {
   pointer = null;
   lastActivity = millis();
   const stage = window.GlobalState.currentStage;
+  if (p.mode === 'pet') releaseResultSnail();
   if (stage === 'MUSIC' && p.holdBypass) setResultEqMix(p.prevEqMix);
   if (p.mode === 'drag' && stage.startsWith('PART2_')) cancelRoll();
 }
@@ -293,7 +307,6 @@ function canHoldConfirm() {
   if (voiceBusy() || inputLocked()) return false; // 말이 끝나기 전에 닿아 있던 손가락으로 넘어가지 않게
   if (PART1_ADJUST[stage]) return canConfirmAdjust();
   if (stage === 'PART1_REGISTER') return gs.part1.register.selectedCard >= 0 && !gs.part1.register.isAutoPlaying && !!voiceCue.picked;
-  if (stage === 'RESULT') return canConfirmResult();
   if (stage === 'PART2_CENTER' || stage === 'PART2_SENSITIVITY') return canConfirmPart2(); // ⑦⑧은 손을 떼면 답 (releaseRoll)
   return false;
 }
@@ -304,7 +317,7 @@ function holdReady() {
 
 function updateHold() {
   if (pointer && portraitBlocked()) pointerCancel(); // 누르던 중에 세로로 돌리면 손가락을 놓은 것으로
-  if (pointer && pointer.mode !== 'voice' && inputLocked()) pointer = null; // 잠금이 시작되면 누르던 손가락도 버림
+  if (pointer && !['voice', 'pet'].includes(pointer.mode) && inputLocked()) pointer = null; // 결과 달팽이 놀이는 안내를 방해하지 않음
   if (!holdReady()) return;
   if (millis() - pointer.t0 < HOLD_MS) return;
   pointer.mode = 'done';
@@ -313,7 +326,6 @@ function updateHold() {
   if (PART1_ADJUST[stage]) tapConfirmAdjust();
   else if (stage === 'PART1_REGISTER') confirmRegister();
   else if (stage.startsWith('PART2_')) confirmPart2();
-  else if (stage === 'RESULT') confirmStep();
 }
 
 // 비주얼용: 꾹 누르는 중이면 { x, y, progress 0~1 }

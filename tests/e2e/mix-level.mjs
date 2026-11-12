@@ -54,7 +54,7 @@ const until = async expr => { const t=Date.now();while(Date.now()-t<30000){if(aw
 await until("!!document.querySelector('.intro .title-btn') && MemeFX.ready()");
 await ev("document.querySelector('.intro .title-btn').click()");
 await until("GlobalState.currentStage === 'PART1_VOLUME'");
-await until("voiceIds('ko').every(id=>voiceClips.ko[id]) && voiceIds('en').every(id=>voiceClips.en[id]) && TOUR_PLACES.every(p=>sampleSources[p.key])");
+await until("LANGS.every(lang=>voiceIds(lang).filter(id=>!VOICE_PENDING[lang].includes(id)).every(id=>voiceClips[lang][id])) && TOUR_PLACES.every(p=>sampleSources[p.key])");
 await ev('beatCalibrated');
 const result = await ev(`(${audit.toString()})().catch(e=>({auditError:e.stack||String(e)}))`);
 if(typeof result!=='number') throw Error('Audio audit failed: '+JSON.stringify({result,errors}));
@@ -74,7 +74,12 @@ const failures=[];
 for(const row of records) if(!Number.isFinite(row.peakDb)||row.peakDb>-1) failures.push(row.id+' peak '+row.peakDb);
 for(const row of records.filter(r=>r.group==='part2')) if(Math.abs(row.gainDb-6)>.2) failures.push(row.id+' test ratio changed');
 const beatEq=records.filter(r=>r.group==='beat-EQ');
-if(Math.max(...beatEq.map(r=>r.loudDb))-Math.min(...beatEq.map(r=>r.loudDb))>1) failures.push('EQ loudness spread exceeds 1dB');
+// Compare EQ settings on the same input; FULL/LOW/HIGH have different spectra
+// and different flat reference levels even before applying EQ.
+for(const name of ['FULL','LOW','HIGH']) {
+  const levels=beatEq.filter(r=>r.id.startsWith('beat-'+name+'-')).map(r=>r.loudDb);
+  if(Math.max(...levels)-Math.min(...levels)>1) failures.push(name+' EQ loudness spread exceeds 1dB');
+}
 if(failures.length) errors.push(...failures);
 writeFileSync(OUT+'/mix-report.json',JSON.stringify({mix:await ev('AudioMix.status()'),records,errors},null,2));
 console.log('errors:', errors.length?errors:'none');
@@ -138,7 +143,7 @@ async function audit() {
     createRegisterVoice(reg.id,ctx,graph.buses.program);
     add('melody','melody-'+reg.id,await ctx.startRendering(),{},true);
   }
-  for(const lang of ['ko','en'])for(const id of voiceIds(lang)) {
+  for(const lang of ['ko','en'])for(const id of voiceIds(lang).filter(id=>!VOICE_PENDING[lang].includes(id))) {
     const b=voiceClips[lang][id];
     add('voice-default','voice-'+lang+'-'+id,await render(b,'voice',VOICE_LEVEL_START**2),{},true);
     add('voice-max','voice-max-'+lang+'-'+id,await render(b,'voice',1));
@@ -159,11 +164,16 @@ async function audit() {
     add('part2',id,after,{gainDb:db(a.kRms/z.kRms)},true);
   }
   const A=await prepareCenter();
+  const voice=await renderBeatLoop(P2_GROOVE.bpm,'FULL');
   const energy=d=>d.reduce((s,x)=>s+x*x,0),irEnergy=Math.sqrt((energy(A.irs[0].getChannelData(0))+energy(A.irs[0].getChannelData(1)))/2);
-  const legacyCenterGain=splToAmp(CENTER_TEST.spl)/Math.SQRT2/(Math.sqrt(energy(A.voice.getChannelData(0))/A.voice.length)*irEnergy);
+  const legacyCenterGain=splToAmp(CENTER_TEST.spl)/Math.SQRT2/(Math.sqrt(energy(voice.getChannelData(0))/voice.length)*irEnergy);
   for(let dir=0;dir<A.irs.length;dir++) {
-    const ctx=new Off(2,Math.ceil((A.voice.duration+.1)*sr),sr),graph=AudioMix.createGraph(ctx),source=ctx.createBufferSource(),conv=ctx.createConvolver(),g=ctx.createGain();
-    source.buffer=A.voice;conv.normalize=false;conv.buffer=A.irs[dir];g.gain.value=A.gain;source.connect(g);g.connect(conv);conv.connect(graph.buses.part2);source.start(0);
+    const ctx=new Off(2,Math.ceil((Math.max(...A.sources.map(s=>s.buf.duration))+.1)*sr),sr),graph=AudioMix.createGraph(ctx);
+    for(const spot of A.sources) {
+      const pl=centerPlacer(ctx,graph.buses.part2,A,spot.buf,wrap180(-10*dir+spot.deg));
+      pl.level.gain.value=A.gain/spot.dist;
+      pl.src.start(0);
+    }
     add('center','center-'+dir,await ctx.startRendering(),{calibrationChangeDb:db(A.gain/legacyCenterGain)},dir===0||dir===9||dir===27);
   }
   for(const hz of [8000,12000,16000,20000]) {

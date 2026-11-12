@@ -79,17 +79,17 @@ const MELODY_ECHO = { time: 0.3, feedback: 0.22, wet: 0.18 };
 const MELODY_BASE_AMP = 0.42;   // 삼각파 서스테인 0.3과 비슷하게 들리도록 (귀로 다시 맞출 것)
 const MELODY_GAP = 0.7;
 
-// 세 멜로디의 높이: B(가운데, C4)는 그대로, A는 완전5도 아래(F3), C는 완전5도 위(G4) (원우리 작가 지시 11/12.
-// 예전에는 두 옥타브씩 떨어진 C2·C6이었는데 A가 너무 낮아 헤드폰에서 지저분하게 들림). peakHz(음역 EQ와 코드 글자)는 그대로 둠
-// defaultOffsetDb: 등청감 보정 출발점 (간격이 좁아져 작게. Claude가 정함). tests/register 페이지에서 보정한 값이 있으면 그걸 씀
+// 11/12 사용자 지시: B(C4)는 유지하고 A(E♭3)·C(A4)는 기존 완전5도에서 양끝을 2반음씩 더 벌림 (9반음 간격).
+// peakHz(음역 EQ와 코드 글자)는 그대로 유지.
+// defaultOffsetDb: 기존 등청감 보정 출발점을 유지. tests/register 페이지에서 새 음역으로 보정한 값이 있으면 그걸 씀
 const REGISTERS = [
-  { id: 'LOW',  name: '저음역', range: 'F3–F4', baseMidi: 53, peakHz: 100,  defaultOffsetDb: 2 },
+  { id: 'LOW',  name: '저음역', range: 'E♭3–E♭4', baseMidi: 51, peakHz: 100,  defaultOffsetDb: 2 },
   { id: 'MID',  name: '중음역', range: 'C4–C5', baseMidi: 60, peakHz: 400,  defaultOffsetDb: 0 },
-  { id: 'HIGH', name: '고음역', range: 'G4–G5', baseMidi: 67, peakHz: 2500, defaultOffsetDb: -1 }
+  { id: 'HIGH', name: '고음역', range: 'A4–A5', baseMidi: 69, peakHz: 2500, defaultOffsetDb: -1 }
 ];
 const REGISTER_PEAK_GAIN = 3;
 const REGISTER_PEAK_Q = 1;
-const REGISTER_CALIB_KEY = 'svart.registerTest.v2'; // v2: 완전5도 간격. 예전(두 옥타브 간격) 보정값은 쓰지 않음
+const REGISTER_CALIB_KEY = 'svart.registerTest.v3'; // v3: E♭3·C4·A4. 이전 음역의 보정값은 쓰지 않음
 
 // 오디오 노드 내부 참조
 let lowShelfFilter = null;
@@ -339,8 +339,8 @@ function confirmStep() {
  *   tease : "저 됐어요!" → "자, 당신의 청감 코드는…! 두두둥!" (드럼롤)
  *   code  : 화면이 바뀌고 코드만 크게 "짜잔!"
  *   list  : 코드가 위로 올라가고 아래에 항목별 분석이 하나씩. "당신의 청감은 이런 특징이 있어요."
- *   ready : RESULT_READ_MS 뒤 "이제 음악을 들으러 가볼까요? 달팽이를 꾹 눌러주세요." 이때부터 꾹으로 넘어감
- * 새 대사(m9-4 ~ m9-7)는 녹음 전이라 자막만 나옴 (copy.js의 VOICE_PENDING)
+ *   ready : RESULT_READ_MS 뒤 음악 안내. 이후 보고서 아래 텍스트 클릭으로 넘어감
+ * 새 대사(m9-4 ~ m9-6)는 녹음 전이라 자막만 나옴 (copy.js의 VOICE_PENDING)
  */
 async function runResultReveal() {
   const run = ++resultRun;
@@ -367,7 +367,7 @@ async function runResultReveal() {
   sayGuide(voicePlan('resultReady'));
 }
 
-// 분석을 다 보여 준 뒤에만 달팽이 꾹으로 감상으로 넘어감
+// 분석을 다 보여 준 뒤에만 아래 텍스트 클릭으로 감상으로 넘어감
 function canConfirmResult() {
   return window.GlobalState.part1.resultPhase === 'ready';
 }

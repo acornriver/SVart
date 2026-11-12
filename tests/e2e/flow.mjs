@@ -205,7 +205,9 @@ await waitUntil("GlobalState.currentStage === 'RESULT'", 8000); await expect('RE
 console.log('  result voice', await ev('voiceNow'));
 console.log('  psycho', JSON.stringify(await ev('GlobalState.psychoProfile')));
 
-await canHold(); await holdSnail(); await expect('MUSIC');
+await waitUntil('!!getTouchTargets().analysisNext');
+const nextMusic = (await T()).analysisNext;
+await tap(nextMusic.x, nextMusic.y); await expect('MUSIC');
 await waitUntil('!voiceBusy()');
 // 결과: 빈 곳을 누르고 있으면 원래 소리, 떼면 내 소리. 달팽이를 오른쪽으로 밀면 보내기
 await sleep(2500); await shot('10-result-subtitle'); await sleep(3000); await shot('10-result');

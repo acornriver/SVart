@@ -1,0 +1,78 @@
+{
+  "targetLufs": -27,
+  "method": "FFmpeg loudnorm measurement after encoding; no dynamic normalization applied",
+  "clips": [
+    {
+      "language": "ko",
+      "id": "m3-1",
+      "lufs": -26.99,
+      "truePeakDbfs": -5.1
+    },
+    {
+      "language": "ko",
+      "id": "m4-1",
+      "lufs": -26.99,
+      "truePeakDbfs": -11.88
+    },
+    {
+      "language": "ko",
+      "id": "m5-1",
+      "lufs": -27.0,
+      "truePeakDbfs": -7.52
+    },
+    {
+      "language": "ko",
+      "id": "m5-5",
+      "lufs": -27.01,
+      "truePeakDbfs": -16.95
+    },
+    {
+      "language": "ko",
+      "id": "m8-3",
+      "lufs": -27.0,
+      "truePeakDbfs": -15.44
+    },
+    {
+      "language": "ko",
+      "id": "m9-7",
+      "lufs": -27.0,
+      "truePeakDbfs": -16.0
+    },
+    {
+      "language": "en",
+      "id": "m3-1",
+      "lufs": -27.05,
+      "truePeakDbfs": -5.33
+    },
+    {
+      "language": "en",
+      "id": "m4-1",
+      "lufs": -27.0,
+      "truePeakDbfs": -12.25
+    },
+    {
+      "language": "en",
+      "id": "m5-1",
+      "lufs": -26.98,
+      "truePeakDbfs": -8.5
+    },
+    {
+      "language": "en",
+      "id": "m5-5",
+      "lufs": -26.98,
+      "truePeakDbfs": -12.28
+    },
+    {
+      "language": "en",
+      "id": "m8-3",
+      "lufs": -27.0,
+      "truePeakDbfs": -13.23
+    },
+    {
+      "language": "en",
+      "id": "m9-7",
+      "lufs": -27.0,
+      "truePeakDbfs": -14.28
+    }
+  ]
+}

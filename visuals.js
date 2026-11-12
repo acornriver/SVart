@@ -14,7 +14,7 @@
  *             검사음이 울릴 때마다 두 더듬이 끝이 똑같이 울림 (좌우 대칭이라 답의 단서가 아님)
  * - Part 1에는 바닥선이 없고 ①에만 세로 크기 축(위 = 큰 소리, 아래 = 작은 소리). Part 2에는 바닥선 (⑦⑧ 답 자리가 그 위에 놓임)
  * - 꾹 눌러 확정하는 순간: 파형이 잠깐 멈추고 손끝에서 고리 하나, 가는 가로선 몇 줄 (강한 섬광 없음)
- * - 결과: 분석(RESULT: 두두둥 → 코드만 → 코드가 올라가고 항목별 분석) → 달팽이 꾹 → 세 소리 감상(MUSIC, 뒤에 그 장소 영상을 고대비 흑백으로). 보내면 오른쪽으로 기어 나감
+ * - 결과: 분석(RESULT: 두두둥 → 코드만 → 코드가 올라가고 항목별 분석) → 아래 텍스트 클릭 → 세 소리 감상(MUSIC, 뒤에 그 장소 영상을 고대비 흑백으로). 보내면 오른쪽으로 기어 나감
  * 조절 중에는 dB 값이나 눈금 숫자를 크게 보여주지 않는다. 값은 우상단에 작은 디버그 숫자로만 표시.
  * 섬광은 눈에 부담이 없도록 아주 옅게만 쓴다 (깜빡이는 스트로브 아님).
  * 확정은 달팽이를 꾹 누르기, 다시 듣기는 더듬이 톡(한국어 ⑦⑧), 음역은 등 위 자리를 톡,
@@ -98,6 +98,44 @@ let antLook = { yaw: 0, target: 0, next: 0 };   // 두리번: 지금 고개 각,
 let antCycle = { start: 0, explore: 4.5 };      // 우세 귀 더듬이 한 바퀴의 시작 시각, 탐색 길이(초)
 let antDom = { L: 0, R: 0 };                    // 우세 귀 효과 정도 (부드럽게 따라감)
 let shellAt = null;         // { x, y, r }
+let resultAction = null;
+const RESULT_REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)');
+const resultPet = { active: false, angle: -Math.PI / 2, x: 0, y: 0, releasedAt: -1e9 };
+
+function setupResultAction() {
+  resultAction = document.createElement('button');
+  resultAction.type = 'button';
+  resultAction.className = 'analysis-next';
+  resultAction.hidden = true;
+  ['mousedown', 'touchstart'].forEach(name => resultAction.addEventListener(name, event => event.stopPropagation()));
+  resultAction.addEventListener('click', () => {
+    if (gs().currentStage !== 'RESULT' || !canConfirmResult() || voiceBusy() || inputLocked() || portraitBlocked()) return;
+    pointerCancel();
+    lastActivity = millis();
+    confirmStep();
+  });
+  document.body.appendChild(resultAction);
+}
+
+function syncResultAction() {
+  if (!resultAction) return;
+  const text = t('hint.analysis');
+  if (resultAction.textContent !== text) resultAction.textContent = text;
+  resultAction.hidden = gs().currentStage !== 'RESULT' || !canConfirmResult() || voiceBusy() || inputLocked() || !!MemeFX.activeKey();
+}
+
+function petResultSnail(x, y) {
+  if (!lastShape) return;
+  resultPet.active = true;
+  resultPet.x = x;
+  resultPet.y = y;
+  resultPet.angle = Math.atan2(y - lastShape.cy, x - lastShape.cx);
+}
+
+function releaseResultSnail() {
+  resultPet.active = false;
+  resultPet.releasedAt = millis();
+}
 let pulse = { kick: 0, snare: 0, hat: 0 };
 let snailInk = COLORS.ink.slice(); // 지금 달팽이 선 색 (정해진 색을 천천히 따라감)
 let snailGlow = COLORS.accent.slice(); // 선 밑의 잔광. ⑥ 전에는 빨강, 색이 정해지면 그 색 (빨강이 깔리면 파란 선이 보라로 보임, 차민휘 전달사항 11/06)
@@ -113,6 +151,7 @@ let confirmFx = null;       // { at, x, y, wave, lines: [{ y, x0, x1 }] }
 function renderVisuals() {
   const stage = window.GlobalState.currentStage;
   if (stage !== lastStage) onStageChange(stage);
+  syncResultAction();
 
   // 결과 화면에서는 캔버스 뒤 영상이 비치도록 지우고 검정을 반투명하게 덮음
   clear();
@@ -166,6 +205,8 @@ function isResultStage(stage) {
 }
 
 function onStageChange(stage) {
+  resultPet.active = false;
+  resultPet.releasedAt = -1e9;
   if (isResultStage(stage)) resultAt = millis();
   if (stage === 'INIT' || isResultStage(stage)) { slime = []; slimeAcc = 0; }
   if (stage === 'INIT') confirmFx = null;
@@ -431,7 +472,8 @@ function getTouchTargets() {
     antenna: antennaTips[1] || antennaTips[0],
     spots: REGISTERS.map((r) => ({ x: lastShape.cx + SHELL_SPOT[r.id] * cur.R0, y: cur.groundY - cur.R0 * 3.1 })),
     tracks: resultTrackBoxes().map((b) => ({ x: b.cx, y: b.cy })),
-    eqSlider: resultEqSliderBox()
+    eqSlider: resultEqSliderBox(),
+    analysisNext: resultAction && !resultAction.hidden ? (() => { const b = resultAction.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; })() : null
   };
 }
 
@@ -508,8 +550,8 @@ function targetParams(L) {
     headG: v.high === null ? 0 : v.high / 10,
     wobble: at < FLOW_STAGES.indexOf('PART1_LOW') ? 1 : 0.3, // 빚기 전에는 말랑하게 일렁임
     crawl: stage === 'MUSIC' ? 1 : 0,                       // 결과 화면: 제자리에서 천천히 기어감
-    press: pressing ? 1 : 0,
-    pressAngle: stage === 'PART1_VOLUME' ? -HALF_PI : stage === 'PART1_HIGH' ? HEAD_ANGLE : TAIL_ANGLE,
+    press: stage === 'RESULT' ? (resultPet.active ? 1 : 0) : pressing ? 1 : 0,
+    pressAngle: stage === 'RESULT' ? resultPet.angle : stage === 'PART1_VOLUME' ? -HALF_PI : stage === 'PART1_HIGH' ? HEAD_ANGLE : TAIL_ANGLE,
     shellOn: sh.on, shellX: sh.x, shellKey: sh.key,
     helix: tw === null ? 0 : 1, twist: tw === null ? 0 : tw,
     dim: stage === 'RESULT' && gs.part1.resultPhase === 'code' ? 0 : stage === 'MUSIC' ? lerp(0.45, 1, typeof gs.part1.eqMix === 'number' ? gs.part1.eqMix : (gs.part1.isBypassed ? 0 : 1)) : 1
@@ -579,10 +621,14 @@ function bodyShape() {
   const F = (cur.tailF + cur.headF) / 2;
   const sending = sendProgress() >= 0;
   const listen = resultListenState();
+  const pet = gs().currentStage === 'RESULT' ? cur.press : 0;
+  const releaseMs = millis() - resultPet.releasedAt;
+  const spring = gs().currentStage === 'RESULT' && !RESULT_REDUCED_MOTION.matches && releaseMs < 650
+    ? Math.sin(releaseMs / 650 * Math.PI * 3) * Math.exp(-releaseMs / 220) * 0.12 : 0;
   const crawl = (sending ? 1.6 : Math.max(cur.crawl, 1.4 * cur.move)) * Math.sin(time * (sending ? 7 : cur.move > 0.1 ? 6 : 2.4));
   const face = cur.face === undefined ? 1 : cur.face;
-  const hs = (1 + 0.16 * F) * (1 + 0.06 * pulse.kick) * (1 + 0.05 * crawl) * (1 + 0.03 * listen.boost * Math.sin(time * 5.2));
-  const vs = (1 - 0.22 * F) * (1 - 0.1 * pulse.kick) * (1 - 0.04 * crawl) * (1 - 0.03 * listen.boost * Math.sin(time * 5.2));
+  const hs = (1 + 0.16 * F) * (1 + 0.06 * pulse.kick) * (1 + 0.05 * crawl) * (1 + 0.03 * listen.boost * Math.sin(time * 5.2)) * (1 + 0.12 * pet + spring);
+  const vs = (1 - 0.22 * F) * (1 - 0.1 * pulse.kick) * (1 - 0.04 * crawl) * (1 - 0.03 * listen.boost * Math.sin(time * 5.2)) * (1 - 0.16 * pet - spring);
   const flatY = R0 * 0.72 * vs;
   const cx = cur.cx + sendOffset() + listen.dir * R0 * 0.12 * listen.boost;
   const cy = cur.groundY - flatY;
@@ -943,7 +989,8 @@ function antennaStalks(shape) {
   const dom = stage === 'PART2_EAR' || isIntroStage(stage) ? null : { LEFT: 'L', RIGHT: 'R' }[window.GlobalState.psychoProfile.dominantEar];
   const cs = antennaCycle(time);
   const len0 = R0 * (0.66 + 0.25 * cur.headG * cur.headF);
-  const flick = pulse.hat * 0.12; // 하이햇에 까딱
+  const pet = stage === 'RESULT' ? cur.press : 0;
+  const flick = pulse.hat * 0.12 + pet * 0.35; // 만지면 더듬이를 움츠리고 손끝 쪽으로 기울임
   const rot = (X, Y, Z) => ({ x: tip.x + X * Math.cos(yaw) + Z * Math.sin(yaw), y: tip.y - Y, z: -X * Math.sin(yaw) + Z * Math.cos(yaw) });
 
   return ['L', 'R'].map((side) => {
@@ -963,7 +1010,8 @@ function antennaStalks(shape) {
     const pts = [];
     for (let i = 0; i <= 20; i++) {
       const q = i / 20;
-      const b = -bow * len * Math.sin(q * Math.PI) + wig * len * q * Math.sin(q * 2.6 * Math.PI - time * 9 + ph); // 살짝 활처럼 + ⑦ 고르는 동안의 꿈틀
+      const b = -bow * len * Math.sin(q * Math.PI) + wig * len * q * Math.sin(q * 2.6 * Math.PI - time * 9 + ph)
+        + pet * R0 * constrain((resultPet.x - shape.cx) / (R0 * 2), -1, 1) * q * q * 0.45;
       pts.push(rot(baseX + dir[0] * len * q + nrm[0] * b, baseY + dir[1] * len * q + nrm[1] * b, lat * R0 * 0.06 + dir[2] * len * q + nrm[2] * b));
     }
     return { side, pts, knob, depth: pts[pts.length - 1].z };
@@ -1494,5 +1542,6 @@ function drawAnalysis(L) {
     rows.forEach((row) => { label(row, x + bullet, y + dy, { size, weight: 500, a: 255 * a, valign: TOP }); y += lineH; });
     y += 4;
   });
-  drawHints(L, [said || (phase === 'ready' ? t('hint.analysis') : '')]);
+  // 이동 안내는 실제 클릭 가능한 DOM 텍스트로 표시.
+  if (said) drawHints(L, [said]);
 }
