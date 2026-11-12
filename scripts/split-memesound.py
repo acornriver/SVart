@@ -20,6 +20,7 @@ def run(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--verify-only', action='store_true')
+    parser.add_argument('--verify-levels', action='store_true', help='Check encoded LUFS and true-peak headroom')
     parser.add_argument('--lang', choices=['ko', 'en'], default='ko')
     parser.add_argument('--ids', nargs='+', help='Regenerate only these guide IDs')
     args = parser.parse_args()
@@ -58,7 +59,16 @@ def main():
         expected = sum(part['end'] - part['start'] for part in parts)
         if abs(duration - expected) > 0.12:
             raise ValueError(f"{segment['id']}: unexpected duration {duration} (expected {expected})")
-        run(['ffmpeg', '-v', 'error', '-i', str(dest), '-f', 'null', '-'])
+        if args.verify_levels:
+            measured = run(['ffmpeg', '-hide_banner', '-nostats', '-i', str(dest),
+                            '-af', 'loudnorm=I=-27:TP=-3:LRA=11:print_format=json', '-f', 'null', '-'])
+            levels = json.JSONDecoder().raw_decode(measured.stderr[measured.stderr.rfind('{'):])[0]
+            if abs(float(levels['input_i']) - manifest['targetLufs']) > 0.25:
+                raise ValueError(f"{segment['id']}: encoded loudness is {levels['input_i']} LUFS")
+            if float(levels['input_tp']) > -3:
+                raise ValueError(f"{segment['id']}: true peak exceeds -3 dBTP")
+        else:
+            run(['ffmpeg', '-v', 'error', '-i', str(dest), '-f', 'null', '-'])
         print(f"{segment['id']}: {duration:.3f}s / {len(parts)} source part(s)")
     actual = {p.stem for p in target.glob('*.mp3')}
     expected = {s['id'] for s in manifest['segments']}

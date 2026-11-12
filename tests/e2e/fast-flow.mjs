@@ -132,6 +132,7 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   await check("GlobalState.currentStage === 'PART2_SENSITIVITY' && GlobalState.part2.phase === 'adjusting'", 'Sensitivity confirmed on release');
   await confirm();
   await stage('PART2_CENTER');
+  await check("prepareCenter().then(assets => assets.voice.numberOfChannels === 1)", 'Center must rotate one mono source');
   for (let i = 0; i < 2; i++) {
     await until("GlobalState.part2.phase === 'adjusting'");
     await drag(i ? -180 : 150, 0); await confirm();
@@ -190,6 +191,7 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   await until("GlobalState.part1.resultPhase === 'ready'");
   await ready();
   await check("__fastFlow.voices.every(x => x.id.startsWith('m'))", 'Legacy guide played');
+  await check("__fastFlow.voices.every(x => !/drum\\s*roll|드럼\\s*롤|두두둥/i.test(voiceText(x.id)))", 'Production direction leaked into subtitles');
   await check("JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'PART2_CENTER').map(x => x.id)) === JSON.stringify(['m5-5','m6-1','m6-2','m6-4','m6-3'])", 'Wrong center guide order');
   await check("!__fastFlow.buffers.some(x => x.phase === 'example')", 'Unexpected legacy example');
   await check("JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'RESULT').map(x => x.id)) === JSON.stringify(['m9-1','m9-4','m9-5','m9-6','m9-7'])", 'Wrong result guides');
@@ -216,8 +218,12 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   await sleep(500);
   await tap((await targets()).analysisNext); await stage('MUSIC'); await ready();
   await check("__fastFlow.voices.some(x => x.stage === 'MUSIC' && x.id === 'm9-3')", 'Missing music guide');
-  await check(`JSON.stringify(TOUR_PLACES.map(p=>t(p.artistKey))) === ${JSON.stringify(JSON.stringify(lang==='en'?['WONWOORI','Felix Kubin','Collaboration']:['원우리','펠릭스 쿠빈','콜라보 음악']))}`, 'Wrong localized artist labels');
-  for (const i of [2, 0, 1]) {
+  await check(`JSON.stringify(TOUR_PLACES.map(p=>t(p.labelKey))) === ${JSON.stringify(JSON.stringify(lang==='en'
+    ? ['WONWOORI','Felix Kubin','Collaboration','Danghyeoncheon Stream','Junggye Station subway','In front of Buk-Seoul Museum of Art']
+    : ['원우리','펠릭스 쿠빈','콜라보 음악','당현천','중계역 지하철','북서울미술관 앞']))}`, 'Wrong localized track labels');
+  await check("new Set(TOUR_PLACES.map(p => p.key)).size === 6 && !/EQ/.test(t('result.eqMine')) && !/EQ/.test(t('hint.result1'))", 'Music page must offer six sounds and no EQ wording');
+  await check('!towerPromptOn()', 'Tower prompt shown too early');
+  for (const i of [5, 2, 0, 3, 4, 1]) {
     await tap((await targets()).tracks[i]);
     await check(`GlobalState.tour.index === ${i} && GlobalState.tour.pinned`, 'Track selection failed');
     await until('Math.abs(cur.cx - targetParams(calculateUILayout()).cx) < 3');
@@ -230,10 +236,28 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   const b = (await targets()).eqSlider;
   await tap({ x: b.x0 + (b.x1 - b.x0) * 0.25, y: b.y });
   await check('Math.abs(GlobalState.part1.eqMix - 0.25) < 0.02', 'EQ slider did not respond');
+  await ev('GlobalState.tour.startAt -= TOWER_PROMPT_MS'); await sleep(120);
+  await check('towerPromptOn()', 'Tower prompt did not appear after listening');
+  await shot('fast-10-music-prompt');
+  if (lang === 'ko') await ev("window.svartCloud = { ...(window.svartCloud || {}), sendEar: () => 'ABCDEFGHJK' }"); // Stand-in for a queued upload; nothing is sent.
   const p = (await targets()).snail;
   await drag(744 * 0.25, 0, p);
   await check('GlobalState.tour.sendAt !== null', 'Snail did not send');
+  // QR · credits card: ko run has an ear ID and a code, en run (localhost, no upload) has the code only.
+  await until("towerCard && !towerCard.hidden");
+  await check(`(() => { const u = new URL(towerCardUrl); const id = u.searchParams.get('ear');
+    return u.origin + u.pathname === CloudConfig.MOBILE_URL && u.searchParams.get('code') === EAR_RESULT.code
+      && (${lang === 'ko'} ? id === 'ABCDEFGHJK' && GlobalState.tour.earId === id : id === null); })()`, 'Wrong QR link');
+  await check("!!towerCard.querySelector('.tower-qr img, .tower-qr canvas') && towerCard.querySelector('.tower-lead').textContent === t('tower.scan')", 'QR or scan guide missing');
+  await check(`towerCard.querySelector('.tower-tracks').children.length === 3 && towerCard.querySelector('.tower-caption').textContent.includes(${JSON.stringify(lang === 'en' ? 'Commissioned by Buk-Seoul Museum of Art' : '서울시립 북서울미술관 제작지원')})`, 'Credits missing');
+  await send('Emulation.setDeviceMetricsOverride', { width: 1180, height: 820, deviceScaleFactor: 1, mobile: false });
+  await sleep(700); await shot('fast-11-tower-card-landscape');
+  await check("(() => { const c = towerCard.querySelector('.tower-credits').getBoundingClientRect(), q = towerCard.querySelector('.tower-qr').getBoundingClientRect(); return c.top >= 0 && c.bottom <= innerHeight && q.width > 180 && q.bottom <= innerHeight; })()", 'Tower card does not fit the landscape screen');
+  await send('Emulation.setDeviceMetricsOverride', { width: 744, height: 1133, deviceScaleFactor: 1, mobile: false });
+  await sleep(1000);
+  await ev('towerCard.click()');
   await stage('INIT');
+  await check("towerCard.hidden && towerCardUrl === '' && !towerCard.querySelector('.tower-qr').children.length && GlobalState.tour.earId === null", 'Previous QR leaked into the next visit');
   await until("!!document.querySelector('.intro:not(.started):not(.gone) .title-btn')"); // Wait for the next draw to show the intro before the next visitor clicks.
   await ev("document.querySelector('.intro .title-btn').click()");
   await stage('PART1_VOLUME');

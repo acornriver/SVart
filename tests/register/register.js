@@ -23,16 +23,16 @@ const GAP_BETWEEN_CARDS = 0.7; // 자동 재생 시 카드 사이 쉬는 시간(
 
 // 음역 정의 (저 D♭3·중 C4·고 A4, 간격 11반음·9반음. 11/12). defaultOffsetDb는 등청감 보정 출발점 — 실제 장비로 귀로 조정할 것
 const REGISTERS = [
-  { id: 'LOW',  name: '저음역', range: 'D♭3–D♭4', baseMidi: 49, peakHz: 100,  defaultOffsetDb: 2 },
+  { id: 'LOW',  name: '저음역', range: 'D♭3–D♭4', baseMidi: 49, peakHz: 100,  defaultOffsetDb: 0 },
   { id: 'MID',  name: '중음역', range: 'C4–C5', baseMidi: 60, peakHz: 400,  defaultOffsetDb: 0 },
-  { id: 'HIGH', name: '고음역', range: 'A4–A5', baseMidi: 69, peakHz: 2500, defaultOffsetDb: -1 }
+  { id: 'HIGH', name: '고음역', range: 'A4–A5', baseMidi: 69, peakHz: 2500, defaultOffsetDb: 0 }
 ];
 
 const PEAK_GAIN_DB = 3;
 const PEAK_Q = 1;
 
 const CARD_LABELS = ['A', 'B', 'C'];
-const STORAGE_KEY = 'svart.registerTest.v4';
+const STORAGE_KEY = 'svart.registerTest.v5';
 
 // 상태
 let calib = { offsets: {}, master: 0.8 };

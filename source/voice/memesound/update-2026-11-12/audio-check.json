@@ -35,8 +35,8 @@
     {
       "language": "ko",
       "id": "m9-7",
-      "lufs": -27.0,
-      "truePeakDbfs": -16.0
+      "lufs": -27.01,
+      "truePeakDbfs": -13.44
     },
     {
       "language": "en",
@@ -71,8 +71,8 @@
     {
       "language": "en",
       "id": "m9-7",
-      "lufs": -27.0,
-      "truePeakDbfs": -14.28
+      "lufs": -26.99,
+      "truePeakDbfs": -13.39
     },
     {
       "language": "ko",

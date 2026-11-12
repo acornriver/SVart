@@ -55,7 +55,7 @@ await until("!!document.querySelector('.intro .title-btn') && MemeFX.ready()");
 await ev("document.querySelector('.intro .title-btn').click()");
 await until("GlobalState.currentStage === 'PART1_VOLUME'");
 await until("LANGS.every(lang=>voiceIds(lang).filter(id=>!VOICE_PENDING[lang].includes(id)).every(id=>voiceClips[lang][id])) && TOUR_PLACES.every(p=>sampleSources[p.key])");
-await ev('beatCalibrated');
+await ev('Promise.all([beatCalibrated, registerCalibrated])');
 const result = await ev(`(${audit.toString()})().catch(e=>({auditError:e.stack||String(e)}))`);
 if(typeof result!=='number') throw Error('Audio audit failed: '+JSON.stringify({result,errors}));
 const records=[];
@@ -72,13 +72,24 @@ for(const group of [...new Set(records.map(r=>r.group))]) {
 }
 const failures=[];
 for(const row of records) if(!Number.isFinite(row.peakDb)||row.peakDb>-1) failures.push(row.id+' peak '+row.peakDb);
-for(const row of records.filter(r=>r.group==='part2')) if(Math.abs(row.gainDb-6)>.2) failures.push(row.id+' test ratio changed');
+for(const row of records.filter(r=>r.group==='part2')) if(Math.abs(row.gainDb-10)>.2) failures.push(row.id+' test ratio changed');
 const beatEq=records.filter(r=>r.group==='beat-EQ');
 // Compare EQ settings on the same input; FULL/LOW/HIGH have different spectra
 // and different flat reference levels even before applying EQ.
 for(const name of ['FULL','LOW','HIGH']) {
   const levels=beatEq.filter(r=>r.id.startsWith('beat-'+name+'-')).map(r=>r.loudDb);
   if(Math.max(...levels)-Math.min(...levels)>1) failures.push(name+' EQ loudness spread exceeds 1dB');
+}
+const melodies=records.filter(row=>row.group==='melody');
+if(Math.max(...melodies.map(row=>row.activeLoudDb))-Math.min(...melodies.map(row=>row.activeLoudDb))>.5) failures.push('Melody register loudness spread exceeds 0.5dB');
+const front=records.find(row=>row.group==='center'&&row.id==='center-0');
+const left=records.find(row=>row.group==='center'&&row.id==='center-9');
+const right=records.find(row=>row.group==='center'&&row.id==='center-27');
+if(Math.abs(front.balanceDb)>.05 || Math.abs(left.balanceDb+right.balanceDb)>.1 || left.balanceDb*right.balanceDb>=0) failures.push('Mono center image is not symmetric');
+for(const volumeDb of [-40,-20,0]) {
+  const beat=records.find(row=>row.group==='participant'&&row.kind==='beat'&&row.volumeDb===volumeDb);
+  const melodies=records.filter(row=>row.group==='participant'&&row.kind==='melody'&&row.volumeDb===volumeDb);
+  if(melodies.some(row=>Math.abs(row.loudDb-beat.loudDb)>3)) failures.push('Melody/beat level mismatch at '+volumeDb+'dB');
 }
 if(failures.length) errors.push(...failures);
 writeFileSync(OUT+'/mix-report.json',JSON.stringify({mix:await ev('AudioMix.status()'),records,errors},null,2));
@@ -88,6 +99,8 @@ ws.close();chrome.kill();process.exit(errors.length?1:0);
 async function audit() {
   hushVoice(); stopVoice(); leavePart2(); setActiveSource(null,0);
   const rows=[], worst={}, sr=getAudioContext().sampleRate, db=x=>20*Math.log10(Math.max(x,1e-9));
+  GlobalState.currentStage='PART1_REGISTER';
+  GlobalState.userEQProfile.masterVolume=1;
   const Off=window.OfflineAudioContext||window.webkitOfflineAudioContext;
   function wav(buffer) {
     const n=buffer.length,ch=buffer.numberOfChannels,ab=new ArrayBuffer(44+n*ch*2),v=new DataView(ab);
@@ -98,7 +111,8 @@ async function audit() {
   }
   function add(group,id,b,extra={},save=false) {
     const m=measureLoudness(bufferChannels(b),b.sampleRate);
-    const row={group,id,loudDb:db(m.kRms),peakDb:db(m.peak),...extra,...(save?{wav:wav(b)}:{})};
+    const active = bufferChannels(b).map(channel => channel.subarray(0,Math.ceil((MELODY_LENGTH+.5)*sr)));
+    const row={group,id,loudDb:db(m.kRms),peakDb:db(m.peak),...(group==='melody'?{activeLoudDb:db(measureLoudness(active,sr).kRms)}:{}),...extra,...(save?{wav:wav(b)}:{})};
     rows.push(row);
     if((group.endsWith('-EQ') || group==='voice-max' || group==='effects-max') && (!worst[group] || row.peakDb>worst[group].row.peakDb)) worst[group]={row,buffer:b};
   }
@@ -113,6 +127,12 @@ async function audit() {
     }
     const graph=protect?AudioMix.createGraph(ctx):null;
     end.connect(graph?graph.buses[bus]:ctx.destination);source.start(0);return ctx.startRendering();
+  }
+  async function renderSensitivity(hz, volume=1) {
+    const ctx=new Off(2,sr,sr),graph=AudioMix.createGraph(ctx),osc=ctx.createOscillator(),gain=ctx.createGain();
+    osc.frequency.value=hz;gain.gain.value=splToAmp(SENS.spl)*volume;
+    osc.connect(gain);gain.connect(graph.buses.part2);osc.start(0);
+    return ctx.startRendering();
   }
   // Internal beat calibration remains -26dB; the common output provides the lift.
   for(const name of ['FULL','LOW','HIGH']) {
@@ -151,10 +171,10 @@ async function audit() {
   const sequences={size:[['size',0],['sting',.28]],shell:[['gasp',0],['shell',.42]],reveal:[['roll',0],['fanfare',.8],['clap',1.45]]};
   for(const [name,seq] of Object.entries(sequences)) {
     const ctx=new Off(2,sr*4,sr),graph=AudioMix.createGraph(ctx),gain=ctx.createGain();gain.gain.value=VOICE_LEVEL_START**2;gain.connect(graph.buses.effects);
-    for(const [key,at] of seq) {const b=await getAudioContext().decodeAudioData(await(await fetch('media/sfx/memes/'+key+'.mp3')).arrayBuffer());const source=ctx.createBufferSource();source.buffer=b;source.connect(gain);source.start(at);}
+    for(const [key,at] of seq) {const b=await getAudioContext().decodeAudioData(await(await fetch('media/sfx/memes/'+key+'.mp3')).arrayBuffer());const source=ctx.createBufferSource();source.buffer=b;const level=ctx.createGain();level.gain.value=MemeFX.soundLevel(key);source.connect(level);level.connect(gain);source.start(at);}
     add('effects-default','effect-'+name,await ctx.startRendering(),{},true);
     const maxCtx=new Off(2,sr*4,sr),maxGraph=AudioMix.createGraph(maxCtx);
-    for(const [key,at] of seq) {const b=await getAudioContext().decodeAudioData(await(await fetch('media/sfx/memes/'+key+'.mp3')).arrayBuffer());const source=maxCtx.createBufferSource();source.buffer=b;source.connect(maxGraph.buses.effects);source.start(at);}
+    for(const [key,at] of seq) {const b=await getAudioContext().decodeAudioData(await(await fetch('media/sfx/memes/'+key+'.mp3')).arrayBuffer());const source=maxCtx.createBufferSource();source.buffer=b;const level=maxCtx.createGain();level.gain.value=MemeFX.soundLevel(key);source.connect(level);level.connect(maxGraph.buses.effects);source.start(at);}
     add('effects-max','effect-max-'+name,await maxCtx.startRendering());
   }
   const p2=[['octave-left',octBuffer({startHigh:'L'})],['octave-right',octBuffer({startHigh:'R'})],...F0_PAIRS.filter(p=>F0.pairIds.includes(p.id)).flatMap(p=>['AB','BA'].map(order=>['f0-'+p.id+'-'+order,f0Buffer({...p,order})]))];
@@ -164,22 +184,85 @@ async function audit() {
     add('part2',id,after,{gainDb:db(a.kRms/z.kRms)},true);
   }
   const A=await prepareCenter();
-  const voice=await renderBeatLoop(P2_GROOVE.bpm,'FULL');
-  const energy=d=>d.reduce((s,x)=>s+x*x,0),irEnergy=Math.sqrt((energy(A.irs[0].getChannelData(0))+energy(A.irs[0].getChannelData(1)))/2);
-  const legacyCenterGain=splToAmp(CENTER_TEST.spl)/Math.SQRT2/(Math.sqrt(energy(voice.getChannelData(0))/voice.length)*irEnergy);
+  if(A.voice.numberOfChannels !== 1) throw Error('Center stimulus must have one mono source');
+  const liveContext=getAudioContext();
+  const createSource=liveContext.createBufferSource;
+  let sourceCount=0;
+  let controller;
+  liveContext.createBufferSource=function(){sourceCount++;return createSource.call(this);};
+  try { controller=startCenter({off:60},A); }
+  finally { liveContext.createBufferSource=createSource; }
+  controller.turn(90);controller.turn(-180);controller.turn(180);
+  if(sourceCount!==1 || controller.state().angle!==150) throw Error('Center rotation created multiple sources or lost its angle');
+  controller.stop();controller.stop();
+  if(controller.alive()) throw Error('Center source did not stop');
+
   for(let dir=0;dir<A.irs.length;dir++) {
-    const ctx=new Off(2,Math.ceil((Math.max(...A.sources.map(s=>s.buf.duration))+.1)*sr),sr),graph=AudioMix.createGraph(ctx);
-    for(const spot of A.sources) {
-      const pl=centerPlacer(ctx,graph.buses.part2,A,spot.buf,wrap180(-10*dir+spot.deg));
-      pl.level.gain.value=A.gain/spot.dist;
-      pl.src.start(0);
-    }
-    add('center','center-'+dir,await ctx.startRendering(),{calibrationChangeDb:db(A.gain/legacyCenterGain)},dir===0||dir===9||dir===27);
+    const ctx=new Off(2,Math.ceil((A.voice.duration+.1)*sr),sr),graph=AudioMix.createGraph(ctx);
+    const placer=centerPlacer(ctx,graph.buses.part2,A,A.voice,wrap180(-10*dir));
+    placer.level.gain.value=A.gain;
+    placer.src.start(0);
+    const buffer=await ctx.startRendering();
+    const left=measureLoudness([buffer.getChannelData(0)],sr).kRms;
+    const right=measureLoudness([buffer.getChannelData(1)],sr).kRms;
+    add('center','center-'+dir,buffer,{balanceDb:db(right/left)},dir===0||dir===9||dir===27);
   }
   for(const hz of [8000,12000,16000,20000]) {
-    const ctx=new Off(2,sr,sr),graph=AudioMix.createGraph(ctx),osc=ctx.createOscillator(),g=ctx.createGain();osc.frequency.value=hz;g.gain.value=splToAmp(SENS.spl);osc.connect(g);g.connect(graph.buses.part2);osc.start(0);
-    add('sensitivity','sensitivity-'+hz,await ctx.startRendering(),{},true);
+    add('sensitivity','sensitivity-'+hz,await renderSensitivity(hz),{},true);
   }
+  // Every loaded cue, including the standalone result drum roll and sting.
+  for(const key of ['size','sting','gasp','shell','roll','fanfare','clap']) {
+    const buffer=await getAudioContext().decodeAudioData(await(await fetch('media/sfx/memes/'+key+'.mp3')).arrayBuffer());
+    add('effect-single','effect-single-'+key,await render(buffer,'effects',MemeFX.soundLevel(key)*VOICE_LEVEL_START**2),{},true);
+  }
+  // Apply the actual participant/voice gains used by the live buses.
+  for(const volumeDb of [-40,-20,0]) {
+    GlobalState.currentStage='PART1_REGISTER';
+    GlobalState.userEQProfile.masterVolume=dbToGain(volumeDb);
+    const volume=AudioMix.participantGain();
+    const beat=await renderBeatLoop(BEAT.bpm,'FULL',2);
+    add('participant','participant-beat-'+volumeDb,await render(beat,'program',BEAT_MIXES.FULL.norm*volume),{volumeDb,kind:'beat'});
+    for(const reg of REGISTERS) {
+      const ctx=new Off(2,Math.ceil((MELODY_LENGTH+.5)*sr),sr),graph=AudioMix.createGraph(ctx),gain=ctx.createGain();
+      gain.gain.value=volume;gain.connect(graph.buses.program);
+      createRegisterVoice(reg.id,ctx,gain);
+      add('participant','participant-melody-'+reg.id+'-'+volumeDb,await ctx.startRendering(),{volumeDb,kind:'melody'});
+    }
+    GlobalState.currentStage='PART2_EAR';
+    const testVolume=p2Out().gain.value;
+    if(Math.abs(testVolume-volume)>1e-6) throw Error('Part 2 ignored selected volume');
+    for(const [id,buffer] of p2) {
+      add('participant','participant-'+id+'-'+volumeDb,await render(buffer,'part2',testVolume),{volumeDb,kind:'part2'});
+    }
+    for(const hz of [8000,12000,16000,20000]) {
+      add('participant','participant-sensitivity-'+hz+'-'+volumeDb,await renderSensitivity(hz,testVolume),{volumeDb,kind:'sensitivity'});
+    }
+    const centerContext=new Off(2,Math.ceil((A.voice.duration+.1)*sr),sr),centerGraph=AudioMix.createGraph(centerContext);
+    const center=centerPlacer(centerContext,centerGraph.buses.part2,A,A.voice,0);
+    center.level.gain.value=A.gain*testVolume;center.src.start(0);
+    add('participant','participant-center-'+volumeDb,await centerContext.startRendering(),{volumeDb,kind:'center'});
+    for(const key of ['size','sting','gasp','shell','roll','fanfare','clap']) {
+      const buffer=await getAudioContext().decodeAudioData(await(await fetch('media/sfx/memes/'+key+'.mp3')).arrayBuffer());
+      add('participant','participant-effect-'+key+'-'+volumeDb,await render(buffer,'effects',MemeFX.soundLevel(key)*voiceGain(true)),{volumeDb,kind:'effect'});
+    }
+    for(const lang of LANGS) {
+      GlobalState.lang=lang;
+      for(const id of voiceIds(lang).filter(id=>!VOICE_PENDING[lang].includes(id))) {
+        if(volumeDb!==-20 && id!=='m4-1') continue;
+        add('participant','participant-voice-'+lang+'-'+id+'-'+volumeDb,await render(voiceClips[lang][id],'voice',voiceGain()),{volumeDb,kind:'voice'});
+      }
+    }
+  }
+  GlobalState.currentStage='PART1_VOLUME';
+  for(const lang of LANGS) {
+    GlobalState.lang=lang;
+    add('voice-intro','voice-intro-'+lang,await render(voiceClips[lang]['m1-1'],'voice',voiceGain()),{},true);
+  }
+  GlobalState.currentStage='PART2_CENTER';
+  GlobalState.userEQProfile.masterVolume=.1;
+  GlobalState.voiceOn=false;
+  if(voiceGain()!==0 || voiceGain(true)!==0 || Math.abs(p2Out().gain.value-.1)>1e-6) throw Error('Voice mute affected test volume');
+  GlobalState.voiceOn=true;
   for(const [group,item] of Object.entries(worst)) rows.push({...item.row,id:'worst-'+group,group:'stress',wav:wav(item.buffer)});
   window.__mixAudit=rows;return rows.length;
 }

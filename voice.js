@@ -5,7 +5,7 @@
  * iPad는 첫 터치 전에 소리를 못 내서 첫 화면은 글자로만 보여 줌 (사용자 선택 11/05).
  *
  * 줄을 넘기는 것은 재생 끝 이벤트가 아니라 타이머입니다. 오디오가 멈추거나 파일을 못 읽어도 안내가 흐름을 막으면 안 되기 때문입니다.
- * 음성을 꺼도 같은 시간 동안 자막이 나옵니다. EQ·① 볼륨과 무관하게 바로 출력하고, 말하는 동안 비트와 녹음을 줄입니다.
+ * 음성을 꺼도 같은 시간 동안 자막이 나옵니다. ① 확정 후 고른 볼륨을 따르고, 말하는 동안 비트와 녹음을 줄입니다.
  * 크기는 검사 화면 오른쪽 위의 슬라이더로 관람객이 조절합니다 (차민휘 전달사항 11/06).
  *
  * 안내 잠금: 할 일을 알려 주는 동안(안내, 듣기만 하는 예시)에는 터치를 받지 않습니다 (차민휘 전달사항 11/06).
@@ -13,7 +13,6 @@
  */
 
 const VOICE_LEVEL_START = 0.8; // 제곱 게인 -3.9dB. 공통 출력 +6dB와 함께 기존 기본값보다 약 10dB 크게.
-const VOICE_FOLLOW = { refDb: -20, minDb: -12, maxDb: 6 }; // ① 볼륨이 refDb일 때 안내는 그대로. 그보다 작으면 최대 12dB 작게, 크면 최대 6dB 크게
 const VOICE_GAP_MS = 200;       // 줄 사이 숨 고르기
 const VOICE_FALLBACK_SEC = 0.09; // 파일을 못 읽었을 때 글자당 자막을 보여 줄 시간
 const VOICE_LOAD_TRIES = 3;
@@ -72,18 +71,13 @@ function resetVoiceLevel() {
   setVoiceLevel(VOICE_LEVEL_START);
 }
 
-// ①에서 고른 볼륨을 안내·효과음에도 (사용자 지시 11/12). ①을 확정한 뒤부터, 기준 볼륨에서 벗어난 만큼 1:1로 따라가되
-// 너무 작아 안 들리거나 너무 커지지 않게 범위를 둠 (사용자 확정: 범위 제한. 기준과 범위 값은 Claude가 정함). 슬라이더는 그 위에 곱해짐
-function voiceFollowDb() {
+// ① 확정 후 안내·효과음도 검사음과 같은 관람객 볼륨을 따름.
+// 처음 볼륨을 고르는 안내는 이전 시작 크기를 사용하고, 확정 효과부터 고른 크기를 반영.
+function voiceGain(includeVolumeChoice = false) {
   const gs = window.GlobalState;
-  if (FLOW_STAGES.indexOf(gs.currentStage) < 1) return 0; // 첫 화면과 ①을 고르는 동안은 그대로
-  const volDb = 20 * Math.log10(Math.max(gs.userEQProfile.masterVolume, 1e-4));
-  return constrain(volDb - VOICE_FOLLOW.refDb, VOICE_FOLLOW.minDb, VOICE_FOLLOW.maxDb);
-}
-
-function voiceGain() {
-  const gs = window.GlobalState;
-  return gs.voiceOn ? gs.voiceLevel * gs.voiceLevel * Math.pow(10, voiceFollowDb() / 20) : 0;
+  const introductory = FLOW_STAGES.indexOf(gs.currentStage) < 1 && !includeVolumeChoice;
+  const reference = introductory ? Math.pow(10, -AudioMix.settings.voiceDb / 20) : 1;
+  return gs.voiceOn ? gs.voiceLevel * gs.voiceLevel * AudioMix.participantGain(includeVolumeChoice) * reference : 0;
 }
 
 function applyVoiceGain() {

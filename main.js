@@ -41,6 +41,7 @@ function setup() {
   frameRate(60);
   setupIntro(submitName);
   setupResultAction();
+  setupTowerCard();
   setupBackdrops();
   loadVoice();
   MemeFX.load();

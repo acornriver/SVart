@@ -124,6 +124,59 @@ function syncResultAction() {
   resultAction.hidden = gs().currentStage !== 'RESULT' || !canConfirmResult() || voiceBusy() || inputLocked() || !!MemeFX.activeKey();
 }
 
+/* ---------- 보낸 뒤: QR · 크레딧 화면 (원우리 작가 지시 11/13) ---------- */
+
+let towerCard = null;
+let towerCardAt = -1e9;   // 화면이 뜬 시각(millis)
+let towerCardUrl = '';    // 지금 QR이 가리키는 주소 (테스트에서도 확인)
+
+function setupTowerCard() {
+  towerCard = document.createElement('div');
+  towerCard.className = 'tower-card';
+  towerCard.hidden = true;
+  towerCard.innerHTML = '<div class="tower-scan"><h2></h2><div class="tower-qr"></div><p class="tower-lead"></p><p class="tower-tap"></p></div>'
+    + '<div class="tower-credits"><h3></h3><p class="tower-artist"></p><p class="tower-caption"></p><p class="tower-staff"></p><p class="tower-tracks"></p></div>';
+  ['mousedown', 'touchstart'].forEach(name => towerCard.addEventListener(name, event => event.stopPropagation()));
+  towerCard.addEventListener('click', () => {
+    if (towerCard.hidden || millis() - towerCardAt < TOWER_CARD_GUARD_MS) return;
+    lastActivity = millis();
+    restartFlow();
+  });
+  document.body.appendChild(towerCard);
+}
+
+// url이 비면(모바일 주소 미설정, QR 라이브러리 없음) QR 없이 문구와 크레딧만 보임
+function showTowerCard(url) {
+  if (!towerCard) return;
+  const q = (sel) => towerCard.querySelector(sel);
+  const lines = (list) => list.map((text) => { const s = document.createElement('span'); s.textContent = text; return s; });
+  const credits = TOWER_CREDITS[currentLang()] || TOWER_CREDITS.ko;
+  const qr = q('.tower-qr');
+  qr.replaceChildren();
+  towerCardUrl = url || '';
+  const hasQr = !!towerCardUrl && typeof QRCode !== 'undefined';
+  if (hasQr) new QRCode(qr, { text: towerCardUrl, width: 480, height: 480, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  qr.removeAttribute('title'); // 라이브러리가 주소를 툴팁으로 붙임
+  qr.hidden = !hasQr;
+  q('h2').textContent = t('sent.title');
+  q('.tower-lead').textContent = hasQr ? t('tower.scan') : t('sent.sub');
+  q('.tower-tap').textContent = t('tower.tap');
+  q('h3').textContent = credits.work;
+  q('.tower-artist').textContent = credits.artist;
+  q('.tower-caption').textContent = credits.caption;
+  q('.tower-staff').replaceChildren(...lines(credits.staff));
+  q('.tower-tracks').replaceChildren(...lines(credits.tracks));
+  towerCardAt = millis();
+  towerCard.hidden = false;
+}
+
+function hideTowerCard() {
+  if (!towerCard) return;
+  towerCard.hidden = true;
+  towerCard.querySelector('.tower-qr').replaceChildren(); // 앞사람 QR을 남기지 않음
+  towerCardUrl = '';
+}
+
 function petResultSnail(x, y) {
   if (!lastShape) return;
   resultPet.active = true;
@@ -402,19 +455,24 @@ function calculateUILayout() {
     R0 = tease ? min(width * 0.1, height * 0.085) : min(width * 0.065, height * 0.04);
     groundY = height * (tease ? 0.7 : height > width ? 0.4 : 0.36);
   }
-  if (stage === 'MUSIC') { R0 = min(width * 0.07, height * 0.045); groundY = height * (height < 850 ? 0.61 : 0.65) - 24; }
+  if (stage === 'MUSIC') { R0 = min(width * 0.07, height * 0.045); groundY = height * (height < 850 ? TRACK_GRID.yLow : TRACK_GRID.yTall) - 24; }
 
   // btn: 예전 버튼 자리. 지금은 아래쪽 안내 문구 자리로만 씀
   return { m, btn, hintY: btn.y + btnH / 2, cx: width / 2, groundY, R0, track: max(R0 * 1.4, width * 0.28), x0: m + 8, x1: width - m - 8 };
 }
 /* ---------- 터치 판정 (main.js가 씀) ---------- */
 
-// 결과 화면: 사운드스케이프 3곡 선택 버튼 영역
+// 감상 화면: 여섯 소리 선택 버튼. 3칸 × 2줄 (윗줄 = 작가 곡, 아랫줄 = 북서울 소리). 수치는 Claude가 정함
+const TRACK_GRID = { cols: 3, gap: 14, rowGap: 10, yLow: 0.52, yTall: 0.58 };
 function resultTrackBoxes(L = calculateUILayout()) {
-  const totalW = min(width - L.m * 2, 960), gap = 14;
-  const w = (totalW - gap * (TOUR_PLACES.length - 1)) / TOUR_PLACES.length;
-  const y = height * (height < 850 ? 0.61 : 0.65), h = height < 850 ? 60 : 76;
-  return TOUR_PLACES.map((p, i) => ({ index: i, key: p.key, x: width / 2 - totalW / 2 + i * (w + gap), y, w, h, cx: width / 2 - totalW / 2 + i * (w + gap) + w / 2, cy: y + h / 2 }));
+  const { cols, gap, rowGap } = TRACK_GRID;
+  const totalW = min(width - L.m * 2, 960);
+  const w = (totalW - gap * (cols - 1)) / cols;
+  const y = height * (height < 850 ? TRACK_GRID.yLow : TRACK_GRID.yTall), h = height < 850 ? 52 : 64;
+  return TOUR_PLACES.map((p, i) => {
+    const x = width / 2 - totalW / 2 + (i % cols) * (w + gap), by = y + Math.floor(i / cols) * (h + rowGap);
+    return { index: i, key: p.key, x, y: by, w, h, cx: x + w / 2, cy: by + h / 2 };
+  });
 }
 
 function hitResultTrack(px, py) {
@@ -606,7 +664,7 @@ function resultListenState() {
   const level = ampNode ? constrain(ampNode.getLevel() * 4.5, 0, 1) : 0;
   const elapsed = millis() - (tourState().listenAt || -1e9);
   const boost = elapsed >= 0 && elapsed < LISTEN_ANIM_MS ? Math.sin((elapsed / LISTEN_ANIM_MS) * Math.PI) : 0;
-  const dir = (tourState().index || 0) - (TOUR_PLACES.length - 1) / 2; // 왼쪽 곡(-1) · 가운데(0) · 오른쪽(+1)
+  const dir = ((tourState().index || 0) % TRACK_GRID.cols) - (TRACK_GRID.cols - 1) / 2; // 왼쪽 칸(-1) · 가운데(0) · 오른쪽(+1)
   return { boost, level, dir };
 }
 
@@ -1418,10 +1476,7 @@ function gs() {
 function drawMusic(L) {
   const sp = sendProgress();
   if (sp >= 1) {
-    // 기어 나간 뒤
-    const a = 255 * constrain((millis() - tourState().sendAt - SEND_WALK_MS) / 600, 0, 1);
-    label(t('sent.title'), width / 2, height * 0.45, { size: min(32, width * 0.065), weight: 700, a, align: CENTER });
-    label(t('sent.sub'), width / 2, height * 0.65, { size: 20, c: COLORS.mute, a, align: CENTER });
+    // 기어 나간 뒤: QR·크레딧 화면(towerCard, DOM)이 덮음
     return;
   }
   const fadeOut = sp < 0 ? 1 : 1 - constrain(sp * 3, 0, 1);
@@ -1450,12 +1505,14 @@ function drawResultControls(L, a) {
     rect(b.x, b.y, b.w, b.h, 4);
     if (on) { noStroke(); fill(...COLORS.accent, a); rect(b.x, b.y + b.h - 6, b.w, 6); }
     pop();
-    label(t(TOUR_PLACES[i].artistKey), b.cx, b.cy, { size: min(23, b.w / 9), weight: on ? 700 : 500, c: on ? COLORS.ink : COLORS.mute, a, align: CENTER });
+    const name = t(TOUR_PLACES[i].labelKey);
+    label(name, b.cx, b.cy, { size: min(23, 23 * (b.w - 28) / textW(name, 23, 700)), weight: on ? 700 : 500, c: on ? COLORS.ink : COLORS.mute, a, align: CENTER });
   });
   const b = resultEqSliderBox(L), mix = gs().part1.eqMix;
   const x = lerp(b.x0, b.x1, mix);
   label(t('result.eqOrig'), b.x0, b.y - 45, { size: 24, weight: 700, a, c: mix < 0.5 ? COLORS.ink : COLORS.mute });
   label(t('result.eqMine'), b.x1, b.y - 45, { size: 24, weight: 700, a, align: RIGHT, c: mix >= 0.5 ? COLORS.ink : COLORS.mute });
+  label('←  ' + t('result.compare') + '  →', (b.x0 + b.x1) / 2, b.y - 45, { size: 21, weight: 500, a, align: CENTER, c: COLORS.accent }); // 원우리 작가 지시 11/13
   push();
   fill(20, a); stroke(...COLORS.ink, a); strokeWeight(3); rect(b.x0, b.y - 20, b.x1 - b.x0, 40, 2);
   noStroke(); fill(...COLORS.accent, a * 0.7); rect(b.x0 + 3, b.y - 17, max(0, x - b.x0 - 3), 34);
@@ -1485,7 +1542,8 @@ function drawTextShade(L, k) {
 function drawMusicText(L, a) {
   label(stageCopy('MUSIC').title, width / 2, L.m + 15, { size: 36, weight: 700, a, align: CENTER, valign: TOP });
   label(getFullEarCode(gs().userEQProfile, gs().psychoProfile), width / 2, L.m + 70, { family: FONT.mono, size: min(32, width * 0.045), a, align: CENTER, valign: TOP });
-  wrapText(voiceBusy() ? voiceLine() : t('music.preview'), width - L.m * 2, 23, 500).forEach((line, i) => label(line, width / 2, L.m + 125 + i * 35, { size: 23, a, align: CENTER, valign: TOP }));
+  const prompt = !voiceBusy() && towerPromptOn(); // 충분히 들은 뒤: 청감타워 안내
+  wrapText(voiceBusy() ? voiceLine() : t(prompt ? 'music.towerPrompt' : 'music.preview'), width - L.m * 2, 23, 500).forEach((line, i) => label(line, width / 2, L.m + 125 + i * 35, { size: 23, weight: prompt ? 700 : 400, c: prompt ? COLORS.accent : COLORS.ink, a, align: CENTER, valign: TOP }));
 }
 
 /**

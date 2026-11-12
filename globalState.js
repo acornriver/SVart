@@ -54,7 +54,9 @@ window.GlobalState = {
 
   // 결과 화면: 북서울 산책(3곡 선택)과 청감타워로 보내기 (tour.js)
   tour: {
-    index: 0,              // TOUR_PLACES 안의 지금 장소 (0 ~ 2)
+    index: 0,              // TOUR_PLACES 안의 지금 소리 (0 ~ 5)
+    startAt: 0,            // 감상을 시작한 시각(millis). 청감타워 안내 시점 계산용
+    earId: null,           // 보낸 결과의 클라우드 ID (QR 주소용). 로컬에서는 null
     placeAt: 0,            // 이 장소에 들어온 시각(millis)
     sendAt: null,          // 보내기를 누른 시각(millis). null이면 아직
     listenAt: -1e9,        // 곡 버튼을 눌러 달팽이가 귀 기울여 듣기 시작한 시각(millis)

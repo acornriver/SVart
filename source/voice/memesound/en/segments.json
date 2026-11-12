@@ -14,7 +14,8 @@
       "end": 4.945182,
       "sourceLufs": -13.8,
       "sourceTruePeakDbfs": -0.7,
-      "gainDb": -12.8
+      "gainDb": -12.8,
+      "outputGainDb": 3.66
     },
     {
       "id": "m1-2",
@@ -23,7 +24,8 @@
       "end": 11.012358,
       "sourceLufs": -15.5,
       "sourceTruePeakDbfs": -1.0,
-      "gainDb": -11.1
+      "gainDb": -11.1,
+      "outputGainDb": 3.09
     },
     {
       "id": "m1-3",
@@ -32,7 +34,8 @@
       "end": 14.754218,
       "sourceLufs": -16.5,
       "sourceTruePeakDbfs": -1.0,
-      "gainDb": -10.1
+      "gainDb": -10.1,
+      "outputGainDb": 3.49
     },
     {
       "id": "m2-1",
@@ -41,7 +44,8 @@
       "end": 20.308231,
       "sourceLufs": -16.8,
       "sourceTruePeakDbfs": -0.8,
-      "gainDb": -9.8
+      "gainDb": -9.8,
+      "outputGainDb": 3.6
     },
     {
       "id": "m2-2",
@@ -50,7 +54,8 @@
       "end": 24.974308,
       "sourceLufs": -17.9,
       "sourceTruePeakDbfs": -1.2,
-      "gainDb": -8.7
+      "gainDb": -8.7,
+      "outputGainDb": 3.31
     },
     {
       "id": "m3-1",
@@ -84,7 +89,8 @@
       "end": 38.810816,
       "sourceLufs": -15.8,
       "sourceTruePeakDbfs": -0.8,
-      "gainDb": -10.8
+      "gainDb": -10.8,
+      "outputGainDb": 2.82
     },
     {
       "id": "m4-1",
@@ -118,7 +124,8 @@
       "end": 50.170431,
       "sourceLufs": -14.5,
       "sourceTruePeakDbfs": -1.2,
-      "gainDb": -12.1
+      "gainDb": -12.1,
+      "outputGainDb": 2.74
     },
     {
       "id": "m4-3",
@@ -127,7 +134,8 @@
       "end": 53.949116,
       "sourceLufs": -15.8,
       "sourceTruePeakDbfs": -1.1,
-      "gainDb": -10.8
+      "gainDb": -10.8,
+      "outputGainDb": 3.56
     },
     {
       "id": "m4-4",
@@ -136,7 +144,8 @@
       "end": 62.120646,
       "sourceLufs": -17.2,
       "sourceTruePeakDbfs": -1.2,
-      "gainDb": -9.3
+      "gainDb": -9.3,
+      "outputGainDb": 2.91
     },
     {
       "id": "m4-5",
@@ -189,7 +198,8 @@
       "end": 76.701825,
       "sourceLufs": -16.9,
       "sourceTruePeakDbfs": -1.3,
-      "gainDb": -9.6
+      "gainDb": -9.6,
+      "outputGainDb": 2.98
     },
     {
       "id": "m5-4",
@@ -198,7 +208,8 @@
       "end": 79.39474,
       "sourceLufs": -14.7,
       "sourceTruePeakDbfs": -1.3,
-      "gainDb": -11.8
+      "gainDb": -11.8,
+      "outputGainDb": 3.01
     },
     {
       "id": "m5-5",
@@ -226,7 +237,8 @@
       "end": 85.674308,
       "sourceLufs": -13.8,
       "sourceTruePeakDbfs": -1.1,
-      "gainDb": -12.7
+      "gainDb": -12.7,
+      "outputGainDb": 3.03
     },
     {
       "id": "m6-2",
@@ -235,7 +247,8 @@
       "end": 89.35576,
       "sourceLufs": -15.1,
       "sourceTruePeakDbfs": -1.6,
-      "gainDb": -11.5
+      "gainDb": -11.5,
+      "outputGainDb": 3.02
     },
     {
       "id": "m6-3",
@@ -244,7 +257,8 @@
       "end": 92.774921,
       "sourceLufs": -14.9,
       "sourceTruePeakDbfs": -1.6,
-      "gainDb": -11.6
+      "gainDb": -11.6,
+      "outputGainDb": 3.13
     },
     {
       "id": "m6-4",
@@ -253,7 +267,8 @@
       "end": 94.278231,
       "sourceLufs": -15.4,
       "sourceTruePeakDbfs": -1.9,
-      "gainDb": -11.2
+      "gainDb": -11.2,
+      "outputGainDb": 3.09
     },
     {
       "id": "m7-1",
@@ -262,7 +277,8 @@
       "end": 99.87034,
       "sourceLufs": -15.3,
       "sourceTruePeakDbfs": -1.1,
-      "gainDb": -11.2
+      "gainDb": -11.2,
+      "outputGainDb": 3.57
     },
     {
       "id": "m7-2",
@@ -271,7 +287,8 @@
       "end": 102.629796,
       "sourceLufs": -15.9,
       "sourceTruePeakDbfs": -1.7,
-      "gainDb": -10.6
+      "gainDb": -10.6,
+      "outputGainDb": 3.03
     },
     {
       "id": "m7-3",
@@ -280,7 +297,8 @@
       "end": 107.316553,
       "sourceLufs": -16.3,
       "sourceTruePeakDbfs": -1.2,
-      "gainDb": -10.3
+      "gainDb": -10.3,
+      "outputGainDb": 3.05
     },
     {
       "id": "m8-1",
@@ -289,7 +307,8 @@
       "end": 116.751973,
       "sourceLufs": -15.6,
       "sourceTruePeakDbfs": -0.5,
-      "gainDb": -11.0
+      "gainDb": -11.0,
+      "outputGainDb": 3.5
     },
     {
       "id": "m8-2",
@@ -298,7 +317,8 @@
       "end": 120.848844,
       "sourceLufs": -17.0,
       "sourceTruePeakDbfs": -1.6,
-      "gainDb": -9.5
+      "gainDb": -9.5,
+      "outputGainDb": 3.21
     },
     {
       "id": "m8-3",
@@ -332,7 +352,8 @@
       "end": 126.353288,
       "sourceLufs": -11.5,
       "sourceTruePeakDbfs": -1.0,
-      "gainDb": -15.0
+      "gainDb": -15.0,
+      "outputGainDb": 3.0
     },
     {
       "id": "m9-2",
@@ -341,7 +362,8 @@
       "end": 128.578413,
       "sourceLufs": -16.2,
       "sourceTruePeakDbfs": -1.2,
-      "gainDb": -10.3
+      "gainDb": -10.3,
+      "outputGainDb": 2.99
     },
     {
       "id": "m9-3",
@@ -350,21 +372,22 @@
       "end": 135.205465,
       "sourceLufs": -16.6,
       "sourceTruePeakDbfs": -0.9,
-      "gainDb": -9.9
+      "gainDb": -9.9,
+      "outputGainDb": 3.21
     },
     {
       "id": "m9-7",
       "text": "Shall we listen to some music now?",
       "parts": [
         {
-          "source": "../update-2026-11-12/f-2.mp3",
+          "source": "../update-2026-11-12/last_002.mp3",
           "start": 0,
-          "end": 1.8,
-          "gainDb": -12.84
+          "end": 2.06,
+          "gainDb": -11.7
         }
       ],
-      "update": "2026-11-12: f recording, first sentence only; continue by clicking the text below the report.",
-      "outputGainDb": -0.14
+      "update": "2026-11-12: last recording (replaces f), first sentence only; continue by clicking the text below the report.",
+      "outputGainDb": -0.23
     }
   ],
   "decodedPcmSha256": "0cb82dd774bd4e8549e5f313e35482d8610c35ad3b3dc08c44a9ecf22d77e1fb",

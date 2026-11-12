@@ -10,7 +10,8 @@ window.MemeFX = (() => {
     reveal: { duration: 3.4, sounds: [['roll', 0], ['fanfare', .8], ['clap', 1.45]], beats: [[.8, 'hit'], [1.45, 'encore']],
       ko: ['나…', '달팽이 됐다.', '인생 첫 달팽이 데뷔', '축  달팽이 탄생  하'], en: ['WAIT…', 'I’M A SNAIL.', 'My snail era starts now.', 'A SNAIL IS BORN'] }
   };
-  const buffers = {}, history = [];
+  const buffers = {}, levels = {}, history = [];
+  const oneShots = new Set();
   let loading, active = null, epoch = 0, transitioning = false, caption;
   const soundKeys = [...new Set(Object.values(cues).flatMap(cue => cue.sounds.map(([key]) => key)))];
 
@@ -22,6 +23,8 @@ window.MemeFX = (() => {
           const response = await fetch(`./media/sfx/memes/${key}.mp3`);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           buffers[key] = await getAudioContext().decodeAudioData(await response.arrayBuffer());
+          const measured = measureLoudness(bufferChannels(buffers[key]), buffers[key].sampleRate);
+          levels[key] = Math.min(LOUD_TARGET / measured.kRms, BEAT_PEAK_CEIL / measured.peak);
           return;
         } catch { /* Caption edits still finish if a sound is missing. */ }
       }
@@ -66,6 +69,7 @@ window.MemeFX = (() => {
   function dispose(current) {
     clearTimeout(current.timer); current.beatTimers.forEach(clearTimeout);
     current.sources.forEach(src => { try { src.stop(); src.disconnect(); } catch {} });
+    current.levels.forEach(node => { try { node.disconnect(); } catch {} });
     try { current.gain?.disconnect(); } catch {}
   }
   function stop() {
@@ -74,9 +78,14 @@ window.MemeFX = (() => {
     const current = active; active = null; dispose(current);
     current.record.status = 'cancelled'; current.resolve(false);
   }
-  function cancel() { epoch++; transitioning = false; stop(); }
+  function cancel() {
+    epoch++; transitioning = false; stop();
+    oneShots.forEach(shot => { try { shot.src.stop(); shot.gain.disconnect(); } catch {} });
+    oneShots.clear();
+  }
   function updateGain() {
-    if (active?.gain) active.gain.gain.setTargetAtTime(voiceGain(), getAudioContext().currentTime, .01);
+    if (active?.gain) active.gain.gain.setTargetAtTime(voiceGain(true), getAudioContext().currentTime, .01);
+    oneShots.forEach(shot => shot.gain.gain.setTargetAtTime(voiceGain(true) * levels[shot.key], getAudioContext().currentTime, .01));
   }
   function play(key) {
     stop(); show(key);
@@ -85,16 +94,18 @@ window.MemeFX = (() => {
       status: 'playing', silent: !GlobalState.voiceOn, at: performance.now(), sounds: cue.sounds.map(([sound, at]) => ({sound, at})) };
     history.push(record);
     return new Promise(resolve => {
-      const current = active = { resolve, record, sources: [], gain: null, timer: null, beatTimers: [] };
+      const current = active = { resolve, record, sources: [], levels: [], gain: null, timer: null, beatTimers: [] };
       try {
         if (GlobalState.isAudioInitialized) {
           const ctx = getAudioContext();
-          current.gain = ctx.createGain(); current.gain.gain.value = voiceGain();
+          current.gain = ctx.createGain(); current.gain.gain.value = voiceGain(true);
           current.gain.connect(AudioMix.bus('effects'));
           const start = ctx.currentTime;
           cue.sounds.forEach(([sound, at]) => {
             if (!buffers[sound]) return;
-            const src = ctx.createBufferSource(); src.buffer = buffers[sound]; src.connect(current.gain);
+            const src = ctx.createBufferSource(), level = ctx.createGain();
+            src.buffer = buffers[sound]; level.gain.value = levels[sound];
+            src.connect(level); level.connect(current.gain); current.levels.push(level);
             current.sources.push(src); src.start(start + at);
           });
         }
@@ -115,9 +126,13 @@ window.MemeFX = (() => {
     if (!buffers[key] || !GlobalState.isAudioInitialized) return;
     try {
       const ctx = getAudioContext(), gain = ctx.createGain(), src = ctx.createBufferSource();
-      gain.gain.value = voiceGain(); gain.connect(AudioMix.bus('effects'));
-      src.buffer = buffers[key]; src.connect(gain); src.onended = () => { try { gain.disconnect(); } catch {} };
+      gain.gain.value = voiceGain(true) * levels[key]; gain.connect(AudioMix.bus('effects'));
+      const shot = { key, src, gain };
+      oneShots.add(shot);
+      src.buffer = buffers[key]; src.connect(gain);
+      src.onended = () => { oneShots.delete(shot); try { gain.disconnect(); } catch {} };
       src.start();
+      return shot;
     } catch { /* 소리가 없어도 화면은 진행 */ }
   }
   function cueFor(stage, next) {
@@ -137,5 +152,6 @@ window.MemeFX = (() => {
   }
   return { load, cancel, transition, cueFor, sound, updateGain, history,
     ready: () => soundKeys.every(key => !!buffers[key]), busy: () => transitioning || active !== null,
-    activeKey: () => active?.record.key || null, gain: () => active?.gain?.gain.value ?? 0 };
+    activeKey: () => active?.record.key || null, gain: () => active?.gain?.gain.value ?? 0,
+    soundLevel: key => levels[key] ?? 1 };
 })();

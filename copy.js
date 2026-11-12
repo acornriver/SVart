@@ -18,7 +18,7 @@ const STAGE_COPY = {
   PART2_CENTER: { ko: { title: '어디가 가장 편한가요?' }, en: { title: 'Where does it feel most comfortable?' } },
   PART2_EAR: { ko: { title: '어느 쪽 소리가 더 높게 들리나요?' }, en: { title: 'Which side sounds higher?' } },
   RESULT: { ko: { title: '나의 청감' }, en: { title: 'My ear profile' } },
-  MUSIC: { ko: { title: '세 가지 음악 들어보기' }, en: { title: 'Listen to three tracks' } },
+  MUSIC: { ko: { title: '여섯 가지 소리 들어보기' }, en: { title: 'Listen to six sounds' } },
   PART2_PITCH: { ko: { title: '올라갔나요? 내려갔나요?' }, en: { title: 'Up or down?' } }
 };
 
@@ -56,7 +56,7 @@ const VOICE_COPY = {
   '4-7': { ko: '더듬이를 누르면 세 가지 소리를 다시 들을 수 있어요.', en: '' },
   '4-8': { ko: '세 가지 소리를 차례로 다시 들려드릴게요.', en: '' },
   '5-1': { ko: '이번에는 소리가 언제 사라지는지 들어볼게요.', en: "This time, listen for the moment the sound disappears." },
-  '5-2': { ko: '소리가 더 이상 들리지 않을 때, 화면 아무 곳이나 한 번 눌러주세요.', en: "Slide the snail to the right until the sound disappears. Stop there, then press and hold the snail to confirm." },
+  '5-2': { ko: '달팽이를 오른쪽으로 밀어 소리가 사라지는 곳에서 멈춘 뒤, 달팽이를 길게 눌러주세요.', en: "Slide the snail to the right until the sound disappears. Stop there, then press and hold the snail to confirm." },
   '5-3': { ko: '한 번 더 들어보시려면 더듬이를 눌러주세요.', en: '' },
   '5-4': { ko: '다음으로 넘어가려면 달팽이를 길게 눌러주세요.', en: "To continue, press and hold the snail." },
   '5-5': { ko: '소리를 듣는 동안 달팽이의 선이 돌돌 말렸어요.', en: "As you listened, the snail’s line coiled up." },
@@ -97,11 +97,13 @@ const COPY = {
 
     'hint.listening': '잘 들어보세요…',
     'hint.analysis': '음악 들으러 가기 →',
-    'music.preview': '지금은 북서울의 소리로 미리 들어보세요',
+    'music.preview': '듣고 싶은 소리를 골라 보세요',
+    'music.towerPrompt': '충분히 들었다면, 달팽이를 오른쪽으로 밀어 청감타워로 보내 주세요',
+    'result.compare': '비교하며 듣기',
     'hint.result1': '슬라이더로 원래 소리와 내 귀 소리를 비교해보세요',
     'hint.result2': '달팽이를 오른쪽으로 밀면 청감타워로 가요',
     'result.eqOrig': '원래 소리',
-    'result.eqMine': '내 귀 EQ',
+    'result.eqMine': '내 귀',
 
 
     'axis.loud': '큰 소리',
@@ -129,6 +131,8 @@ const COPY = {
     'place.car-move': '북서울미술관 앞',
     'sent.title': '청감타워로 갔어요',
     'sent.sub': '다음 귀를 기다릴게요',
+    'tower.scan': '휴대폰으로 내 달팽이와 다른 귀의 소리를 들어보세요',
+    'tower.tap': '화면을 누르면 처음으로 돌아가요',
     'word.low': '저음',
     'word.high': '고음',
     'row.volume': '크기',
@@ -162,11 +166,13 @@ const COPY = {
 
     'hint.listening': 'Listen…',
     'hint.analysis': 'Listen to music →',
-    'music.preview': 'Preview the sounds around Buk-Seoul',
-    'hint.result1': 'Slide to compare the original sound and your ear EQ',
+    'music.preview': 'Pick a sound to listen to',
+    'music.towerPrompt': 'When you’ve heard enough, push the snail to the right to send it to the Hearing Tower',
+    'result.compare': 'Compare',
+    'hint.result1': 'Slide to compare the original sound and your ear',
     'hint.result2': 'Push the snail to the right to send it to the Hearing Tower',
     'result.eqOrig': 'Original',
-    'result.eqMine': 'My Ear EQ',
+    'result.eqMine': 'My Ear',
 
 
     'axis.loud': 'Loud',
@@ -194,6 +200,8 @@ const COPY = {
     'place.car-move': 'In front of Buk-Seoul Museum of Art',
     'sent.title': 'Off to the Hearing Tower',
     'sent.sub': 'Waiting for the next ear',
+    'tower.scan': 'Use your phone to hear your snail and the sound of other ears',
+    'tower.tap': 'Tap the screen to return to the start',
     'word.low': 'low',
     'word.high': 'high',
     'row.volume': 'Size',
@@ -221,6 +229,34 @@ function currentLang() {
 }
 
 /** 키 → 지금 언어의 문구. 없으면 한국어, 그래도 없으면 키 그대로 */
+/**
+ * QR 화면의 작품·전시 크레딧 (원우리 작가 전달 11/13, 문구 그대로). 언어마다 따로 보여 줌
+ */
+const TOWER_CREDITS = {
+  ko: {
+    work: '모든 귀는 [....] 이다.',
+    artist: '원우리 WONWOORI',
+    caption: '<모든 귀는 […] 이다>, 2026, 사운드 설치(음악, 청각 검사 알고리즘, 사운드 베리에이터, 개인화된 헤드폰, 태블릿, 실시간 데이터로 구현한 청감 클라우드), 가변 크기. 서울시립 북서울미술관 제작지원.',
+    staff: ['프로그래밍 : 차민휘', '음향 연구 : 윤희언', '인터렉션 디자인 : 강민혁'],
+    tracks: [
+      '원우리, <전극 응답>, 2026, 2채널 오디오, 3분. 서울시립 북서울미술관 제작지원.',
+      '원우리 × 펠릭스 쿠빈, <레지스터 응답>, 2026, 2채널 오디오, 3분. 서울시립 북서울미술관 제작지원.',
+      '펠릭스 쿠빈, <반짝이는 레지스터>, 2026, 2채널 오디오, 3분. 서울시립 북서울미술관 제작지원.'
+    ]
+  },
+  en: {
+    work: 'All Ears Are [...]',
+    artist: 'WONWOORI',
+    caption: 'All Ears Are [...], 2026, Sound installation (music, hearing test algorithm, sound variator, personalized headphones, tablet, hearing cloud generated from real-time data), Dimensions variable. Commissioned by Buk-Seoul Museum of Art.',
+    staff: ['Programming : Cha Minhwi', 'Acoustic Research : Yoon HuiEon', 'Interaction Design : acornriver'],
+    tracks: [
+      'WONWOORI, Adaptive Response, 2026, 2-channel audio, 3 min. Commissioned by Buk-Seoul Museum of Art.',
+      'WONWOORI × Felix Kubin, Register Response, 2026, 2-channel audio, 3 min. Commissioned by Buk-Seoul Museum of Art.',
+      'Felix Kubin, Scintillating Registers, 2026, 2-channel audio, 3 min. Commissioned by Buk-Seoul Museum of Art.'
+    ]
+  }
+};
+
 function t(key) {
   const lang = currentLang();
   const v = COPY[lang][key] !== undefined ? COPY[lang][key] : COPY.ko[key];

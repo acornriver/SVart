@@ -4,22 +4,29 @@
  * "이 달팽이가 북서울미술관 주변에 가 본다면?"
  * 결과 화면에서 개인 EQ를 입힌 북서울 주변 녹음을 장소마다 TOUR_SECONDS씩 차례로 들려주고,
  * 그 장소 영상을 캔버스 뒤에 고대비 흑백으로 깝니다. 버튼으로 곡을 고르면 그 곡에 고정합니다 (사용자 선택 11/06).
- * 달팽이를 오른쪽으로 밀면 결과를 청감타워로 보내고(cloud/send.js), 달팽이가 기어 나간 뒤 첫 화면으로 돌아갑니다.
+ * 달팽이를 오른쪽으로 밀면 결과를 청감타워로 보내고(cloud/send.js), 달팽이가 기어 나간 뒤 QR·크레딧 화면(visuals.js의 towerCard)을 보여 주고 첫 화면으로 돌아갑니다.
  *
  * 영상과 소리는 전시 내내 멈추면 안 됩니다: 영상은 처음에 blob으로 받아 두고, 1초마다 멈췄는지 확인해 다시 재생합니다.
  */
 
-// 작가 곡 3개가 오기 전까지 북서울 사운드스케이프 3개를 선택해 들을 수 있게 구성 (사용자 지시 11/06)
-// spectrum은 음량 보정용 대략적 기울기. 장소 이름은 copy.js의 place.<key>
+// 감상 화면의 여섯 소리 (원우리 작가 지시 11/13): 작가 곡 3개 + 북서울 소리 3개.
+// 작가 곡(음악 + 스펙트로그램 영상)은 11/20쯤 올 예정이라 그때까지 안 쓰던 북서울 녹음을 임시로 겁니다 (사용자 확정).
+// 곡이 오면 위 세 줄의 audio · video 경로만 바꾸면 됩니다. key는 소리·영상을 찾는 이름이라 그대로 둡니다.
+// spectrum은 음량 보정용 대략적 기울기. 버튼 글자는 copy.js의 labelKey
 const TOUR_PLACES = [
-  { artistKey: 'artist.wonwoori', key: 'water',      audio: './media/audio/water.m4a',      video: './media/video/water.mp4',      spectrum: 'pink' },  // 당현천 물소리
-  { artistKey: 'artist.felix', key: 'train-go',   audio: './media/audio/train-go.m4a',   video: './media/video/train-go.mp4',   spectrum: 'brown' }, // 중계역 지하철
-  { artistKey: 'artist.collaboration', key: 'car-move',   audio: './media/audio/car-move.m4a',   video: './media/video/car-move.mp4',   spectrum: 'pink' }   // 북서울미술관 앞 지나가는 차
+  { labelKey: 'artist.wonwoori',      key: 'wonwoori', audio: './media/audio/water-road.m4a', video: './media/video/water-road.mp4', spectrum: 'pink' },  // 임시: 당현천 옆 길
+  { labelKey: 'artist.felix',         key: 'felix',    audio: './media/audio/car.m4a',        video: './media/video/car.mp4',        spectrum: 'pink' },  // 임시: 차
+  { labelKey: 'artist.collaboration', key: 'collab',   audio: './media/audio/walk-stair.m4a', video: './media/video/walk-stair.mp4', spectrum: 'pink' },  // 임시: 계단 걷기
+  { labelKey: 'place.water',    key: 'water',    audio: './media/audio/water.m4a',    video: './media/video/water.mp4',    spectrum: 'pink' },  // 당현천 물소리
+  { labelKey: 'place.train-go', key: 'train-go', audio: './media/audio/train-go.m4a', video: './media/video/train-go.mp4', spectrum: 'brown' }, // 중계역 지하철
+  { labelKey: 'place.car-move', key: 'car-move', audio: './media/audio/car-move.m4a', video: './media/video/car-move.mp4', spectrum: 'pink' }   // 북서울미술관 앞 지나가는 차
 ];
 const TOUR_SECONDS = 15;
 const TOUR_FADE = 1.2;          // 장소 사이 소리 크로스페이드 (초)
 const SEND_WALK_MS = 4200;      // 보내기: 화면 밖으로 기어 나가는 시간
-const SEND_HOLD_MS = 5000;      // 나간 뒤 문구를 보여 주는 시간, 그다음 첫 화면
+const SEND_HOLD_MS = 45000;     // 나간 뒤 QR·크레딧 화면을 보여 주는 시간, 그다음 첫 화면 (사용자 확정 11/13: 45초, 누르면 바로)
+const TOWER_CARD_GUARD_MS = 1500; // QR 화면이 뜨자마자 잘못 눌러 넘어가지 않게 기다리는 시간
+const TOWER_PROMPT_MS = 60000;  // 감상을 시작하고 이만큼 지나면 청감타워로 보내라는 안내가 나옴 (60초는 Claude 초안)
 
 const BACKDROP_FADE = 0.8;      // 영상 크로스페이드 (초)
 const BACKDROP_STALL_SECONDS = 2;
@@ -45,8 +52,11 @@ function startTour() {
   const tour = tourState();
   tour.index = 0;
   tour.sendAt = null;
+  tour.earId = null;
+  tour.startAt = millis();
   tour.pinned = false;
   tour.listenAt = millis();
+  hideTowerCard();
   enterPlace();
 }
 
@@ -96,9 +106,33 @@ function sendToTower() {
     setActiveSource(null, 1.5);
     showBackdrop(null);
   }, SEND_WALK_MS * 0.7));
+  // 업로드를 기다리지 않음: ID는 보내는 순간 정해지고, 없으면(로컬·대기열 실패) 코드만으로 열림
+  const url = towerMobileUrl(tour.earId, window.EAR_RESULT && window.EAR_RESULT.code);
+  sendTimers.push(setTimeout(() => {
+    if (window.GlobalState.currentStage === 'MUSIC' && tourState().sendAt !== null) showTowerCard(url);
+  }, SEND_WALK_MS));
   sendTimers.push(setTimeout(() => {
     if (window.GlobalState.currentStage === 'MUSIC' && tourState().sendAt !== null) restartFlow();
   }, SEND_WALK_MS + SEND_HOLD_MS));
+}
+
+/**
+ * 관객이 휴대폰으로 자기 결과를 여는 주소 (SVartTower의 /mobile/).
+ * ear = Firestore 문서 ID(있을 때만), code = 청감 코드. 코드에는 괄호와 '/'가 있어 searchParams로 인코딩함
+ */
+function towerMobileUrl(earId, code) {
+  const base = window.CloudConfig && window.CloudConfig.MOBILE_URL;
+  if (!base) return '';
+  const url = new URL(base);
+  if (earId) url.searchParams.set('ear', earId);
+  if (code) url.searchParams.set('code', code);
+  return url.href;
+}
+
+// 감상을 충분히 했으면(TOWER_PROMPT_MS) 청감타워로 보내라는 안내를 띄움
+function towerPromptOn() {
+  const tour = tourState();
+  return tour.sendAt === null && millis() - (tour.startAt || 0) >= TOWER_PROMPT_MS;
 }
 
 // 보내기 진행 0(시작) ~ 1(화면 밖). 보내기 전이면 -1
@@ -111,6 +145,8 @@ function stopTour() {
   sendTimers.forEach(clearTimeout);
   sendTimers = [];
   tourState().sendAt = null;
+  tourState().earId = null;
+  hideTowerCard(); // 다음 관람객에게 앞사람 QR이 남지 않게
   showBackdrop(null);
 }
 

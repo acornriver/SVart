@@ -93,6 +93,29 @@
     .intro .dots { color: #f5f5f0; letter-spacing: .15em; }
     .intro .hint { white-space: pre-line; line-height: 1.7; font-size: clamp(18px, 2.6vw, 24px); letter-spacing: .04em; color: #bdbdb7; transition: opacity .4s ease; display: block; }
 
+    /* 보낸 뒤 QR · 크레딧 화면 (visuals.js의 towerCard) */
+    .tower-card { position: fixed; inset: 0; z-index: 4; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+      align-items: center; gap: clamp(24px, 5vw, 72px); padding: clamp(24px, 5vh, 56px) clamp(28px, 6vw, 88px);
+      background: #000; color: #f5f5f0; font-family: 'Noto Sans KR', sans-serif; cursor: pointer;
+      animation: tower-in .6s ease both; }
+    .tower-card[hidden] { display: none; }
+    @keyframes tower-in { from { opacity: 0; } to { opacity: 1; } }
+    .tower-card p, .tower-card h2, .tower-card h3 { margin: 0; }
+    .tower-scan { display: flex; flex-direction: column; align-items: center; text-align: center; gap: clamp(12px, 2.4vh, 22px); }
+    .tower-scan h2 { font-size: clamp(24px, 3.2vw, 36px); font-weight: 700; }
+    .tower-qr { width: min(100%, 38vh, 300px); padding: 14px; background: #fff; box-sizing: border-box; }
+    .tower-qr[hidden] { display: none; }
+    .tower-qr img, .tower-qr canvas { width: 100%; height: auto; image-rendering: pixelated; }
+    .tower-lead { font-size: clamp(18px, 2.2vw, 24px); font-weight: 700; line-height: 1.5; color: #ff3b1f; word-break: keep-all; }
+    .tower-tap { font-size: clamp(14px, 1.5vw, 17px); color: #8a8a85; }
+    .tower-credits { display: flex; flex-direction: column; gap: clamp(8px, 1.8vh, 16px); font-size: clamp(12px, 1.35vw, 15px); line-height: 1.65; color: #bdbdb7; word-break: keep-all; }
+    .tower-credits h3 { font-size: clamp(22px, 2.8vw, 32px); font-weight: 700; color: #f5f5f0; }
+    .tower-artist { font-size: clamp(16px, 1.8vw, 20px); font-weight: 700; color: #f5f5f0; }
+    .tower-staff span, .tower-tracks span { display: block; }
+    .tower-tracks span + span { margin-top: .35em; }
+    @media (orientation: portrait) { .tower-card { grid-template-columns: 1fr; align-content: center; } }
+    @media (prefers-reduced-motion: reduce) { .tower-card { animation: none; } }
+
     .analysis-next { position: fixed; z-index: 3; left: 50%; bottom: max(24px, 5vh);
       transform: translateX(-50%); min-height: 48px; max-width: 90vw; padding: 10px 16px;
       border: 0; background: transparent; color: #f5f5f0; font: 500 clamp(18px, 2.6vw, 24px)/1.4 'Noto Sans KR', sans-serif;
@@ -119,6 +142,7 @@
   <!-- p5.js 1.9.4 및 p5.sound (CDN에 의존하지 않게 lib/에 둠) -->
   <script src="./lib/p5.min.js"></script>
   <script src="./lib/p5.sound.min.js"></script>
+  <script src="./lib/qrcode.min.js"></script>
 
   <!-- Part 1 전용 모듈 스크립트 (GitHub Pages 상대 경로 './' 사용) -->
   <!-- 1. 단일 전역 상태 정의 -->

@@ -17,7 +17,7 @@
  * 신호 흐름:
  *   비트(①②③) · 북서울 녹음(결과) → lowShelf → registerPeak → highShelf → loudnessComp → masterGain → 출력
  *   멜로디(④)  ─────────────────────────────────────────────────────→ masterGain
- *   Part 2 검사음 ─────────────── part2Bus (① 볼륨과 무관한 고정 크기) ───→ 출력
+ *   Part 2 검사음 ─────────────── part2Bus (① 관람객 볼륨 적용) ───→ 출력
  */
 
 // 전체 진행 순서. Part 2 단계는 part2_audio.js가 맡음
@@ -81,15 +81,18 @@ const MELODY_GAP = 0.7;
 
 // 11/12 저음 추가 조정: A는 E♭3에서 D♭3로 2반음 더 내림. B(C4)·C(A4)와의 간격은 11반음·9반음.
 // peakHz(음역 EQ와 코드 글자)는 그대로 유지.
-// defaultOffsetDb: 기존 등청감 보정 출발점을 유지. tests/register 페이지에서 새 음역으로 보정한 값이 있으면 그걸 씀
+// 세 음역의 기본 크기는 자동 보정하고, tests/register의 현장 보정 dB를 추가 적용.
 const REGISTERS = [
-  { id: 'LOW',  name: '저음역', range: 'D♭3–D♭4', baseMidi: 49, peakHz: 100,  defaultOffsetDb: 2 },
+  { id: 'LOW',  name: '저음역', range: 'D♭3–D♭4', baseMidi: 49, peakHz: 100,  defaultOffsetDb: 0 },
   { id: 'MID',  name: '중음역', range: 'C4–C5', baseMidi: 60, peakHz: 400,  defaultOffsetDb: 0 },
-  { id: 'HIGH', name: '고음역', range: 'A4–A5', baseMidi: 69, peakHz: 2500, defaultOffsetDb: -1 }
+  { id: 'HIGH', name: '고음역', range: 'A4–A5', baseMidi: 69, peakHz: 2500, defaultOffsetDb: 0 }
 ];
 const REGISTER_PEAK_GAIN = 3;
 const REGISTER_PEAK_Q = 1;
-const REGISTER_CALIB_KEY = 'svart.registerTest.v4'; // v4: D♭3·C4·A4. 이전 음역의 보정값은 쓰지 않음
+const REGISTER_CALIB_KEY = 'svart.registerTest.v5'; // v5: 세 음역을 실제 멜로디의 K 가중 레벨로 맞춤
+const REGISTER_LOUD_TARGET = LOUD_TARGET * Math.pow(10, 2 / 20);
+let registerLevels = {};
+let registerCalibrated = null;
 
 // 오디오 노드 내부 참조
 let lowShelfFilter = null;
@@ -219,6 +222,7 @@ function setupAudioPipeline() {
   duckGain.connect(AudioMix.bus('program')); // all application audio shares the final output protector
 
   setupBeat(lowShelfFilter.input);
+  registerCalibrated = calibrateRegisterLevels().catch(() => {});
   Object.keys(sampleSources).forEach(connectSample);
 
   const fft = new p5.FFT(0.8, 512);
@@ -682,6 +686,7 @@ async function introRegister() {
   const token = ++registerPlayToken;
   lockInput();
   await say(voicePlan('registerIntro'));
+  await registerCalibrated;
   if (token !== registerPlayToken) return;
   if (!(await playAllRegisterCards())) return;
   // 언어별 선택 안내가 끝난 뒤 세 자리를 눌러 보고 확정할 수 있음
@@ -748,13 +753,14 @@ function playRegister(registerId) {
 }
 
 // Shared by playback and OfflineAudioContext mix verification.
-function createRegisterVoice(registerId, ctx, destination) {
+function createRegisterVoice(registerId, ctx, destination, options = {}) {
   const reg = REGISTERS.find((r) => r.id === registerId);
-  const level = Math.min(0.95, MELODY_BASE_AMP * dbToGain(getRegisterOffset(reg)));
+  const offsetDb = options.offsetDb ?? getRegisterOffset(reg);
+  const level = Math.min(0.95, MELODY_BASE_AMP * dbToGain(offsetDb));
   const t0 = ctx.currentTime + 0.03;
 
   const out = ctx.createGain();
-  out.gain.value = dbToGain(AudioMix.settings.melodyTrimDb);
+  out.gain.value = options.normalization ?? registerLevels[registerId] ?? dbToGain(AudioMix.settings.melodyTrimDb);
   out.connect(destination);
   // 메아리: 원래 소리 + 지연(되먹임)된 옅은 소리
   const delay = ctx.createDelay(1);
@@ -798,6 +804,19 @@ function createRegisterVoice(registerId, ctx, destination) {
   });
 
   return { oscs, out, nodes: [dry, delay, fb, wet], disposed: false, duration: t - t0 + 2.5 };
+}
+
+async function calibrateRegisterLevels() {
+  const Off = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const sr = getAudioContext().sampleRate;
+  for (const reg of REGISTERS) {
+    // 멜로디와 짧은 잔향 구간을 재서 긴 끝 무음이 크기 비교에 끼지 않게 함.
+    const ctx = new Off(2, Math.ceil((MELODY_LENGTH + 0.5) * sr), sr);
+    createRegisterVoice(reg.id, ctx, ctx.destination, { normalization: 1, offsetDb: 0 });
+    const buffer = await ctx.startRendering();
+    const measured = measureLoudness(bufferChannels(buffer), sr);
+    registerLevels[reg.id] = Math.min(REGISTER_LOUD_TARGET / measured.kRms, BEAT_PEAK_CEIL / measured.peak);
+  }
 }
 
 function stopVoice() {

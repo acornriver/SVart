@@ -4,7 +4,7 @@
 window.AudioMix = (() => {
   const settings = Object.freeze({
     driveDb: 7, outputTrimDb: -1, // nominal +6 dB, leaving room after peak protection
-    programDb: 0, voiceDb: 0, effectsDb: -1, part2Db: 0, melodyTrimDb: -12,
+    programDb: 0, voiceDb: 4, effectsDb: 4, part2Db: 4, melodyTrimDb: -6,
     thresholdDb: -5, makeupCompensationDb: -2.85, kneeDb: 0, ratio: 20, attackSec: .001, releaseSec: .12
   });
   const gainAt = db => Math.pow(10, db / 20);
@@ -45,5 +45,11 @@ window.AudioMix = (() => {
     return { ...settings, nominalBoostDb: settings.driveDb + settings.outputTrimDb,
       initialized: !!live, reductionDb: live?.protector.reduction ?? 0 };
   }
-  return { settings, createGraph, bus, graph, status };
+  function participantGain(includeVolumeChoice = false) {
+    const state = window.GlobalState;
+    const introductory = ['INIT', 'NAMED', 'PART1_VOLUME'].includes(state.currentStage);
+    if (introductory && !includeVolumeChoice) return 1;
+    return Math.max(0, Math.min(1, state.userEQProfile.masterVolume));
+  }
+  return { settings, createGraph, bus, graph, status, participantGain };
 })();
