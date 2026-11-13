@@ -1,5 +1,5 @@
 /** 한/영 밈사운드 안내 (2026-11-09). 원본·구간표: source/voice/memesound/.
- * m6-1 · m6-3(⑥을 '가운데'에서 '편한 자리'로 바꿈, 11/12)과 m9-4 ~ m9-6(분석 화면, 11/12)은 아직 녹음이 없어 자막만 나옴 (copy.js의 VOICE_PENDING). m9-2는 11/12부터 쓰지 않음.
+ * m6-1 · m6-3(⑥을 '가운데'에서 '편한 자리'로 바꿈, 11/12)과 m9-5 · m9-6(분석 화면, 11/12)은 아직 녹음이 없어 자막만 나옴 (copy.js의 VOICE_PENDING). m9-2는 11/12부터 쓰지 않음.
  * 11/12 f/w/a 새 녹음은 update-2026-11-12/에 보관하며 m9-7도 녹음으로 재생합니다.
  * 한/영 모두 m 접두어의 새 녹음을 사용합니다. 영어 원본·구간표는 en/에 보관합니다.
  */
@@ -33,7 +33,7 @@ const MEME_VOICE_COPY = {
   "m9-1": "여러분, 저 됐어요! 달팽이가 됐어요!",
   "m9-2": "지금까지 검사해 주셔서 감사합니다!",
   "m9-3": "아, 여기서 작가님들이 만든 소리도 들어볼 수 있어요! 화면에서 듣고 싶은 소리를 하나씩 골라보세요.",
-  "m9-4": "자, 당신의 청감 코드는…!",
+  "m9-4": "자, 당신의 청감 코드는…! 두두둥!",
   "m9-5": "짜잔! 이게 당신의 청감 코드예요!",
   "m9-6": "당신의 청감은 이런 특징이 있어요.",
   "m9-7": "이제 음악을 들으러 가볼까요?"
@@ -67,7 +67,7 @@ const MEME_VOICE_COPY_EN = {
   "m9-1": "Everyone, I did it! I’m a snail!",
   "m9-2": "Thanks for taking the listening test with me!",
   "m9-3": "Oh, you can listen to sounds made by the artists here, too! Pick the ones you’d like to hear from the screen, one at a time.",
-  "m9-4": "And your ear code is…!",
+  "m9-4": "And your hearing code is… dun dun duuun!",
   "m9-5": "Ta-da! This is your ear code!",
   "m9-6": "Here’s what makes your hearing yours.",
   "m9-7": "Shall we listen to some music now?"

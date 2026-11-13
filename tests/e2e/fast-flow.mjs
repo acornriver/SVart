@@ -191,7 +191,7 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   await until("GlobalState.part1.resultPhase === 'ready'");
   await ready();
   await check("__fastFlow.voices.every(x => x.id.startsWith('m'))", 'Legacy guide played');
-  await check("__fastFlow.voices.every(x => !/drum\\s*roll|드럼\\s*롤|두두둥/i.test(voiceText(x.id)))", 'Production direction leaked into subtitles');
+  await check("__fastFlow.voices.every(x => !/drum\\s*roll|드럼\\s*롤/i.test(voiceText(x.id)))", 'Production direction leaked into subtitles');
   // ⑥ skips the two caption-only lines (m6-1, m6-3) in both languages until they are recorded.
   await check(`JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'PART2_CENTER').map(x => x.id)) === '["m5-5","m6-2","m6-4"]'`, 'Wrong center guide order');
   await check("!__fastFlow.buffers.some(x => x.phase === 'example')", 'Unexpected legacy example');

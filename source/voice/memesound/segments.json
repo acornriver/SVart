@@ -388,6 +388,20 @@
       ],
       "update": "2026-11-12: last recording (replaces f), first sentence only; continue by clicking the text below the report.",
       "outputGainDb": -0.65
+    },
+    {
+      "id": "m9-4",
+      "text": "자, 당신의 청감 코드는…! 두두둥!",
+      "parts": [
+        {
+          "source": "update-2026-11-12/last_003.mp3",
+          "start": 0.08,
+          "end": 2.7,
+          "gainDb": -12.7
+        }
+      ],
+      "update": "2026-11-13: last recording, whole line (drum-roll tease before the ear code).",
+      "outputGainDb": 0.3
     }
   ]
 }

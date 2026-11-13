@@ -79,11 +79,12 @@ const MELODY_ECHO = { time: 0.3, feedback: 0.22, wet: 0.18 };
 const MELODY_BASE_AMP = 0.42;   // 삼각파 서스테인 0.3과 비슷하게 들리도록 (귀로 다시 맞출 것)
 const MELODY_GAP = 0.7;
 
-// 11/12 저음 추가 조정: A는 E♭3에서 D♭3로 2반음 더 내림. B(C4)·C(A4)와의 간격은 11반음·9반음.
+// 11/12 저음 추가 조정: A는 E♭3에서 D♭3로 2반음 더 내림.
+// 11/13 사용자 지시: A를 2반음 더 내려 B2로. B(C4)·C(A4)와의 간격은 13반음·9반음.
 // peakHz(음역 EQ와 코드 글자)는 그대로 유지.
 // 세 음역의 기본 크기는 자동 보정하고, tests/register의 현장 보정 dB를 추가 적용.
 const REGISTERS = [
-  { id: 'LOW',  name: '저음역', range: 'D♭3–D♭4', baseMidi: 49, peakHz: 100,  defaultOffsetDb: 0 },
+  { id: 'LOW',  name: '저음역', range: 'B2–B3', baseMidi: 47, peakHz: 100,  defaultOffsetDb: 0 },
   { id: 'MID',  name: '중음역', range: 'C4–C5', baseMidi: 60, peakHz: 400,  defaultOffsetDb: 0 },
   { id: 'HIGH', name: '고음역', range: 'A4–A5', baseMidi: 69, peakHz: 2500, defaultOffsetDb: 0 }
 ];
@@ -344,7 +345,7 @@ function confirmStep() {
  *   code  : 화면이 바뀌고 코드만 크게 "짜잔!"
  *   list  : 코드가 위로 올라가고 아래에 항목별 분석이 하나씩. "당신의 청감은 이런 특징이 있어요."
  *   ready : RESULT_READ_MS 뒤 음악 안내. 이후 보고서 아래 텍스트 클릭으로 넘어감
- * 새 대사(m9-4 ~ m9-6)는 녹음 전이라 자막만 나옴 (copy.js의 VOICE_PENDING)
+ * m9-4(두두둥)는 11/13 녹음으로 재생. m9-5 · m9-6은 녹음 전이라 자막만 나옴 (copy.js의 VOICE_PENDING)
  */
 async function runResultReveal() {
   const run = ++resultRun;

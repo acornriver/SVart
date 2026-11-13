@@ -388,6 +388,20 @@
       ],
       "update": "2026-11-12: last recording (replaces f), first sentence only; continue by clicking the text below the report.",
       "outputGainDb": -0.23
+    },
+    {
+      "id": "m9-4",
+      "text": "And your hearing code is… dun dun duuun!",
+      "parts": [
+        {
+          "source": "../update-2026-11-12/last_004.mp3",
+          "start": 0,
+          "end": 2.47,
+          "gainDb": -15.3
+        }
+      ],
+      "update": "2026-11-13: last recording, whole line (drum-roll tease before the ear code).",
+      "outputGainDb": 0.25
     }
   ],
   "decodedPcmSha256": "0cb82dd774bd4e8549e5f313e35482d8610c35ad3b3dc08c44a9ecf22d77e1fb",
