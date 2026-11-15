@@ -68,7 +68,7 @@ const MEME_VOICE_COPY_EN = {
   "m9-2": "Thanks for taking the listening test with me!",
   "m9-3": "Oh, you can listen to sounds made by the artists here, too! Pick the ones you’d like to hear from the screen, one at a time.",
   "m9-4": "And your hearing code is… dun dun duuun!",
-  "m9-5": "Ta-da! This is your ear code!",
+  "m9-5": "Ta-da! This is your hearing code!",
   "m9-6": "Here’s what makes your hearing yours.",
   "m9-7": "Shall we listen to some music now?"
 };
@@ -206,8 +206,8 @@ const VOICE_PLANS = {
   },
   "result": { "ko": ["m9-1"], "en": ["m9-1"] },
   "resultTease": { "ko": ["m9-4"], "en": ["m9-4"] },
-  "resultCode": { "ko": ["m9-5"], "en": ["m9-5"] },
-  "resultList": { "ko": ["m9-6"], "en": ["m9-6"] },
+  "resultCode": { "ko": [], "en": [] },
+  "resultList": { "ko": [], "en": [] },
   "resultReady": { "ko": ["m9-7"], "en": ["m9-7"] },
   "music": {
     "ko": [

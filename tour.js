@@ -12,11 +12,11 @@
 // 감상 화면의 여섯 소리 (원우리 작가 지시 11/13): 작가 곡 3개 + 북서울 소리 3개.
 // 작가 곡(음악 + 스펙트로그램 영상)은 11/20쯤 올 예정이라 그때까지 안 쓰던 북서울 녹음을 임시로 겁니다 (사용자 확정).
 // 곡이 오면 위 세 줄의 audio · video 경로만 바꾸면 됩니다. key는 소리·영상을 찾는 이름이라 그대로 둡니다.
-// spectrum은 음량 보정용 대략적 기울기. 버튼 글자는 copy.js의 labelKey
+// spectrum은 음량 보정용 대략적 기울기. 버튼 글자는 copy.js의 labelKey, 작가 곡은 그 아래 작게 곡 제목(titleKey)
 const TOUR_PLACES = [
-  { labelKey: 'artist.wonwoori',      key: 'wonwoori', audio: './media/audio/water-road.m4a', video: './media/video/water-road.mp4', spectrum: 'pink' },  // 임시: 당현천 옆 길
-  { labelKey: 'artist.felix',         key: 'felix',    audio: './media/audio/car.m4a',        video: './media/video/car.mp4',        spectrum: 'pink' },  // 임시: 차
-  { labelKey: 'artist.collaboration', key: 'collab',   audio: './media/audio/walk-stair.m4a', video: './media/video/walk-stair.mp4', spectrum: 'pink' },  // 임시: 계단 걷기
+  { labelKey: 'artist.wonwoori',      titleKey: 'track.wonwoori', key: 'wonwoori', audio: './media/audio/water-road.m4a', video: './media/video/water-road.mp4', spectrum: 'pink' },  // 임시: 당현천 옆 길
+  { labelKey: 'artist.felix',         titleKey: 'track.felix',    key: 'felix',    audio: './media/audio/car.m4a',        video: './media/video/car.mp4',        spectrum: 'pink' },  // 임시: 차
+  { labelKey: 'artist.collaboration', titleKey: 'track.collab',   key: 'collab',   audio: './media/audio/walk-stair.m4a', video: './media/video/walk-stair.mp4', spectrum: 'pink' },  // 임시: 계단 걷기
   { labelKey: 'place.water',    key: 'water',    audio: './media/audio/water.m4a',    video: './media/video/water.mp4',    spectrum: 'pink' },  // 당현천 물소리
   { labelKey: 'place.train-go', key: 'train-go', audio: './media/audio/train-go.m4a', video: './media/video/train-go.mp4', spectrum: 'brown' }, // 중계역 지하철
   { labelKey: 'place.car-move', key: 'car-move', audio: './media/audio/car-move.m4a', video: './media/video/car-move.mp4', spectrum: 'pink' }   // 북서울미술관 앞 지나가는 차
@@ -107,7 +107,7 @@ function sendToTower() {
     showBackdrop(null);
   }, SEND_WALK_MS * 0.7));
   // 업로드를 기다리지 않음: ID는 보내는 순간 정해지고, 없으면(로컬·대기열 실패) 코드만으로 열림
-  const url = towerMobileUrl(tour.earId, window.EAR_RESULT && window.EAR_RESULT.code);
+  const url = towerMobileUrl(tour.earId, window.EAR_RESULT && window.EAR_RESULT.code, window.GlobalState.psychoProfile.hueDeg);
   sendTimers.push(setTimeout(() => {
     if (window.GlobalState.currentStage === 'MUSIC' && tourState().sendAt !== null) showTowerCard(url);
   }, SEND_WALK_MS));
@@ -118,14 +118,16 @@ function sendToTower() {
 
 /**
  * 관객이 휴대폰으로 자기 결과를 여는 주소 (SVartTower의 /mobile/).
- * ear = Firestore 문서 ID(있을 때만), code = 청감 코드. 코드에는 괄호와 '/'가 있어 searchParams로 인코딩함
+ * ear = Firestore 문서 ID(있을 때만), code = 청감 코드. 코드에는 괄호와 '/'가 있어 searchParams로 인코딩함.
+ * hue = 달팽이 무지개 색상(0~359). 색은 코드에 없어서, 전송이 안 돼 코드만으로 열 때도 같은 색이 나오게 함께 담음 (11/15)
  */
-function towerMobileUrl(earId, code) {
+function towerMobileUrl(earId, code, hueDeg) {
   const base = window.CloudConfig && window.CloudConfig.MOBILE_URL;
   if (!base) return '';
   const url = new URL(base);
   if (earId) url.searchParams.set('ear', earId);
   if (code) url.searchParams.set('code', code);
+  if (typeof hueDeg === 'number' && Number.isFinite(hueDeg)) url.searchParams.set('hue', String(Math.round(hueDeg) % 360));
   return url.href;
 }
 

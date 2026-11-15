@@ -711,6 +711,7 @@ function storePart2Result(stage, r) {
   } else if (stage === 'PART2_CENTER') {
     psy.raw.center = r;
     psy.centerDeg = r.valid ? r.deg : null;
+    psy.hueDeg = r.valid ? snailHueDeg(r.deg) : null; // 달팽이 색 (0~360). 타워도 이 값으로 같은 색을 냄
     psy.centerImage = !r.valid ? null : Math.abs(r.deg) <= CENTER_SIDE_DEG ? 'C' : r.deg > 0 ? 'R' : 'L';
   } else if (stage === 'PART2_EAR') {
     psy.raw.octave = r;
@@ -723,8 +724,17 @@ function storePart2Result(stage, r) {
   }
 }
 
+// 달팽이 색 (원우리 작가 지시 11/15): 북서울 팔레트 대신 무지개. 관람객마다 시작 색을 무작위로 뽑고(사용자 확정),
+// ⑥에서 치우친 만큼 색상환을 돕니다. ⑥ 결과가 가운데로 몰려도 색은 고르게 퍼집니다.
+const SNAIL_HUE_PER_DEG = 4; // 치우침 1°마다 색상 4° (±30° → ±120°. Claude가 정함)
+function snailHueDeg(deg) {
+  const start = window.GlobalState.psychoProfile.hueStart || 0;
+  return (((start + deg * SNAIL_HUE_PER_DEG) % 360) + 360) % 360;
+}
+
 function resetPsychoProfile() {
   Object.assign(window.GlobalState.psychoProfile, {
+    hueStart: Math.random() * 360, hueDeg: null,
     maxFreqHz: null, sensitivity: null, centerDeg: null, centerImage: null,
     dominantEar: null, earStrength: null, pitchMode: null, pitchIndex: null, twist: null,
     raw: { sensitivity: null, center: null, octave: null, f0: null }

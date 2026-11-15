@@ -10,7 +10,8 @@ const OUT = process.argv[2];
 const URL = 'http://localhost:8765/index.html';
 const LANG = process.argv.slice(3).find(arg => arg === 'ko' || arg === 'en') || 'ko';
 const FAST = process.argv.includes('--fast');
-const W = 744, H = 1133;
+// 빠른 flow는 전시 기기인 아이패드 미니 5 가로(1024×768 pt)로 돌림 (사용자 지시 11/15). 정상 속도 flow는 예전 세로 좌표 그대로
+const [W, H] = FAST ? [1024, 768] : [744, 1133];
 const portFile = `${OUT}/profile/DevToolsActivePort`;
 const requestedPort = process.env.SVART_CDP_PORT || '0';
 mkdirSync(OUT, { recursive: true });
@@ -87,7 +88,7 @@ if (FAST) {
   const { runFastFlow } = await import('./fast-flow.mjs');
   let summary;
   try {
-    summary = await runFastFlow({ send, ev, shot, lang: LANG });
+    summary = await runFastFlow({ send, ev, shot, lang: LANG, view: { w: W, h: H } });
   } catch (error) {
     await shot('fast-failure');
     const state = await ev('({ stage: GlobalState.currentStage, part1: GlobalState.part1, part2: { phase: GlobalState.part2.phase, trial: GlobalState.part2.trial?.index, roll: GlobalState.part2.roll, replayLeft: GlobalState.part2.replayLeft }, targets: getTouchTargets(), fast: window.__fastFlow })');

@@ -31,11 +31,9 @@ const COLORS = {
   accent: [255, 59, 31]   // 신호 빨강
 };
 
-// ⑥ 중앙 검사로 정하는 달팽이 선 색 (media/img/중앙패닝 달팽이 색 정하기.png, 사용자 지시 11/02)
-// 왼쪽으로 치우칠수록 low(땅·나무), 오른쪽으로 치우칠수록 high(건물·하늘). 가운데(0°)는 막대 한가운데. 사이는 이어서 섞음
-const SNAIL_PALETTE = ['#B19E6B', '#808E30', '#5C6A36', '#8C7256', '#A8765C', '#978A87', '#C4B8B0', '#A8B0C1', '#7CA0BA', '#6C9AD1']
-  .map((h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16)));
-const SNAIL_COLOR_DEG = 30; // 이만큼 치우치면 팔레트 끝 색 (Claude가 정함)
+// 달팽이 선 색 (원우리 작가 지시 11/15): 무지개. 시작 색은 관람객마다 무작위, ⑥에서 돌린 만큼 색상환을 돎 (part2_audio.js의 snailHueDeg).
+// 검정 바탕에서 또렷하게 보이는 채도·밝기 (Claude가 정함). 타워의 mapping.js도 같은 값을 씀
+const SNAIL_RAINBOW = { sat: 0.85, light: 0.64 };
 
 // ⑤ 고역 한계 → 달팽이 꼬임 (media/img/달팽이 꼬임 정도 고역한계.png, 사용자 지시 11/02)
 // ⑤부터 선이 이중나선으로 갈라지고, 높이 들을수록 더 촘촘하게 꼬임. 꼬임 수는 Claude가 정함
@@ -135,7 +133,7 @@ function setupTowerCard() {
   towerCard.className = 'tower-card';
   towerCard.hidden = true;
   towerCard.innerHTML = '<div class="tower-scan"><h2></h2><div class="tower-qr"></div><p class="tower-lead"></p><p class="tower-tap"></p></div>'
-    + '<div class="tower-credits"><h3></h3><p class="tower-artist"></p><p class="tower-caption"></p><p class="tower-staff"></p><p class="tower-tracks"></p></div>';
+    + '<div class="tower-credits"><h3></h3><p class="tower-artist"></p><p class="tower-caption"></p><div class="tower-staff"></div><div class="tower-tracks"></div></div>';
   ['mousedown', 'touchstart', 'touchend'].forEach(name => towerCard.addEventListener(name, event => event.stopPropagation()));
   towerCard.addEventListener('click', () => {
     if (towerCard.hidden || millis() - towerCardAt < TOWER_CARD_GUARD_MS) return;
@@ -149,7 +147,9 @@ function setupTowerCard() {
 function showTowerCard(url) {
   if (!towerCard) return;
   const q = (sel) => towerCard.querySelector(sel);
-  const lines = (list) => list.map((text) => { const s = document.createElement('span'); s.textContent = text; return s; });
+  // [앞, 뒤] 한 쌍을 한 줄로: 앞은 <b>, 뒤는 <span>
+  const pairs = (list) => list.map(([head, rest]) => { const row = document.createElement('div'), b = document.createElement('b'), s = document.createElement('span');
+    b.textContent = head; s.textContent = rest; row.append(b, s); return row; });
   const credits = TOWER_CREDITS[currentLang()] || TOWER_CREDITS.ko;
   const qr = q('.tower-qr');
   qr.replaceChildren();
@@ -164,8 +164,8 @@ function showTowerCard(url) {
   q('h3').textContent = credits.work;
   q('.tower-artist').textContent = credits.artist;
   q('.tower-caption').textContent = credits.caption;
-  q('.tower-staff').replaceChildren(...lines(credits.staff));
-  q('.tower-tracks').replaceChildren(...lines(credits.tracks));
+  q('.tower-staff').replaceChildren(...pairs(credits.staff));
+  q('.tower-tracks').replaceChildren(...pairs(credits.tracks));
   towerCardAt = millis();
   towerCard.hidden = false;
 }
@@ -463,12 +463,12 @@ function calculateUILayout() {
 /* ---------- 터치 판정 (main.js가 씀) ---------- */
 
 // 감상 화면: 여섯 소리 선택 버튼. 3칸 × 2줄 (윗줄 = 작가 곡, 아랫줄 = 북서울 소리). 수치는 Claude가 정함
-const TRACK_GRID = { cols: 3, gap: 14, rowGap: 10, yLow: 0.52, yTall: 0.58 };
+const TRACK_GRID = { cols: 3, gap: 14, rowGap: 8, yLow: 0.5, yTall: 0.58 }; // yLow: 아이패드 미니 5 가로(768 · 주소창이 보이면 704)에서 슬라이더와 겹치지 않는 자리
 function resultTrackBoxes(L = calculateUILayout()) {
   const { cols, gap, rowGap } = TRACK_GRID;
   const totalW = min(width - L.m * 2, 960);
   const w = (totalW - gap * (cols - 1)) / cols;
-  const y = height * (height < 850 ? TRACK_GRID.yLow : TRACK_GRID.yTall), h = height < 850 ? 52 : 64;
+  const y = height * (height < 850 ? TRACK_GRID.yLow : TRACK_GRID.yTall), h = height < 850 ? 56 : 72;
   return TOUR_PLACES.map((p, i) => {
     const x = width / 2 - totalW / 2 + (i % cols) * (w + gap), by = y + Math.floor(i / cols) * (h + rowGap);
     return { index: i, key: p.key, x, y: by, w, h, cx: x + w / 2, cy: by + h / 2 };
@@ -649,12 +649,72 @@ function smoothAll(L) {
   cur.shellX = lerp(cur.shellX, tp.shellX, 0.12);
 }
 
-// 보내기: 오른쪽 화면 밖으로 기어 나가는 거리
-function sendOffset() {
+// 보내기: 달팽이가 오른쪽에 열린 포탈로 기어가 빨려 들어감 (원우리 작가 지시 11/15). 청감타워에서 달팽이가 나오는 포탈과 같은 생김새
+// (SVartTower tower.js의 drawPortal). 시점은 보내기 진행(0~1) 기준: open까지 열림, gone까지 걸어가며 swallow부터 작아짐, 그 뒤 닫힘. 수치는 Claude가 정함
+const SEND_PORTAL = { open: 0.16, swallow: 0.58, gone: 0.84, gap: 6.5, size: 2.7 };
+const smooth01 = (x) => { const u = constrain(x, 0, 1); return u * u * (3 - 2 * u); };
+
+function sendPortal() {
   const p = sendProgress();
-  if (p < 0) return 0;
-  const e = p * p * (3 - 2 * p);
-  return e * (width - cur.cx + cur.R0 * 4);
+  if (p < 0 || p >= 1) return null;
+  const R = cur.R0 * SEND_PORTAL.size;
+  return {
+    x: Math.min(width - R * 0.95, cur.cx + cur.R0 * SEND_PORTAL.gap), y: cur.groundY - cur.R0 * 1.25, R,
+    open: p < SEND_PORTAL.open ? 1 - Math.pow(1 - p / SEND_PORTAL.open, 3) : 1 - smooth01((p - SEND_PORTAL.gone) / (1 - SEND_PORTAL.gone)),
+    swallow: smooth01((p - SEND_PORTAL.swallow) / (SEND_PORTAL.gone - SEND_PORTAL.swallow)) // 0 = 그대로, 1 = 다 들어감
+  };
+}
+
+// 보내기: 포탈 한가운데까지 기어가는 거리
+function sendOffset() {
+  const portal = sendPortal();
+  if (!portal) return 0;
+  return smooth01((sendProgress() - 0.06) / (SEND_PORTAL.gone - 0.06)) * (portal.x - cur.cx);
+}
+
+function drawSendPortal(ctx, portal) {
+  if (portal.open <= 0.01) return;
+  const now = millis() / 1000, col = snailGlow, hot = col.map((v) => Math.min(255, v * 1.3));
+  const R = portal.R * portal.open, rx = R * 0.74, ry = R;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.translate(portal.x, portal.y);
+  // 안쪽 빛과 주사선
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(0, 0, rx, ry, 0, 0, TWO_PI);
+  ctx.clip();
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, ry);
+  g.addColorStop(0, rgba(hot, 0.5 * portal.open));
+  g.addColorStop(0.55, rgba(col, 0.2 * portal.open));
+  g.addColorStop(1, rgba(col, 0.02));
+  ctx.fillStyle = g;
+  ctx.fillRect(-rx, -ry, rx * 2, ry * 2);
+  ctx.fillStyle = rgba(col, 0.2);
+  const gap = Math.max(3, R * 0.07);
+  for (let y = -ry + ((now * 40) % gap); y < ry; y += gap) ctx.fillRect(-rx, y, rx * 2, 1);
+  ctx.restore();
+  // 고리 세 겹
+  const ring = (k, w, a, dash, spin) => {
+    ctx.setLineDash(dash);
+    ctx.lineDashOffset = spin;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx * k, ry * k, 0, 0, TWO_PI);
+    ctx.strokeStyle = rgba(col, a * 0.2); ctx.lineWidth = w * 5; ctx.stroke();
+    ctx.strokeStyle = rgba(hot, a); ctx.lineWidth = w; ctx.stroke();
+  };
+  ring(1, 2, 0.95, [], 0);
+  ring(1.16, 1.2, 0.7, [R * 0.22, R * 0.1], now * 60);
+  ring(1.34, 1, 0.45, [R * 0.05, R * 0.16], -now * 40);
+  ctx.setLineDash([]);
+  // 빨려 들어가는 입자
+  for (let i = 0; i < 26; i++) {
+    const ph = (now * 0.9 + i * 0.137) % 1, a = i * 2.399 + ph * 5;
+    const rr = lerp(1.9, 0.15, ph), s2 = Math.max(1, R * 0.035 * (1 - ph * 0.5));
+    ctx.fillStyle = rgba(hot, 0.85 * (1 - ph) * portal.open);
+    ctx.fillRect(Math.cos(a) * rx * rr - s2 / 2, Math.sin(a) * ry * rr - s2 / 2, s2, s2);
+  }
+  ctx.restore();
 }
 
 // 결과 화면에서 달팽이가 소리에 귀 기울이는 정도 (0~1): 곡을 바꾼 직후 더 크게 반응하고, 평소에도 음량에 맞춰 리듬을 탐
@@ -774,13 +834,20 @@ function scopeStroke(ctx, tracePts, closed, weight = 1) {
 }
 
 /**
- * 중앙 치우침(°, + 오른쪽) → 팔레트 색. 아직 모르면 흰색
+ * 색상(0~360) → 무지개 색 [r, g, b]
+ */
+function rainbowColor(hue) {
+  const { sat, light } = SNAIL_RAINBOW;
+  const c = (1 - Math.abs(2 * light - 1)) * sat, h = (((hue % 360) + 360) % 360) / 60, x = c * (1 - Math.abs(h % 2 - 1)), m = light - c / 2;
+  const rgb = h < 1 ? [c, x, 0] : h < 2 ? [x, c, 0] : h < 3 ? [0, c, x] : h < 4 ? [0, x, c] : h < 5 ? [x, 0, c] : [c, 0, x];
+  return rgb.map((v) => Math.round((v + m) * 255));
+}
+
+/**
+ * 중앙 치우침(°, + 오른쪽) → 달팽이 색. 아직 모르면 흰색
  */
 function centerColor(deg) {
-  if (typeof deg !== 'number') return COLORS.ink;
-  const u = (constrain(deg, -SNAIL_COLOR_DEG, SNAIL_COLOR_DEG) + SNAIL_COLOR_DEG) / (2 * SNAIL_COLOR_DEG);
-  const x = u * (SNAIL_PALETTE.length - 1), i = Math.min(SNAIL_PALETTE.length - 2, Math.floor(x)), f = x - i;
-  return [0, 1, 2].map((k) => SNAIL_PALETTE[i][k] + (SNAIL_PALETTE[i + 1][k] - SNAIL_PALETTE[i][k]) * f);
+  return typeof deg === 'number' ? rainbowColor(snailHueDeg(deg)) : COLORS.ink;
 }
 
 /**
@@ -898,8 +965,15 @@ function drawSnail() {
   const shape = bodyShape();
   lastShape = shape;
   const ctx = drawingContext;
+  const portal = sendPortal();
+  if (portal) drawSendPortal(ctx, portal);
+  if (portal && portal.swallow > 0.97) return; // 다 들어감
   ctx.save();
-  ctx.globalAlpha = cur.dim;
+  ctx.globalAlpha = cur.dim * (portal ? 1 - portal.swallow * portal.swallow : 1);
+  if (portal && portal.swallow > 0) { // 포탈 한가운데로 작아지며 빨려 들어감
+    const k = 1 - portal.swallow;
+    ctx.translate(portal.x, portal.y); ctx.scale(k, k); ctx.translate(-portal.x, -portal.y);
+  }
   ctx.save();
   if (isResultStage(gs().currentStage)) {
     ctx.beginPath();
@@ -1479,7 +1553,7 @@ function drawMusic(L) {
     // 기어 나간 뒤: QR·크레딧 화면(towerCard, DOM)이 덮음
     return;
   }
-  const fadeOut = sp < 0 ? 1 : 1 - constrain(sp * 3, 0, 1);
+  const fadeOut = sp < 0 ? 1 : 1 - constrain(sp * 9, 0, 1); // 보내는 순간 0.5초 안에 버튼·글자를 지움: 포탈이 버튼 위에 겹쳐 열리지 않게 (11/15)
   const a = 255 * constrain((millis() - resultAt - RESULT_TEXT_DELAY * 0.5) / 700, 0, 1) * fadeOut;
   drawTextShade(L, a / 255);
   drawMusicText(L, a);
@@ -1505,8 +1579,11 @@ function drawResultControls(L, a) {
     rect(b.x, b.y, b.w, b.h, 4);
     if (on) { noStroke(); fill(...COLORS.accent, a); rect(b.x, b.y + b.h - 6, b.w, 6); }
     pop();
-    const name = t(TOUR_PLACES[i].labelKey);
-    label(name, b.cx, b.cy, { size: min(23, 23 * (b.w - 28) / textW(name, 23, 700)), weight: on ? 700 : 500, c: on ? COLORS.ink : COLORS.mute, a, align: CENTER });
+    // 작가 곡: 이름 아래 작게 곡 제목 (원우리 작가 지시 11/15). 북서울 소리는 한 줄
+    const name = t(TOUR_PLACES[i].labelKey), title = TOUR_PLACES[i].titleKey ? t(TOUR_PLACES[i].titleKey) : '';
+    const fit = (text, size, weight) => min(size, size * (b.w - 28) / textW(text, size, weight));
+    label(name, b.cx, b.cy - (title ? 10 : 0), { size: fit(name, title ? 21 : 22, 700), weight: on ? 700 : 500, c: on ? COLORS.ink : COLORS.mute, a, align: CENTER });
+    if (title) label(title, b.cx, b.cy + 14, { size: fit(title, 14, 500), weight: 500, c: on ? COLORS.ink : COLORS.mute, a: a * (on ? 0.9 : 0.75), align: CENTER });
   });
   const b = resultEqSliderBox(L), mix = gs().part1.eqMix;
   const x = lerp(b.x0, b.x1, mix);
@@ -1568,7 +1645,7 @@ function drawAnalysis(L) {
 
   const code = getFullEarCode(state.userEQProfile, state.psychoProfile);
   const fit = (size) => min(size, (width - L.m * 2) / (code.length * 0.63));
-  const up = phase === 'code' ? 0 : constrain(since / ANALYSIS.riseMs, 0, 1);
+  const up = phase === 'code' ? 0 : phase === 'list' ? constrain(since / ANALYSIS.riseMs, 0, 1) : 1; // ready로 넘어갈 때 다시 올라오지 않게 (11/15 수정)
   const k = up * up * (3 - 2 * up);
   const pop = phase === 'code' ? constrain(since / 220, 0, 1) : 1; // 처음 나올 때 살짝 크게 들어옴
   const codeSize = lerp(fit(96), fit(42), k) * (1.25 - 0.25 * pop);

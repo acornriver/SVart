@@ -26,7 +26,7 @@ const STAGE_COPY = {
 // 녹음이 아직 없는 줄. 녹음이 오면 media/voice에 넣고 여기서 지움. 그 전까지는 소리 없이 자막만 나옴
 const VOICE_PENDING = {
   // m6-1 · m6-3: ⑥ 문구를 '편한 자리'로 바꿔 옛 녹음('가운데')을 틀지 않음. m9-5 · m9-6: 분석 화면 새 대사 (11/12). 모두 차민휘 녹음 대기. m9-4는 11/13 녹음(last_003 / last_004)으로 재생
-  ko: ['m6-1', 'm6-3', 'm9-5', 'm9-6'],
+  ko: ['m6-1', 'm6-3', 'm9-5', 'm9-6'], // 네 줄 모두 11/13 · 11/15에 안내 순서(VOICE_PLANS)에서 뺌. 녹음이 오면 다시 넣음
   en: ['m6-1', 'm6-3', 'm9-5', 'm9-6']
 };
 
@@ -125,10 +125,13 @@ const COPY = {
     'tour.now': '지금 걷는 곳',
     'artist.wonwoori': '원우리',
     'artist.felix': '펠릭스 쿠빈',
-    'artist.collaboration': '콜라보 음악',
-    'place.water': '당현천',
-    'place.train-go': '중계역 지하철',
-    'place.car-move': '북서울미술관 앞',
+    'artist.collaboration': '원우리 × 펠릭스 쿠빈',
+    'track.wonwoori': '<전극 응답>',
+    'track.felix': '<반짝이는 레지스터>',
+    'track.collab': '<레지스터 응답>',
+    'place.water': '당현천 소리',
+    'place.train-go': '중계역 지하철 소리',
+    'place.car-move': '북서울미술관 앞 소리',
     'sent.title': '청감타워로 갔어요',
     'sent.sub': '다음 귀를 기다릴게요',
     'tower.scan': '휴대폰으로 내 달팽이와 다른 귀의 소리를 들어보세요',
@@ -156,7 +159,7 @@ const COPY = {
   en: {
     'ear.pitchHelp': 'Listen for pitch, rather than volume.',
     'voice.volume': 'Voice volume',
-    'intro.before': 'Every ear is ',
+    'intro.before': 'All Ears Are ',
     'intro.after': '',
     'intro.placeholder': 'name',
     'intro.headphones': 'Please put on your headphones.',
@@ -187,17 +190,20 @@ const COPY = {
     'side.L': 'Left ear',
     'side.R': 'Right ear',
 
-    'result.before': 'Every ear is ',
+    'result.before': 'All Ears Are ',
     'result.after': '',
     'result.original': 'Playing the original',
     'tour.line': 'Let’s walk around the Buk-Seoul Museum of Art with these ears',
     'tour.now': 'Now walking',
     'artist.wonwoori': 'WONWOORI',
     'artist.felix': 'Felix Kubin',
-    'artist.collaboration': 'Collaboration',
-    'place.water': 'Danghyeoncheon Stream',
-    'place.train-go': 'Junggye Station subway',
-    'place.car-move': 'In front of Buk-Seoul Museum of Art',
+    'artist.collaboration': 'WONWOORI × Felix Kubin',
+    'track.wonwoori': 'Adaptive Response',
+    'track.felix': 'Scintillating Registers',
+    'track.collab': 'Register Response',
+    'place.water': 'Sounds of Danghyeoncheon Stream',
+    'place.train-go': 'Sounds of Junggye Station subway',
+    'place.car-move': 'Sounds outside Buk-Seoul Museum of Art',
     'sent.title': 'Off to the Hearing Tower',
     'sent.sub': 'Waiting for the next ear',
     'tower.scan': 'Use your phone to hear your snail and the sound of other ears',
@@ -230,29 +236,30 @@ function currentLang() {
 
 /** 키 → 지금 언어의 문구. 없으면 한국어, 그래도 없으면 키 그대로 */
 /**
- * QR 화면의 작품·전시 크레딧 (원우리 작가 전달 11/13, 문구 그대로). 언어마다 따로 보여 줌
+ * QR 화면의 작품·전시 크레딧 (원우리 작가 전달 11/13, 문구 그대로). 언어마다 따로 보여 줌.
+ * 화면에서 줄을 맞추려고 나눠 적음 (11/15 자간·텍스트 정리): staff = [역할, 이름], tracks = [작가와 제목, 나머지 정보]
  */
 const TOWER_CREDITS = {
   ko: {
     work: '모든 귀는 [....] 이다.',
     artist: '원우리 WONWOORI',
     caption: '<모든 귀는 […] 이다>, 2026, 사운드 설치(음악, 청각 검사 알고리즘, 사운드 베리에이터, 개인화된 헤드폰, 태블릿, 실시간 데이터로 구현한 청감 클라우드), 가변 크기. 서울시립 북서울미술관 제작지원.',
-    staff: ['프로그래밍 : 차민휘', '음향 연구 : 윤희언', '인터렉션 디자인 : 강민혁'],
+    staff: [['프로그래밍', '차민휘'], ['음향 연구', '윤희언'], ['인터렉션 디자인', '강민혁']],
     tracks: [
-      '원우리, <전극 응답>, 2026, 2채널 오디오, 3분. 서울시립 북서울미술관 제작지원.',
-      '원우리 × 펠릭스 쿠빈, <레지스터 응답>, 2026, 2채널 오디오, 3분. 서울시립 북서울미술관 제작지원.',
-      '펠릭스 쿠빈, <반짝이는 레지스터>, 2026, 2채널 오디오, 3분. 서울시립 북서울미술관 제작지원.'
+      ['원우리, <전극 응답>', '2026, 2채널 오디오, 3분. 서울시립 북서울미술관 제작지원.'],
+      ['원우리 × 펠릭스 쿠빈, <레지스터 응답>', '2026, 2채널 오디오, 3분. 서울시립 북서울미술관 제작지원.'],
+      ['펠릭스 쿠빈, <반짝이는 레지스터>', '2026, 2채널 오디오, 3분. 서울시립 북서울미술관 제작지원.']
     ]
   },
   en: {
     work: 'All Ears Are [...]',
     artist: 'WONWOORI',
     caption: 'All Ears Are [...], 2026, Sound installation (music, hearing test algorithm, sound variator, personalized headphones, tablet, hearing cloud generated from real-time data), Dimensions variable. Commissioned by Buk-Seoul Museum of Art.',
-    staff: ['Programming : Cha Minhwi', 'Acoustic Research : Yoon HuiEon', 'Interaction Design : acornriver'],
+    staff: [['Programming', 'Cha Minhwi'], ['Acoustic Research', 'Yoon HuiEon'], ['Interaction Design', 'acornriver']],
     tracks: [
-      'WONWOORI, Adaptive Response, 2026, 2-channel audio, 3 min. Commissioned by Buk-Seoul Museum of Art.',
-      'WONWOORI × Felix Kubin, Register Response, 2026, 2-channel audio, 3 min. Commissioned by Buk-Seoul Museum of Art.',
-      'Felix Kubin, Scintillating Registers, 2026, 2-channel audio, 3 min. Commissioned by Buk-Seoul Museum of Art.'
+      ['WONWOORI, Adaptive Response', '2026, 2-channel audio, 3 min. Commissioned by Buk-Seoul Museum of Art.'],
+      ['WONWOORI × Felix Kubin, Register Response', '2026, 2-channel audio, 3 min. Commissioned by Buk-Seoul Museum of Art.'],
+      ['Felix Kubin, Scintillating Registers', '2026, 2-channel audio, 3 min. Commissioned by Buk-Seoul Museum of Art.']
     ]
   }
 };

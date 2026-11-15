@@ -59,7 +59,7 @@ const PART1_ADJUST = {
   PART1_HIGH:   { min: -10, max: 10, startMin: -6,  startMax: 6,   span: 30, moveThreshold: 3 }
 };
 
-const RESULT_CODE_HOLD_MS = 1400; // 코드만 보여 주는 시간 ("짜잔" 뒤. Claude가 정함)
+const RESULT_CODE_HOLD_MS = 2600; // 코드만 보여 주는 시간. 11/15에 "짜잔" 대사를 빼면서 그만큼 늘림 (Claude가 정함)
 const RESULT_READ_MS = 10000;     // 항목별 분석을 읽는 시간. 지나면 음악 안내가 나옴 (작가 지시: 10초쯤)
 const MIN_STEP_SECONDS = 1.5; // 단계 시작 직후 오확정 방지
 const SOURCE_WATCH_SECONDS = 1; // 이 간격으로 오디오가 살아 있는지 확인

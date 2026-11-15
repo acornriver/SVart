@@ -43,7 +43,10 @@ function installFastMode() {
   document.body.appendChild(badge);
 }
 
-export async function runFastFlow({ send, ev, shot, lang }) {
+export async function runFastFlow({ send, ev, shot, lang, view = { w: 1024, h: 768 } }) {
+  // view: iPad mini 5 landscape (1024×768 pt). ALT is the same screen with Safari's toolbar showing (not full screen).
+  const BASE = { width: view.w, height: view.h, deviceScaleFactor: 1, mobile: false };
+  const ALT = { width: view.w, height: view.h - 64, deviceScaleFactor: 1, mobile: false };
   const started = Date.now();
   const timeline = [];
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -61,7 +64,7 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   const mouse = (type, x, y) => send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1, ...(type === 'mouseMoved' ? { buttons: 1 } : {}) });
   const tap = async (point) => { await mouse('mousePressed', point.x, point.y); await sleep(35); await mouse('mouseReleased', point.x, point.y); await sleep(40); };
   const targets = () => ev('getTouchTargets()');
-  const drag = async (dx, dy, origin = { x: 372, y: 500 }) => {
+  const drag = async (dx, dy, origin = { x: view.w / 2, y: view.h * 0.45 }) => {
     await mouse('mousePressed', origin.x, origin.y);
     for (let k = 1; k <= 10; k++) { await mouse('mouseMoved', origin.x + dx * k / 10, origin.y + dy * k / 10); await sleep(8); }
     await check('cur.face === 1 && bodyShape().face === 1', 'Snail turned away from the right during a drag');
@@ -195,7 +198,7 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   // ⑥ skips the two caption-only lines (m6-1, m6-3) in both languages until they are recorded.
   await check(`JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'PART2_CENTER').map(x => x.id)) === '["m5-5","m6-2","m6-4"]'`, 'Wrong center guide order');
   await check("!__fastFlow.buffers.some(x => x.phase === 'example')", 'Unexpected legacy example');
-  await check("JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'RESULT').map(x => x.id)) === JSON.stringify(['m9-1','m9-4','m9-5','m9-6','m9-7'])", 'Wrong result guides');
+  await check("JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'RESULT').map(x => x.id)) === JSON.stringify(['m9-1','m9-4','m9-7'])", 'Wrong result guides');
   await check("getSnailAnalysis(GlobalState.userEQProfile,GlobalState.psychoProfile,'').items.length === 7", 'Analysis must list all seven items');
   await check("getSnailAnalysis(GlobalState.userEQProfile,{...GlobalState.psychoProfile,maxFreqHz:16000},'').items[2].includes(currentLang()==='ko'?'10대':'teenager') && !/대|years/.test(getSnailAnalysis(GlobalState.userEQProfile,{...GlobalState.psychoProfile,maxFreqHz:13900},'').items[2])", 'Age wording must appear only for the thirties and younger');
   await check("cur.shellSquare === undefined && antennaTips.length === 2", 'Shell shape must not change with the leading ear');
@@ -213,16 +216,19 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   await mouse('mouseReleased', pet.x + 120, pet.y - 35);
   await sleep(700);
   await check("GlobalState.currentStage === 'RESULT' && cur.press < 0.05", 'Petting failed to release');
-  await send('Emulation.setDeviceMetricsOverride', { width: 1133, height: 744, deviceScaleFactor: 1, mobile: false });
-  await sleep(500); await shot('fast-09-analysis-landscape');
-  await send('Emulation.setDeviceMetricsOverride', { width: 744, height: 1133, deviceScaleFactor: 1, mobile: false });
+  await send('Emulation.setDeviceMetricsOverride', ALT);
+  await sleep(500); await shot('fast-09-analysis-toolbar');
+  await send('Emulation.setDeviceMetricsOverride', BASE);
   await sleep(500);
   await tap((await targets()).analysisNext); await stage('MUSIC'); await ready();
   await check("__fastFlow.voices.some(x => x.stage === 'MUSIC' && x.id === 'm9-3')", 'Missing music guide');
   await check(`JSON.stringify(TOUR_PLACES.map(p=>t(p.labelKey))) === ${JSON.stringify(JSON.stringify(lang==='en'
-    ? ['WONWOORI','Felix Kubin','Collaboration','Danghyeoncheon Stream','Junggye Station subway','In front of Buk-Seoul Museum of Art']
-    : ['원우리','펠릭스 쿠빈','콜라보 음악','당현천','중계역 지하철','북서울미술관 앞']))}`, 'Wrong localized track labels');
+    ? ['WONWOORI','Felix Kubin','WONWOORI × Felix Kubin','Sounds of Danghyeoncheon Stream','Sounds of Junggye Station subway','Sounds outside Buk-Seoul Museum of Art']
+    : ['원우리','펠릭스 쿠빈','원우리 × 펠릭스 쿠빈','당현천 소리','중계역 지하철 소리','북서울미술관 앞 소리']))}`, 'Wrong localized track labels');
   await check("new Set(TOUR_PLACES.map(p => p.key)).size === 6 && !/EQ/.test(t('result.eqMine')) && !/EQ/.test(t('hint.result1'))", 'Music page must offer six sounds and no EQ wording');
+  await check(`JSON.stringify(TOUR_PLACES.slice(0, 3).map(p=>t(p.titleKey))) === ${JSON.stringify(JSON.stringify(lang==='en' ? ['Adaptive Response','Scintillating Registers','Register Response'] : ['<전극 응답>','<반짝이는 레지스터>','<레지스터 응답>']))}`, 'Wrong track titles on artist buttons');
+  // Snail colour: rainbow from a random start per visitor, turned by the ⑥ result; the same hue is what gets sent to the tower.
+  await check("(() => { const p = GlobalState.psychoProfile; return typeof p.hueDeg === 'number' && p.hueDeg >= 0 && p.hueDeg < 360 && Math.abs(p.hueDeg - snailHueDeg(p.centerDeg)) < 1e-6 && EarSchema.profileFromResult(EAR_RESULT).hueDeg === p.hueDeg && typeof SNAIL_PALETTE === 'undefined'; })()", 'Snail hue missing or not sent');
   await check('!towerPromptOn()', 'Tower prompt shown too early');
   for (const i of [5, 2, 0, 3, 4, 1]) {
     await tap((await targets()).tracks[i]);
@@ -230,9 +236,9 @@ export async function runFastFlow({ send, ev, shot, lang }) {
     await until('Math.abs(cur.cx - targetParams(calculateUILayout()).cx) < 3');
   }
   await shot('fast-10-music');
-  await send('Emulation.setDeviceMetricsOverride', { width: 1133, height: 744, deviceScaleFactor: 1, mobile: false });
-  await sleep(500); await shot('fast-10-music-landscape');
-  await send('Emulation.setDeviceMetricsOverride', { width: 744, height: 1133, deviceScaleFactor: 1, mobile: false });
+  await send('Emulation.setDeviceMetricsOverride', ALT);
+  await sleep(500); await shot('fast-10-music-toolbar');
+  await send('Emulation.setDeviceMetricsOverride', BASE);
   await sleep(500);
   const b = (await targets()).eqSlider;
   await tap({ x: b.x0 + (b.x1 - b.x0) * 0.25, y: b.y });
@@ -242,23 +248,27 @@ export async function runFastFlow({ send, ev, shot, lang }) {
   await shot('fast-10-music-prompt');
   if (lang === 'ko') await ev("window.svartCloud = { ...(window.svartCloud || {}), sendEar: () => 'ABCDEFGHJK' }"); // Stand-in for a queued upload; nothing is sent.
   const p = (await targets()).snail;
-  await drag(744 * 0.25, 0, p);
+  await drag(view.w * 0.25, 0, p);
   await check('GlobalState.tour.sendAt !== null', 'Snail did not send');
+  await until('sendPortal() && sendPortal().open > 0.9'); await shot('fast-11-portal');
+  await until('sendPortal() && sendPortal().swallow > 0.5');
+  await check('Math.abs(lastShape.cx - sendPortal().x) < cur.R0 * 2', 'Snail did not reach the portal');
   // QR · credits card: ko run has an ear ID and a code, en run (localhost, no upload) has the code only.
   await until("towerCard && !towerCard.hidden");
   await check(`(() => { const u = new URL(towerCardUrl); const id = u.searchParams.get('ear');
-    return u.origin + u.pathname === CloudConfig.MOBILE_URL && u.searchParams.get('code') === EAR_RESULT.code
+    return u.origin + u.pathname === CloudConfig.MOBILE_URL && u.searchParams.get('code') === EAR_RESULT.code && Number(u.searchParams.get('hue')) === Math.round(EAR_RESULT.psychoProfile.hueDeg) % 360
       && (${lang === 'ko'} ? id === 'ABCDEFGHJK' && GlobalState.tour.earId === id : id === null); })()`, 'Wrong QR link');
   await check("!!towerCard.querySelector('.tower-qr img, .tower-qr canvas') && towerCard.querySelector('.tower-lead').textContent === t('tower.scan')", 'QR or scan guide missing');
   await check(`towerCard.querySelector('.tower-tracks').children.length === 3 && towerCard.querySelector('.tower-caption').textContent.includes(${JSON.stringify(lang === 'en' ? 'Commissioned by Buk-Seoul Museum of Art' : '서울시립 북서울미술관 제작지원')})`, 'Credits missing');
-  await send('Emulation.setDeviceMetricsOverride', { width: 1180, height: 820, deviceScaleFactor: 1, mobile: false });
-  await sleep(700); await shot('fast-11-tower-card-landscape');
+  await send('Emulation.setDeviceMetricsOverride', ALT);
+  await sleep(700); await shot('fast-11-tower-card-toolbar');
   await check("(() => { const c = towerCard.querySelector('.tower-credits').getBoundingClientRect(), q = towerCard.querySelector('.tower-qr').getBoundingClientRect(); return c.top >= 0 && c.bottom <= innerHeight && q.width > 180 && q.bottom <= innerHeight; })()", 'Tower card does not fit the landscape screen');
-  await send('Emulation.setDeviceMetricsOverride', { width: 744, height: 1133, deviceScaleFactor: 1, mobile: false });
+  await send('Emulation.setDeviceMetricsOverride', BASE);
   await sleep(1000);
   await ev('towerCard.click()');
   await stage('INIT');
   await check("towerCard.hidden && towerCardUrl === '' && !towerCard.querySelector('.tower-qr').children.length && GlobalState.tour.earId === null", 'Previous QR leaked into the next visit');
+  await check('GlobalState.psychoProfile.hueDeg === null && sendPortal() === null', 'Snail colour or portal leaked into the next visit');
   await until("!!document.querySelector('.intro:not(.started):not(.gone) .title-btn')"); // Wait for the next draw to show the intro before the next visitor clicks.
   await ev("document.querySelector('.intro .title-btn').click()");
   await stage('PART1_VOLUME');

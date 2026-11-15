@@ -76,6 +76,8 @@ window.GlobalState = {
     maxFreqHz: null,       // ⑤ 소리가 사라진 높이 (8000 ~ 16000)
     sensitivity: null,     // ⑤ 예민도 0 ~ 100
     twist: null,           // ⑤ 달팽이 꼬임 0 ~ 1 (톡 한 순간의 평균)
+    hueStart: 0,           // 달팽이 무지개 색의 시작점 (0 ~ 360). 관람객마다 무작위 (resetPsychoProfile)
+    hueDeg: null,          // ⑥ 뒤에 정해진 달팽이 색상 (0 ~ 360) = hueStart + 치우침 × 4
     centerDeg: null,       // ⑥ 좌우 치우침 (°, + 오른쪽) → 달팽이 색
     centerImage: null,     // ⑥ 'L' | 'C' | 'R'
     dominantEar: null,     // ⑦ 'LEFT' | 'RIGHT' → 그쪽 더듬이가 길어짐
