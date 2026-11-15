@@ -40,7 +40,7 @@ const api = context();
 function result(hz=20000) {
   return { name: '민혁', lang: 'en', savedAt: 1800000000000,
     userEQProfile: { masterVolume: .125, lowShelf: { gain: 7.12345 }, highShelf: { gain: -6.54321 }, registerPeak: { register: 'HIGH' } },
-    psychoProfile: { maxFreqHz: hz, sensitivity: 67, twist: .532258064516129, centerDeg: -12.3456, centerImage: 'R', dominantEar: 'LEFT', earStrength: 33, pitchMode: 'F', pitchIndex: 67 }
+    psychoProfile: { maxFreqHz: hz, sensitivity: 67, twist: .532258064516129, centerDeg: -12.3456, hueDeg: 211.5, centerImage: 'R', dominantEar: 'LEFT', earStrength: 33, pitchMode: 'F', pitchIndex: 67 }
   };
 }
 const ID='ABCDEFGHJK';
@@ -54,14 +54,14 @@ try {
     const value=body(18000);
     assert.equal(value.v,2);assert.equal(value.codeVersion,2);
     assert.equal(value.profile.maxFreqHz,18000);assert.equal(value.profile.twistAmount,.532258064516129);
-    assert.equal(value.profile.lowDb,7.12345);assert.equal(value.profile.centerDeg,-12.3456);
+    assert.equal(value.profile.lowDb,7.12345);assert.equal(value.profile.centerDeg,-12.3456);assert.equal(value.profile.hueDeg,211.5);
     assert.equal(value.name,null);assert.match(value.code,/^IWV-RLF\(18\.0k\/[0-9]\)$/);
   });
   for(const hz of [8000,13200,16000,18000,20000]) await test(`${hz} Hz accepted without truncation`, async()=>{
     const value=body(hz);await assertSucceeds(setDoc(doc(db,'ears',ID),{...value,createdAt:serverTimestamp()}));
     assert.equal((await getDoc(doc(db,'ears',ID))).data().profile.maxFreqHz,hz);
   });
-  for(const [field,value] of [['maxFreqHz',20001],['maxFreqHz',7999],['maxFreqHz','20000'],['twistAmount',1.01],['lowDb',11],['volDb',-41],['centerImage','X'],['dominantEar','BOTH']]) await test(`invalid ${field}=${value} denied`, async()=>{
+  for(const [field,value] of [['maxFreqHz',20001],['maxFreqHz',7999],['maxFreqHz','20000'],['twistAmount',1.01],['lowDb',11],['volDb',-41],['centerImage','X'],['dominantEar','BOTH'],['hueDeg',361],['hueDeg','red']]) await test(`invalid ${field}=${value} denied`, async()=>{
     const data=body();data.profile[field]=value;
     await assertFails(setDoc(doc(db,'ears',ID),{...data,createdAt:serverTimestamp()}));
   });
@@ -71,6 +71,12 @@ try {
   });
   for(const overrides of [{v:1},{codeVersion:1},{code:'IwS/6 · RLF 13.2'},{hidden:true},{extra:'forbidden'},{createdAt:Timestamp.fromMillis(1)}]) await test(`invalid envelope ${Object.keys(overrides)} denied`, async()=>{
     await assertFails(setDoc(doc(db,'ears',ID),{...body(),createdAt:serverTimestamp(),...overrides}));
+  });
+  await test('snail hue is optional: documents from the previous app (no hueDeg) and a null hue are accepted', async()=>{
+    const legacy=body();delete legacy.profile.hueDeg;
+    await assertSucceeds(setDoc(doc(db,'ears',ID),{...legacy,createdAt:serverTimestamp()}));
+    const unknown=body(20000,'BCDEFGHJKL');unknown.profile.hueDeg=null;
+    await assertSucceeds(setDoc(doc(db,'ears','BCDEFGHJKL'),{...unknown,createdAt:serverTimestamp()}));
   });
   await test('profile requires complete known fields', async()=>{
     const extra=body();extra.profile.extra=1;
@@ -100,7 +106,9 @@ try {
       await until(()=>arrivals.some(x=>x.ear.earId===id));
       const item=arrivals.find(x=>x.ear.earId===id);
       assert.equal(item.ear.v,2);assert.equal(item.ear.codeVersion,2);assert.equal(item.ear.profile.maxFreqHz,hz);assert.equal(item.meta.animate,true);
-      assert.equal(receiver.window.TowerMapping.mapProfile(item.ear.profile).maxFreqHz,hz);
+      // Tower mapping.js (plain functions since its 11/09 overhaul): the hue sent by SVart becomes the snail's rainbow ink.
+      assert.equal(receiver.run(`JSON.stringify(mapProfile(${JSON.stringify(item.ear.profile)}, 2).ink)`,'map.js'), receiver.run('JSON.stringify(rainbowColor(211.5))','hue.js'));
+      assert.equal(item.ear.profile.hueDeg,211.5);
       assert.equal(sender.window.svartCloud.status().pending,0);
     }
     const id=arrivals[0].ear.earId;

@@ -276,6 +276,7 @@ function _makeMockEar(i) {
     sensitivity: maybNull(rr(20, 90)),
     twistAmount: maybNull(rr(0, 1)),
     centerDeg: maybNull(rr(-60, 60)),
+    hueDeg: rr(0, 360),
     centerImage: maybNull(pick(MOCK_CENTER)),
     dominantEar: hasP2 ? pick(MOCK_EAR) : null,
     earStrength: maybNull(rr(20, 80)),

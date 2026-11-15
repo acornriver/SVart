@@ -18,6 +18,7 @@ window.EarSchema = (() => {
       sensitivity: numeric(psy.sensitivity, 0, 100),
       twistAmount: numeric(psy.twist, 0, 1),
       centerDeg: numeric(psy.centerDeg, -180, 180),
+      hueDeg: numeric(psy.hueDeg, 0, 360), // 달팽이 무지개 색상 (11/15). 예전 문서에는 없음
       centerImage: choice(psy.centerImage, ['L', 'C', 'R']),
       dominantEar: choice(psy.dominantEar, ['LEFT', 'RIGHT']),
       earStrength: numeric(psy.earStrength, 0, 100),

@@ -10,7 +10,9 @@ service cloud.firestore {
     function nullableEnum(value, values) { return value == null || value in values; }
     function validProfile(p) {
       let fields = ['volDb', 'lowDb', 'highDb', 'register', 'maxFreqHz', 'sensitivity', 'twistAmount', 'centerDeg', 'centerImage', 'dominantEar', 'earStrength', 'pitchMode', 'pitchIndex'];
-      return p is map && p.keys().hasAll(fields) && p.keys().hasOnly(fields)
+      // hueDeg(달팽이 색상, 11/15)는 있어도 없어도 됨: 예전 앱이 보낸 문서와 새 앱이 보낸 문서를 모두 받음
+      return p is map && p.keys().hasAll(fields) && p.keys().hasOnly(fields.concat(['hueDeg']))
+        && nullableNumber(p.get('hueDeg', null), 0, 360)
         && numberIn(p.volDb, -40, 0)
         && numberIn(p.lowDb, -10, 10) && numberIn(p.highDb, -10, 10)
         && nullableEnum(p.register, ['LOW', 'MID', 'HIGH'])
