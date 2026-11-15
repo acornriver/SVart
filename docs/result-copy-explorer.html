@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>분석 문구 탐색기 · 청각 다변기</title>
+<!--
+  분석 화면의 문구가 검사 결과에서 어떻게 만들어지는지 직접 움직여 보는 페이지.
+  문구와 규칙은 여기 적지 않고 앱의 copy.js · earCode.js를 그대로 불러 씁니다 (앱이 바뀌면 이 페이지도 같이 바뀜).
+  여는 법: 레포 루트에서 python3 -m http.server 8765 → http://localhost:8765/docs/result-copy-explorer.html
+-->
+<style>
+  :root { --bg: #0b0b0b; --panel: #161616; --line: #2e2e2c; --ink: #f5f5f0; --mute: #9a9a94; --accent: #ff3b1f; --soft: rgba(255, 59, 31, .14); }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 'Noto Sans KR', -apple-system, 'Apple SD Gothic Neo', sans-serif; }
+  header { padding: 22px 24px 8px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; }
+  h1 { margin: 0; font-size: 22px; }
+  header p { margin: 0; color: var(--mute); font-size: 13px; flex: 1 1 320px; }
+  .langs { display: flex; gap: 6px; }
+  button { font: inherit; color: var(--mute); background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 5px 12px; cursor: pointer; }
+  button.on { color: #000; background: var(--ink); border-color: var(--ink); font-weight: 700; }
+  main { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 20px; padding: 12px 24px 48px; align-items: start; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } .inputs { position: static !important; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; }
+  h2 { margin: 0 0 12px; font-size: 13px; letter-spacing: .08em; color: var(--mute); font-weight: 700; }
+  .inputs { position: sticky; top: 12px; }
+  .part { margin: 16px 0 6px; font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: .06em; }
+  .part:first-of-type { margin-top: 0; }
+  .ctl { padding: 8px 0; border-top: 1px solid var(--line); }
+  .ctl .top { display: flex; justify-content: space-between; gap: 8px; }
+  .ctl .name { font-weight: 700; }
+  .ctl .val { font-family: ui-monospace, Menlo, monospace; color: var(--accent); white-space: nowrap; }
+  .ctl .ends { display: flex; justify-content: space-between; color: var(--mute); font-size: 11px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); margin: 6px 0 0; }
+  .opts { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .out { display: grid; gap: 20px; }
+  .code { font-family: ui-monospace, Menlo, monospace; font-size: clamp(28px, 5vw, 46px); color: var(--accent); letter-spacing: .02em; margin: 0 0 4px; overflow-wrap: anywhere; }
+  .parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 12px; }
+  .chip { border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; font-size: 13px; }
+  .chip b { font-family: ui-monospace, Menlo, monospace; font-size: 18px; color: var(--accent); margin-right: 6px; }
+  .chip span { color: var(--mute); display: block; font-size: 12px; }
+  .title { font-size: 22px; font-weight: 700; margin: 0 0 10px; }
+  ol.items { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  ol.items li { display: grid; grid-template-columns: 34px 1fr; gap: 8px; padding: 8px 10px; border-radius: 4px; border: 1px solid transparent; cursor: pointer; }
+  ol.items li:hover, ol.items li.sel { border-color: var(--line); background: #1d1d1c; }
+  ol.items li.flash { animation: flash .9s ease; }
+  @keyframes flash { from { background: var(--soft); } to { background: transparent; } }
+  .tag { font-size: 12px; color: var(--accent); font-weight: 700; padding-top: 3px; }
+  .rule h3 { margin: 18px 0 6px; font-size: 15px; }
+  .rule h3:first-child { margin-top: 0; }
+  .rule p { margin: 0 0 8px; color: var(--mute); font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { color: var(--mute); font-weight: 500; white-space: nowrap; }
+  td.now, tr.now td { background: var(--soft); color: var(--ink); }
+  td small { display: block; color: var(--accent); font-weight: 700; }
+  .err { padding: 24px; color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>분석 문구 탐색기</h1>
+  <p>왼쪽에서 검사 결과를 바꾸면 분석 화면에 나오는 코드·제목·문장이 어떻게 달라지는지 보입니다. 문장을 누르면 그 문장을 정하는 규칙이 아래에 나옵니다.</p>
+  <div class="langs"><button data-lang="ko" class="on">한국어</button><button data-lang="en">English</button></div>
+</header>
+<main id="app"></main>
+
+<script>window.GlobalState = { lang: 'ko' };</script>
+<script src="../voiceMemesound.js"></script>
+<script src="../earCode.js"></script>
+<script src="../copy.js"></script>
+<script>
+(() => {
+  const app = document.getElementById('app');
+  if (typeof getSnailAnalysis !== 'function' || typeof getFullEarCode !== 'function') {
+    app.innerHTML = '<p class="err">앱의 copy.js · earCode.js를 불러오지 못했습니다. 레포 루트에서 서버를 띄우고 /docs/result-copy-explorer.html로 열어 주세요.</p>';
+    return;
+  }
+  const CENTER_SIDE_DEG = 5; // part2_audio.js의 값과 같음 (그 파일은 오디오가 있어야 불러올 수 있어 여기 적음)
+  const REG = { LOW: 'A · 낮은 멜로디', MID: 'B · 가운데 멜로디', HIGH: 'C · 높은 멜로디' };
+
+  // 검사 결과 (앱의 userEQProfile · psychoProfile과 같은 모양으로 넘김)
+  const s = { volDb: -18, lowDb: 6, highDb: -2, register: 'MID', maxHz: 15200, centerDeg: -8, ear: 'RIGHT', pitch: 'F' };
+  let selected = 'tone', lastItems = {};
+
+  const profileOf = (v) => ({ masterVolume: Math.pow(10, v.volDb / 20), lowShelf: { freq: 200, gain: v.lowDb }, highShelf: { freq: 4000, gain: v.highDb },
+    registerPeak: { register: v.register, freq: EAR_CODE.REGISTER.find((r) => r.id === v.register).peakHz, gain: EAR_CODE.PEAK_GAIN_DB, q: EAR_CODE.PEAK_Q } });
+  const centerOf = (deg) => Math.abs(deg) <= CENTER_SIDE_DEG ? 'C' : deg > 0 ? 'R' : 'L';
+  const psychoOf = (v) => ({ maxFreqHz: v.maxHz, centerDeg: v.centerDeg, centerImage: centerOf(v.centerDeg), dominantEar: v.ear, pitchMode: v.pitch });
+  // 앱 함수를 그대로 불러 문장을 얻음. 모든 검사를 잰 상태라 항목 순서가 고정: ⑦ · ②③ · ⑤ · ① · ⑥ · ④ · ⑧
+  const KEYS = ['ear', 'tone', 'hf', 'vol', 'center', 'register', 'pitch'];
+  const TAGS = { ear: '⑦', tone: '②③', hf: '⑤', vol: '①', center: '⑥', register: '④', pitch: '⑧' };
+  const analyse = (v) => { const a = getSnailAnalysis(profileOf(v), psychoOf(v), ''); return { title: a.title, items: Object.fromEntries(KEYS.map((k, i) => [k, a.items[i]])) }; };
+  const sentence = (key, patch) => analyse({ ...s, ...patch }).items[key];
+  const esc = (x) => String(x).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const sign = (n) => (n > 0 ? '+' : '') + n;
+
+  /* ---------- 왼쪽: 입력 ---------- */
+  const slider = (key, label, min, max, step, fmt, ends) => `<div class="ctl"><div class="top"><span class="name">${label}</span><span class="val" data-val="${key}">${fmt(s[key])}</span></div>
+    <input type="range" data-key="${key}" min="${min}" max="${max}" step="${step}" value="${s[key]}"><div class="ends"><span>${ends[0]}</span><span>${ends[1]}</span></div></div>`;
+  const choice = (key, label, opts) => `<div class="ctl"><div class="top"><span class="name">${label}</span></div><div class="opts">${opts.map(([v, text]) => `<button data-key="${key}" data-value="${v}">${text}</button>`).join('')}</div></div>`;
+  const FMT = { volDb: (v) => `${v} dB`, lowDb: (v) => `${sign(v)} dB`, highDb: (v) => `${sign(v)} dB`, maxHz: (v) => `${(v / 1000).toFixed(1)} kHz`, centerDeg: (v) => `${sign(v)}°` };
+
+  app.innerHTML = `<section class="inputs"><h2>검사 결과</h2>
+      <div class="part">PART 1 · 소리에 걸리는 값</div>
+      ${slider('volDb', '① 편한 크기', -40, 0, 1, FMT.volDb, ['작게', '크게'])}
+      ${slider('lowDb', '② 꼬리 · 저음', -10, 10, 0.5, FMT.lowDb, ['덜어냄', '더함'])}
+      ${slider('highDb', '③ 머리 · 고음', -10, 10, 0.5, FMT.highDb, ['덜어냄', '더함'])}
+      ${choice('register', '④ 껍질 자리 · 음역', [['LOW', 'A 낮은'], ['MID', 'B 가운데'], ['HIGH', 'C 높은']])}
+      <div class="part">PART 2 · 재기만 하는 값</div>
+      ${slider('maxHz', '⑤ 고역 한계', 8000, 20000, 100, FMT.maxHz, ['8 kHz', '20 kHz'])}
+      ${slider('centerDeg', '⑥ 편한 자리', -30, 30, 1, FMT.centerDeg, ['왼쪽', '오른쪽'])}
+      ${choice('ear', '⑦ 우세 귀', [['LEFT', '왼쪽'], ['RIGHT', '오른쪽']])}
+      ${choice('pitch', '⑧ 바탕음 · 배음', [['F', 'F 바탕음'], ['B', 'B 둘 다'], ['H', 'H 배음']])}
+    </section>
+    <div class="out">
+      <section><h2>청감 코드</h2><p class="code" id="code"></p><div class="parts" id="parts"></div></section>
+      <section><h2>분석 화면에 나오는 글</h2><p class="title" id="title"></p><ol class="items" id="items"></ol></section>
+      <section class="rule"><h2>이 문장을 정하는 규칙</h2><div id="rule"></div></section>
+    </div>`;
+
+  /* ---------- 오른쪽: 규칙 설명 ---------- */
+  const rows = (list) => `<table>${list.map(([cond, text, now]) => `<tr class="${now ? 'now' : ''}"><th>${cond}</th><td>${esc(text)}</td></tr>`).join('')}</table>`;
+  const step = EAR_CODE.SHELF_STEP_DB / 2; // 글자가 바뀌는 경계 (반올림 기준)
+  const RULES = {
+    tone() {
+      const lowNow = shelfToLetter(s.lowDb, 'LOW'), highNow = shelfToLetter(s.highDb, 'HIGH');
+      const L = [[-8, 'T', `저음 ${-step} dB 이하`], [0, 'E', '저음 그 사이'], [8, 'W', `저음 +${step} dB 이상`]];
+      const H = [[-8, 'V', `고음 ${-step} dB 이하`], [0, 'E', '고음 그 사이'], [8, 'S', `고음 +${step} dB 이상`]];
+      const cell = (l, h) => { const a = analyse({ ...s, lowDb: l[0], highDb: h[0] }); const word = a.title; return `<td class="${l[1] === lowNow && h[1] === highNow ? 'now' : ''}"><small>${l[1]}${h[1]} · ${esc(word)}</small>${esc(a.items.tone)}</td>`; };
+      return `<h3>②③ 저음·고음 → 제목과 선호 문장</h3>
+        <p>② 저음과 ③ 고음 값을 각각 세 칸으로 나눈 3 × 3 = 9가지입니다. 같은 칸이 제목의 꾸밈말(“… 달팽이예요”)과 코드의 둘째·셋째 글자도 정합니다. 경계는 ±${step} dB입니다.</p>
+        <table><tr><th></th>${H.map((h) => `<th>${h[2]} (${h[1]})</th>`).join('')}</tr>${L.map((l) => `<tr><th>${l[2]} (${l[1]})</th>${H.map((h) => cell(l, h)).join('')}</tr>`).join('')}</table>`;
+    },
+    ear() {
+      return `<h3>⑦ 우세 귀 → 귀 손잡이 문장</h3><p>⑦에서 나온 쪽을 그대로 씁니다. 세기는 문장에 쓰지 않습니다.</p>` +
+        rows([['왼쪽', sentence('ear', { ear: 'LEFT' }), s.ear === 'LEFT'], ['오른쪽', sentence('ear', { ear: 'RIGHT' }), s.ear === 'RIGHT']]);
+    },
+    hf() {
+      const ages = HEARING_AGE.map((a, i) => [`${a.hz / 1000} kHz 이상` + (i ? ` · ${HEARING_AGE[i - 1].hz / 1000} kHz 미만` : ''), sentence('hf', { maxHz: a.hz }), s.maxHz >= a.hz && (i === 0 || s.maxHz < HEARING_AGE[i - 1].hz)]);
+      const last = HEARING_AGE[HEARING_AGE.length - 1].hz;
+      return `<h3>⑤ 고역 한계 → 들리는 높이와 나이</h3><p>숫자(kHz)는 잰 값을 0.1 단위로 그대로 넣습니다. 나이 표현은 30대 이하로 나올 때만 붙습니다. 예시 문장의 숫자는 각 칸의 가장 낮은 값입니다.</p>` +
+        rows([...ages, [`${last / 1000} kHz 미만`, sentence('hf', { maxHz: Math.min(s.maxHz, last - 100) }), s.maxHz < last]]);
+    },
+    vol() {
+      const { loud, quiet } = LOUD_WORDS_DB;
+      return `<h3>① 편한 크기 → 음량 문장</h3><p>고른 음량(dB)을 세 칸으로 나눕니다. 코드 끝 숫자(0~9)와는 따로 정해집니다.</p>` +
+        rows([[`${loud} dB 이상`, sentence('vol', { volDb: loud }), s.volDb >= loud], ['그 사이', sentence('vol', { volDb: (loud + quiet) / 2 }), s.volDb < loud && s.volDb > quiet], [`${quiet} dB 이하`, sentence('vol', { volDb: quiet }), s.volDb <= quiet]]);
+    },
+    center() {
+      const now = centerOf(s.centerDeg);
+      return `<h3>⑥ 편한 자리 → 좌우 문장</h3><p>고른 자리에서 정면 음원이 좌우로 치우친 각도입니다. ±${CENTER_SIDE_DEG}° 안이면 가운데(C)로 봅니다.</p>` +
+        rows([[`−${CENTER_SIDE_DEG}°보다 왼쪽 (L)`, sentence('center', { centerDeg: -20 }), now === 'L'], [`±${CENTER_SIDE_DEG}° 안 (C)`, sentence('center', { centerDeg: 0 }), now === 'C'], [`+${CENTER_SIDE_DEG}°보다 오른쪽 (R)`, sentence('center', { centerDeg: 20 }), now === 'R']]);
+    },
+    register() {
+      return `<h3>④ 껍질 자리 → 멜로디 문장</h3><p>고른 멜로디를 그대로 씁니다. 코드의 첫 글자(O / A / I)도 여기서 나옵니다.</p>` +
+        rows(Object.keys(REG).map((id) => [REG[id], sentence('register', { register: id }), s.register === id]));
+    },
+    pitch() {
+      return `<h3>⑧ 바탕음·배음 → 음의 움직임 문장</h3><p>여섯 번의 답으로 나온 유형(F / B / H)을 그대로 씁니다.</p>` +
+        rows([['F 바탕음', sentence('pitch', { pitch: 'F' }), s.pitch === 'F'], ['B 둘 다', sentence('pitch', { pitch: 'B' }), s.pitch === 'B'], ['H 배음', sentence('pitch', { pitch: 'H' }), s.pitch === 'H']]);
+    }
+  };
+
+  /* ---------- 그리기 ---------- */
+  function render() {
+    const profile = profileOf(s), psycho = psychoOf(s);
+    const code = getFullEarCode(profile, psycho), a = analyse(s);
+    document.getElementById('code').textContent = code;
+    const reg = EAR_CODE.REGISTER.find((r) => r.id === s.register);
+    const lowL = shelfToLetter(s.lowDb, 'LOW'), highL = shelfToLetter(s.highDb, 'HIGH');
+    const chips = [
+      [reg.letter, '④ 음역', REG[s.register]], [lowL, '② 저음', EAR_CODE.LOW.words[EAR_CODE.LOW.letters.indexOf(lowL)]], [highL, '③ 고음', EAR_CODE.HIGH.words[EAR_CODE.HIGH.letters.indexOf(highL)]],
+      [psycho.centerImage, '⑥ 편한 자리', { L: '왼쪽', C: '가운데', R: '오른쪽' }[psycho.centerImage]], [s.ear === 'LEFT' ? 'L' : 'R', '⑦ 우세 귀', s.ear === 'LEFT' ? '왼쪽' : '오른쪽'],
+      [s.pitch, '⑧ 바탕음·배음', { F: '바탕음', B: '둘 다', H: '배음' }[s.pitch]], [(s.maxHz / 1000).toFixed(1) + 'k', '⑤ 고역 한계', '잰 값 그대로'], [String(volumeToDigit(profile.masterVolume)), '① 음량', '−40~0 dB를 0~9로']
+    ];
+    document.getElementById('parts').innerHTML = chips.map(([letter, from, meaning]) => `<div class="chip"><b>${esc(letter)}</b>${from}<span>${esc(meaning)}</span></div>`).join('');
+    document.getElementById('title').textContent = a.title;
+    document.getElementById('items').innerHTML = KEYS.map((k) => `<li data-item="${k}" class="${k === selected ? 'sel' : ''}${lastItems[k] !== undefined && lastItems[k] !== a.items[k] ? ' flash' : ''}"><span class="tag">${TAGS[k]}</span><span>${esc(a.items[k])}</span></li>`).join('');
+    lastItems = a.items;
+    document.getElementById('rule').innerHTML = RULES[selected]();
+    Object.keys(FMT).forEach((k) => { app.querySelector(`[data-val="${k}"]`).textContent = FMT[k](s[k]); });
+    app.querySelectorAll('button[data-key]').forEach((b) => b.classList.toggle('on', s[b.dataset.key] === b.dataset.value));
+    document.querySelectorAll('.langs button').forEach((b) => b.classList.toggle('on', b.dataset.lang === window.GlobalState.lang));
+  }
+
+  // 입력을 바꾸면 그 검사가 정하는 문장의 규칙으로 넘어감
+  const RULE_OF = { volDb: 'vol', lowDb: 'tone', highDb: 'tone', register: 'register', maxHz: 'hf', centerDeg: 'center', ear: 'ear', pitch: 'pitch' };
+  app.addEventListener('input', (e) => { const k = e.target.dataset.key; if (!k) return; s[k] = Number(e.target.value); selected = RULE_OF[k]; render(); });
+  app.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-key]'), li = e.target.closest('li[data-item]');
+    if (b) { s[b.dataset.key] = b.dataset.value; selected = RULE_OF[b.dataset.key]; render(); }
+    else if (li) { selected = li.dataset.item; lastItems = {}; render(); }
+  });
+  document.querySelector('.langs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; window.GlobalState.lang = b.dataset.lang; lastItems = {}; render(); });
+  render();
+})();
+</script>
+</body>
+</html>
