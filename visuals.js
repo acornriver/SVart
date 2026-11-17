@@ -1329,6 +1329,7 @@ function drawVolumeAxis(L) {
   label(t('axis.quiet'), x, y0 + 10, { size: VOLUME_AXIS.text, c: COLORS.mute, align: CENTER, valign: TOP });
 }
 
+let headerBottomY = 0; // 머리말(제목·자막)의 아래 끝 y. 그 아래에 놓아야 하는 표시가 자막과 겹치지 않게
 function drawHeader(L) {
   const gs = window.GlobalState;
   const stage = gs.currentStage;
@@ -1351,7 +1352,9 @@ function drawHeader(L) {
   }
 
   // 음성 안내 자막
-  wrapText(voiceLine(), width - L.m * 2, subtitleSize, 500).forEach((s, k) => label(s, L.m, subtitleY + k * subtitleLineH, { size: subtitleSize, weight: 500, valign: TOP }));
+  const subtitleRows = wrapText(voiceLine(), width - L.m * 2, subtitleSize, 500);
+  subtitleRows.forEach((s, k) => label(s, L.m, subtitleY + k * subtitleLineH, { size: subtitleSize, weight: 500, valign: TOP }));
+  headerBottomY = subtitleY + subtitleRows.length * subtitleLineH;
 
   // 디버그 값 (프로토타입용)
   const p = gs.userEQProfile;
@@ -1440,12 +1443,16 @@ function drawGuides(L) {
     getTouchTargets().spots.forEach((p, i) => {
       const on = reg.selectedCard === i;
       const playing = reg.playingCard === i;
-      const y = cur.groundY - R0 * 3.1;
-      stroke(...(on || playing ? COLORS.accent : COLORS.line));
-      strokeWeight(1);
-      drawingContext.setLineDash([2, 5]);
-      line(p.x, y + 14, p.x, cur.groundY - R0 * 1.9);
-      drawingContext.setLineDash([]);
+      // 자막이 두 줄이면(영어) 글자가 자막과 겹쳐서, 자막 아래로 내림 (11/17)
+      const y = Math.max(cur.groundY - R0 * 3.1, headerBottomY + 28);
+      const lineEnd = cur.groundY - R0 * 1.9;
+      if (y + 14 < lineEnd) {
+        stroke(...(on || playing ? COLORS.accent : COLORS.line));
+        strokeWeight(1);
+        drawingContext.setLineDash([2, 5]);
+        line(p.x, y + 14, p.x, lineEnd);
+        drawingContext.setLineDash([]);
+      }
       label(registerLetters()[i], p.x, y, { family: FONT.mono, size: 32, weight: 700, c: on || playing ? COLORS.accent : COLORS.ink, a: reg.isAutoPlaying && !playing ? 110 : 255, align: CENTER });
     });
     if (reg.isAutoPlaying) hints.push(t('hint.listening'));

@@ -121,6 +121,25 @@ let resultRun = 0;          // 분석 화면 순서를 도는 중에 단계가 �
 let currentVoice = null;
 
 /**
+ * p5.sound 누수 막기 (11/17). p5.SoundFile은 재생할 때마다 재생 위치를 세는 AudioWorklet 노드를 새로 만드는데,
+ * 그 처리기가 끝나지 않아(process가 늘 true) 노드가 영영 남습니다 (관람객당 8개 이상, 하루 종일 켜 두면 수천 개).
+ * 이 앱은 재생 위치(currentTime · addCue)를 쓰지 않으므로, 위치 세는 노드 대신 아무 데도 잇지 않은 빈 소스를 돌려줍니다.
+ * p5.sound는 이 소스에 start · stop · loop · playbackRate만 부르므로 실제 소리 경로는 그대로입니다.
+ */
+let silentCounterBuffer = null;
+p5.SoundFile.prototype._initCounterNode = function () {
+  const ctx = getAudioContext();
+  if (this._workletNode) { // 이 패치 전에 만들어진 것이 있으면 정리
+    try { this._workletNode.disconnect(); } catch (e) { /* 이미 끊김 */ }
+    this._workletNode = null;
+  }
+  if (!silentCounterBuffer) silentCounterBuffer = ctx.createBuffer(1, 128, ctx.sampleRate);
+  const counter = ctx.createBufferSource();
+  counter.buffer = silentCounterBuffer;
+  return counter;
+};
+
+/**
  * 0. 녹음 파일 불러오기 (main.js의 setup()에서 호출). preload()에 넣으면 하나만 실패해도 앱이 영영 시작되지 않음.
  * 못 받은 녹음은 다시 시도하고, 받기 전까지 그 곡은 영상만 나옴. 받으면 watchActiveSource가 재생을 이어 줌
  */

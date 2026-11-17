@@ -109,6 +109,9 @@ function portraitBlocked() {
 function touchStarted() {
   lastTouchTime = millis();
   if (onIntro()) return;
+  // 이미 손가락이 닿아 있을 때 더 닿은 손가락(손바닥, 옆 사람)은 무시. 받으면 첫 손가락의 누르기를 처음부터 다시 시작해,
+  // 감상 화면에서 '누르는 동안 원래 소리'가 손을 뗀 뒤에도 풀리지 않았음 (11/17)
+  if (touches.length > 1 && pointer) { lastActivity = millis(); return false; }
   const tx = touches.length > 0 ? touches[0].x : mouseX;
   const ty = touches.length > 0 ? touches[0].y : mouseY;
   pointerDown(tx, ty);
