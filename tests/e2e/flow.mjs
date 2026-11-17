@@ -1,13 +1,13 @@
 // 전체 흐름 테스트: 첫 화면(언어) → 이름 → 8검사(Part 2: 톡 · 돌리기 · 굴리기) → 결과(북서울 산책, 비교, 보내기) → 자동으로 첫 화면 → 다음 관람객 → 방치 시 첫 화면
 // 버튼 없는 손짓(쓸기, 달팽이 꾹, 더듬이 톡, 등 위 자리 톡, 누르고 있기, 밀기)을 실제 마우스 이벤트로 하며, 단계마다 스크린샷을 <출력폴더>/*.png로 남김. 마지막 줄이 'errors: none'이어야 함
 // 빠른 검증: node tests/e2e/flow.mjs /tmp/svart-fast ko --fast (브라우저 안에서만 안내/검사음 8배속)
-// 실행: (레포 루트에서) python3 -m http.server 8765 &   그다음   node tests/e2e/flow.mjs <출력폴더(절대경로)> [ko|en]
+// 실행: (레포 루트에서) python3 scripts/serve.py &   그다음   node tests/e2e/flow.mjs <출력폴더(절대경로)> [ko|en]
 // 맥의 Google Chrome을 헤드리스로 띄워 CDP(자동 빈 포트)로 조종함. Node 22 이상(내장 WebSocket)
 import { spawn } from 'node:child_process';
 import { writeFileSync, mkdirSync, readFileSync, existsSync, unlinkSync } from 'node:fs';
 
 const OUT = process.argv[2];
-const URL = 'http://localhost:8765/index.html';
+const URL = process.env.SVART_URL || 'http://localhost:8765/index.html'; // 배포본 점검: SVART_URL=https://… (ko --fast만. 전송은 대역이 막음)
 const LANG = process.argv.slice(3).find(arg => arg === 'ko' || arg === 'en') || 'ko';
 const FAST = process.argv.includes('--fast');
 // 빠른 flow는 전시 기기인 아이패드 미니 5 가로(1024×768 pt)로 돌림 (사용자 지시 11/15). 정상 속도 flow는 예전 세로 좌표 그대로
@@ -221,10 +221,13 @@ for (let k = 1; k <= 12; k++) { await send('Input.dispatchMouseEvent', { type: '
 await mouse('mouseReleased', sn.x + W * 0.3, sn.y); console.log('  pushed → sending', await ev('GlobalState.tour.sendAt !== null'), 'bypass', await ev('GlobalState.part1.isBypassed'));
 await sleep(1600); await shot('13-sending');
 await sleep(3500); await shot('14-sent');
-await sleep(5000); await expect('INIT');
+// 보낸 뒤 QR·크레딧 화면이 뜨고(11/13), 누르면 첫 화면으로
+await waitUntil('towerCard && !towerCard.hidden', 8000); await sleep(1800); await shot('15-tower-card');
+await ev('towerCard.click()'); await expect('INIT');
 console.log('  after send: source', await ev('String(activeSourceKey)'), 'video', await ev('String(backdropKey)'));
 
 // 다음 관람객 → 중간에 자리를 뜨면 첫 화면으로
+await waitUntil("!!document.querySelector('.intro:not(.started):not(.gone) .title-btn')", 8000);
 await ev("document.querySelector('.intro .title-btn').click()");
 await sleep(2500); await expect('PART1_VOLUME');
 console.log('  2nd visitor beat on', await ev('isBeatOn()'), 'lang', await ev('GlobalState.lang'));

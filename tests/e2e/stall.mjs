@@ -1,6 +1,6 @@
 // 멈춤 복구 테스트 (전시 내내 소리·영상이 멈추면 안 됨): 비트(suspend, 스케줄러 죽음, 실수로 정지),
 // 결과 화면 녹음 정지, 영상 일시정지·끝, 오디오 suspend, 오프라인에서 장소 4곳 순회. 모두 true / running이어야 함
-// 실행: (레포 루트에서) python3 -m http.server 8765 &   그다음   node tests/e2e/stall.mjs <출력폴더(절대경로)>
+// 실행: (레포 루트에서) python3 scripts/serve.py &   그다음   node tests/e2e/stall.mjs <출력폴더(절대경로)>
 // 맥의 Google Chrome을 헤드리스로 띄워 CDP(포트 9333)로 조종함. Node 22 이상(내장 WebSocket)
 import { spawn } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';

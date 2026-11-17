@@ -1,7 +1,7 @@
 // 비트 묶음(FULL / LOW / HIGH)별 크기 확인. 11/03부터 norm은 앱이 시작할 때 직접 잼(beat.js calibrateBeat, K-가중 -26 dB, 피크 상한).
 // 이 테스트는 잰 결과(loudDb가 -26 근처인지, peakDb가 상한 -10.5 아래인지)와 실제로 울리는 소리의 단순 RMS를 보여 줌.
 // loudDb가 -26보다 많이 작으면 피크 상한에 걸린 것이니 그 묶음 소리의 크레스트(피크/평균)를 줄여야 함
-// 실행: (레포 루트에서) python3 -m http.server 8765 &   그다음   node tests/e2e/beat-level.mjs <출력폴더(절대경로)>
+// 실행: (레포 루트에서) python3 scripts/serve.py &   그다음   node tests/e2e/beat-level.mjs <출력폴더(절대경로)>
 // 맥의 Google Chrome을 헤드리스로 띄워 CDP(포트 9333)로 조종함. Node 22 이상(내장 WebSocket)
 import { spawn } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';

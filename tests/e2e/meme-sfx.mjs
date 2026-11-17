@@ -2,7 +2,7 @@
 // 전체 흐름 테스트: 첫 화면(언어) → 이름 → 8검사(Part 2: 톡 · 돌리기 · 굴리기) → 결과(북서울 산책, 비교, 보내기) → 자동으로 첫 화면 → 다음 관람객 → 방치 시 첫 화면
 // 버튼 없는 손짓(쓸기, 달팽이 꾹, 더듬이 톡, 등 위 자리 톡, 누르고 있기, 밀기)을 실제 마우스 이벤트로 하며, 단계마다 스크린샷을 <출력폴더>/*.png로 남김. 마지막 줄이 'errors: none'이어야 함
 // 빠른 검증: node tests/e2e/flow.mjs /tmp/svart-fast ko --fast (브라우저 안에서만 안내/검사음 8배속)
-// 실행: (레포 루트에서) python3 -m http.server 8765 &   그다음   node tests/e2e/flow.mjs <출력폴더(절대경로)> [ko|en]
+// 실행: (레포 루트에서) python3 scripts/serve.py &   그다음   node tests/e2e/flow.mjs <출력폴더(절대경로)> [ko|en]
 // 맥의 Google Chrome을 헤드리스로 띄워 CDP(자동 빈 포트)로 조종함. Node 22 이상(내장 WebSocket)
 import { spawn } from 'node:child_process';
 import { writeFileSync, mkdirSync, readFileSync, existsSync, unlinkSync } from 'node:fs';
@@ -144,6 +144,7 @@ await check("!MemeFX.busy() && !document.body.dataset.memeCue", 'Departure still
 await until('sendProgress() === 1');
 await delay(700); await shot('plain-arrival');
 await check("!MemeFX.busy() && !document.querySelector('.meme-pop.on')", 'Arrival still played an effect');
+await until('towerCard && !towerCard.hidden'); await delay(1700); await ev('towerCard.click()'); // QR card (11/13): tap returns to the start
 await until("GlobalState.currentStage === 'INIT'");
 await check("!MemeFX.busy() && !document.querySelector('.meme-pop.on')", 'Arrival leaked after reset');
 console.log('departure/arrival without FX passed');

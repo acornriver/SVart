@@ -1,7 +1,7 @@
 // 검사 결과가 감상 소리에 실제로 걸리는지 확인 (11/13).
 //   1) 필터 노드 값이 프로필과 같은가  2) 노드의 실제 주파수 응답이 계산식과 같은가  3) 나오는 소리의 스펙트럼이 그만큼 기우는가
 //   4) 비교 슬라이더(0 / 0.5 / 1)와 빈 곳 누르기(원래 소리)  5) 여섯 소리 모두 같은 체인을 지나는가  6) Part 2 결과는 소리를 바꾸지 않는가
-// 실행: (레포 루트에서) python3 -m http.server 8765 &   그다음   node tests/e2e/eq-apply.mjs <출력폴더(절대경로)>
+// 실행: (레포 루트에서) python3 scripts/serve.py &   그다음   node tests/e2e/eq-apply.mjs <출력폴더(절대경로)>
 import { spawn } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
 

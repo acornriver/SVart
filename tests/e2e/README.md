@@ -1,6 +1,6 @@
 # 체험 흐름 테스트
 
-먼저 레포 루트에서 `python3 -m http.server 8765`로 앱을 실행합니다. macOS Google Chrome과 Node 22 이상이 필요합니다.
+먼저 레포 루트에서 `python3 scripts/serve.py`로 앱을 실행합니다(`python3 -m http.server`는 접속 대기열이 작아 첫 화면이 가끔 안 뜹니다). macOS Google Chrome과 Node 22 이상이 필요합니다.
 
 ## 평소 수정 확인: 빠른 모드
 
