@@ -43,7 +43,14 @@ const drag = async (dy) => {
   for (let k = 1; k <= 10; k++) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y: y0 - dy * k / 10, button: 'left', buttons: 1 }); await sleep(16); }
   await mouse('mouseReleased', x, y0 - dy); await sleep(400);
 };
-const expect = async (s) => { const cur = await stage(); if (cur !== s) throw new Error(`expected ${s}, got ${cur}`); console.log('✓', s); };
+const expect = async (expected) => {
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    if (await stage() === expected) { console.log('✓', expected); return; }
+    await sleep(80);
+  }
+  throw new Error(`expected ${expected}, got ${await stage()}`);
+};
 
 await send('Runtime.enable'); await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });

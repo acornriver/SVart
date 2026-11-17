@@ -58,6 +58,7 @@ function setVoiceOn(on) {
   window.GlobalState.voiceOn = on;
   applyVoiceGain();
   if (!on) setVoiceDuck(false);
+  else if (HearingCodeVoice.busy()) setVoiceDuck(true);
   else if (voiceNow) setVoiceDuck(!!voiceClips[currentLang()][voiceNow]);
 }
 
@@ -82,7 +83,14 @@ function voiceGain(includeVolumeChoice = false) {
 
 function applyVoiceGain() {
   MemeFX.updateGain();
-  if (voiceBus) voiceBus.gain.setTargetAtTime(voiceGain(), getAudioContext().currentTime, 0.01);
+  if (!voiceBus) return;
+  const now = getAudioContext().currentTime;
+  if (window.GlobalState.voiceOn) {
+    voiceBus.gain.setTargetAtTime(voiceGain(), now, 0.01);
+  } else {
+    voiceBus.gain.cancelScheduledValues(now);
+    voiceBus.gain.setValueAtTime(0, now);
+  }
 }
 
 function getVoiceBus() {
@@ -146,6 +154,7 @@ function settleVoice(finished) {
 
 // 안내를 바로 끊음 (단계를 옮기거나 관람객이 먼저 조작했을 때)
 function hushVoice() {
+  HearingCodeVoice.stop();
   voiceRun++;
   clearTimeout(voiceTimer);
   stopVoiceSource();
@@ -156,7 +165,7 @@ function hushVoice() {
 }
 
 function voiceBusy() {
-  return voiceNow !== null;
+  return voiceNow !== null || HearingCodeVoice.busy();
 }
 
 function lockInput() {

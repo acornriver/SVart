@@ -189,9 +189,9 @@ function initAudio() {
 /**
  * 이름을 넣은 뒤 첫 검사부터 시작
  */
-function startFlow() {
+function startFlow(initialVolumeDb) {
   initAudio();
-  goToStep(0);
+  goToStep(0, initialVolumeDb);
 }
 
 /**
@@ -300,7 +300,8 @@ function sourceSpectrum(key) {
 /**
  * 2. 단계 이동
  */
-function goToStep(index) {
+function goToStep(index, initialVolumeDb) {
+  IntroSequence.cancel();
   MemeFX.cancel();
   const gs = window.GlobalState;
   const stage = FLOW_STAGES[index];
@@ -320,7 +321,7 @@ function goToStep(index) {
 
   if (stage === 'PART1_VOLUME') {
     setActiveSource('VOLUME');
-    beginAdjust(stage);
+    beginAdjust(stage, initialVolumeDb);
   } else if (stage === 'PART1_REGISTER') {
     setActiveSource(null);
     startRegisterTrial();
@@ -364,7 +365,7 @@ function confirmStep() {
  *   code  : 화면이 바뀌고 코드만 크게 "짜잔!"
  *   list  : 코드가 위로 올라가고 아래에 항목별 분석이 하나씩. "당신의 청감은 이런 특징이 있어요."
  *   ready : RESULT_READ_MS 뒤 음악 안내. 이후 보고서 아래 텍스트 클릭으로 넘어감
- * m9-4(두두둥)는 11/13 녹음으로 재생. m9-5 · m9-6은 녹음 전이라 자막만 나옴 (copy.js의 VOICE_PENDING)
+ * m9-4 뒤에는 전달된 한/영 발음 조각으로 실제 코드를 읽음. m9-5 · m9-6은 안내 순서에서 제외.
  */
 async function runResultReveal() {
   const run = ++resultRun;
@@ -377,10 +378,14 @@ async function runResultReveal() {
   await say(voicePlan('resultTease'));
   if (!alive()) return;
   phase('code');
-  MemeFX.sound('sting');
-  await say(voicePlan('resultCode'));
+  const sting = MemeFX.sound('sting');
+  await wait(sting ? sting.src.buffer.duration * 1000 + 80 : 350);
   if (!alive()) return;
-  await wait(RESULT_CODE_HOLD_MS);
+  const state = window.GlobalState;
+  await Promise.all([
+    HearingCodeVoice.play(getFullEarCode(state.userEQProfile, state.psychoProfile), currentLang()),
+    wait(RESULT_CODE_HOLD_MS)
+  ]);
   if (!alive()) return;
   phase('list');
   await say(voicePlan('resultList'));
@@ -422,6 +427,7 @@ function saveEarResult() {
  * 처음으로: 값을 모두 지우고 소리를 끈 뒤 이름 입력 화면으로
  */
 function restartFlow() {
+  IntroSequence.cancel();
   MemeFX.cancel();
   const gs = window.GlobalState;
   const profile = gs.userEQProfile;
@@ -491,9 +497,9 @@ function watchActiveSource() {
 /**
  * 4. ①③④ 조절 단계: 위아래로 쓸기 → 값
  */
-function beginAdjust(stage) {
+function beginAdjust(stage, initialDb) {
   const cfg = PART1_ADJUST[stage];
-  adjustValue = random(cfg.startMin, cfg.startMax);
+  adjustValue = initialDb ?? random(cfg.startMin, cfg.startMax);
   movedPath = 0;
   stepElapsed = 0;
   applyAdjust(stage);

@@ -66,7 +66,6 @@ const FONT = {
 
 const SIZE_MIN = 0.72;      // ① 가장 작게 골랐을 때 덩어리 크기 배율
 const SIZE_MAX = 1.28;      // ① 가장 크게 골랐을 때
-const NAME_FADE_MS = 1900;  // 이름을 넣고 첫 검사로 넘어가기까지
 const VOICE_SLIDER = { width: 180, hit: 32 }; // 음성 크기 슬라이더: 길이, 손끝 판정 여유 (Claude가 정함)
 const RESULT_TEXT_DELAY = 1200;
 const BACKDROP_WASH = 110;  // 결과 화면 영상 위에 덮는 검정 (0~255). 글자 자리는 따로 더 어둡게
@@ -206,6 +205,11 @@ function renderVisuals() {
   if (stage !== lastStage) onStageChange(stage);
   syncResultAction();
 
+  if (stage === 'NAMED' && IntroSequence.busy()) {
+    IntroSequence.draw();
+    return;
+  }
+
   // 결과 화면에서는 캔버스 뒤 영상이 비치도록 지우고 검정을 반투명하게 덮음
   clear();
   background(0, 0, 0, hasBackdrop() ? BACKDROP_WASH : 255);
@@ -305,10 +309,10 @@ function setupIntro(onSubmit) {
     if (intro.wrap.classList.contains('started')) return;
     intro.hint.style.opacity = 0;
     intro.wrap.classList.add('started');
+    intro.titleBtn.disabled = true;
+    intro.wrap.querySelectorAll('.langs button').forEach(button => { button.disabled = true; });
     enterFullscreen();
     onSubmit('');
-    setTimeout(() => intro.wrap.classList.add('out'), 900);
-    setTimeout(() => intro.wrap.classList.add('gone'), NAME_FADE_MS);
   }
 
   intro.speaker.addEventListener('click', () => {
@@ -316,6 +320,7 @@ function setupIntro(onSubmit) {
     refreshIntroText();
   });
   intro.langs.forEach((b) => b.addEventListener('click', () => {
+    hushVoice();
     window.GlobalState.lang = b.dataset.lang;
     refreshIntroText();
   }));
@@ -344,6 +349,9 @@ function showIntro() {
   exitFullscreen();
   intro.wrap.classList.remove('gone', 'out', 'started');
   intro.hint.style.opacity = 1;
+  intro.titleBtn.disabled = false;
+  intro.wrap.querySelectorAll('button').forEach(button => { button.disabled = false; });
+  intro.wrap.querySelectorAll('.before, .after, .br, .dots').forEach(span => { span.style.opacity = ''; span.style.left = ''; });
   refreshIntroText();
 }
 
@@ -434,8 +442,7 @@ function wrapText(str, maxW, size, weight) {
  * 레이아웃 (히트테스트와 공유)
  * ===================================================================== */
 
-function calculateUILayout() {
-  const stage = window.GlobalState.currentStage;
+function calculateUILayout(stage = window.GlobalState.currentStage) {
   const m = max(20, min(width, height) * 0.05);
   const btnH = 54;
   const btn = { x: m, y: height - m - btnH, w: width - m * 2, h: btnH };
@@ -793,7 +800,7 @@ function bodyShape() {
 
   const pts = [];
   for (let i = 0; i < OUTLINE_POINTS; i++) pts.push(pointAt((i / OUTLINE_POINTS) * TWO_PI));
-  return { pts, cx, cy, R0, face, headTip: pointAt(headAngle), pressPt: pointAt(cur.pressAngle) };
+  return { pts, cx, cy, R0, face, pointAt, headTip: pointAt(headAngle), pressPt: pointAt(cur.pressAngle) };
 }
 
 // 등 위(또는 바닥)의 높이: x 근처 외곽선 중 가장 위. 몸을 벗어나면 바닥
@@ -969,7 +976,7 @@ function drawSnail() {
   if (portal) drawSendPortal(ctx, portal);
   if (portal && portal.swallow > 0.97) return; // 다 들어감
   ctx.save();
-  ctx.globalAlpha = cur.dim * (portal ? 1 - portal.swallow * portal.swallow : 1);
+  ctx.globalAlpha *= cur.dim * (portal ? 1 - portal.swallow * portal.swallow : 1);
   if (portal && portal.swallow > 0) { // 포탈 한가운데로 작아지며 빨려 들어감
     const k = 1 - portal.swallow;
     ctx.translate(portal.x, portal.y); ctx.scale(k, k); ctx.translate(-portal.x, -portal.y);

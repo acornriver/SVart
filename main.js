@@ -44,6 +44,7 @@ function setup() {
   setupTowerCard();
   setupBackdrops();
   loadVoice();
+  HearingCodeVoice.load();
   MemeFX.load();
   loadSamples();
 
@@ -65,6 +66,7 @@ function draw() {
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+  IntroSequence.resize();
 }
 
 /**
@@ -76,11 +78,17 @@ function submitName(name) {
   gs.userName = name || '';
   initAudio();
   ensureAudioRunning();
+  const cfg = PART1_ADJUST.PART1_VOLUME;
+  const volumeDb = random(cfg.startMin, cfg.startMax);
+  gs.userEQProfile.masterVolume = dbToGain(volumeDb);
   gs.currentStage = 'NAMED';
   lastActivity = millis();
-  setTimeout(() => {
-    if (gs.currentStage === 'NAMED') startFlow();
-  }, NAME_FADE_MS);
+  IntroSequence.start(volumeDb, () => {
+    if (gs.currentStage !== 'NAMED') return;
+    intro.wrap.classList.add('gone');
+    lastActivity = millis();
+    startFlow(volumeDb);
+  });
 }
 
 function onIntro() {

@@ -2,7 +2,7 @@
 // This checks interaction/state transitions, not sound quality or real-time audio scheduling.
 function installFastMode() {
   const rate = 8;
-  const state = window.__fastFlow = { rate, voices: [], buffers: [], melodies: [] };
+  const state = window.__fastFlow = { rate, voices: [], buffers: [], melodies: [], codes: [] };
   const originalLine = nextVoiceLine;
   nextVoiceLine = function (run) {
     if (run !== voiceRun) return;
@@ -14,6 +14,13 @@ function installFastMode() {
     clearTimeout(voiceTimer);
     if (voiceSrc) voiceSrc.playbackRate.value = rate;
     voiceTimer = setTimeout(() => nextVoiceLine(run), Math.max(80, (duration + VOICE_GAP_MS) / rate));
+  };
+  const originalCode = HearingCodeVoice.play;
+  HearingCodeVoice.play = async function(code, lang) {
+    const record = { code, lang, finished: false };
+    state.codes.push(record);
+    record.finished = await originalCode(code, lang);
+    return record.finished;
   };
   const originalPlay = p2Play;
   p2Play = function (buffer) {
@@ -194,9 +201,10 @@ export async function runFastFlow({ send, ev, shot, lang, view = { w: 1024, h: 7
   await until("GlobalState.part1.resultPhase === 'ready'");
   await ready();
   await check("__fastFlow.voices.every(x => x.id.startsWith('m'))", 'Legacy guide played');
+  await check('__fastFlow.codes.length === 1 && __fastFlow.codes[0].finished && __fastFlow.codes[0].lang === currentLang() && __fastFlow.codes[0].code === getFullEarCode(GlobalState.userEQProfile, GlobalState.psychoProfile)', 'Result code voice did not complete');
   await check("__fastFlow.voices.every(x => !/drum\\s*roll|드럼\\s*롤/i.test(voiceText(x.id)))", 'Production direction leaked into subtitles');
-  // ⑥ skips the two caption-only lines (m6-1, m6-3) in both languages until they are recorded.
-  await check(`JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'PART2_CENTER').map(x => x.id)) === '["m5-5","m6-2","m6-4"]'`, 'Wrong center guide order');
+  // ⑥ restores both recorded 'middle' instructions in the original order (11/17).
+  await check(`JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'PART2_CENTER').map(x => x.id)) === '["m5-5","m6-1","m6-2","m6-4","m6-3"]'`, 'Wrong center guide order');
   await check("!__fastFlow.buffers.some(x => x.phase === 'example')", 'Unexpected legacy example');
   await check("JSON.stringify(__fastFlow.voices.filter(x => x.stage === 'RESULT').map(x => x.id)) === JSON.stringify(['m9-1','m9-4','m9-7'])", 'Wrong result guides');
   await check("getSnailAnalysis(GlobalState.userEQProfile,GlobalState.psychoProfile,'').items.length === 7", 'Analysis must list all seven items');

@@ -67,10 +67,10 @@
       "gainDb": -10.6,
       "parts": [
         {
-          "source": "update-2026-11-12/w-1.mp3",
+          "source": "update-2026-11-17/w_re-1.mp3",
           "start": 0,
-          "end": 2.663888,
-          "gainDb": -2.03
+          "end": 2.65,
+          "gainDb": 1.24
         },
         {
           "source": "snail_m_001.flac",
@@ -79,8 +79,8 @@
           "gainDb": -10.6
         }
       ],
-      "update": "2026-11-12: latest f/w/a recording; original gesture/count instructions retained.",
-      "outputGainDb": 2.98
+      "update": "2026-11-17: revised whisper recording; original gesture instructions retained.",
+      "outputGainDb": 2.9
     },
     {
       "id": "m3-2",
@@ -176,10 +176,10 @@
       "gainDb": -10.9,
       "parts": [
         {
-          "source": "update-2026-11-12/w-3.mp3",
+          "source": "update-2026-11-17/w_re-3.mp3",
           "start": 0,
-          "end": 3.436553,
-          "gainDb": -1.78
+          "end": 2.74,
+          "gainDb": 3.18
         },
         {
           "source": "snail_m_001.flac",
@@ -188,8 +188,8 @@
           "gainDb": -10.9
         }
       ],
-      "update": "2026-11-12: latest f/w/a recording; original gesture/count instructions retained.",
-      "outputGainDb": 2.86
+      "update": "2026-11-17: revised whisper recording; original gesture instructions retained.",
+      "outputGainDb": 3.27
     },
     {
       "id": "m5-2",
