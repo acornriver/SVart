@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, rmSync } from 'node:fs';
 import { launch, sleep } from './qc/lib.mjs';
 const out = process.argv[2];
-const c = await launch(out, { fast: false, w: 1440, h: 1000 });
+const appUrl = process.env.SVART_URL || 'http://localhost:8765/index.html';
+const pageUrl = new URL('resulttest/', appUrl);
+const c = await launch(out, { fast: false, w: 1440, h: 1000, url: appUrl });
 const until = async expression => {
   const deadline = Date.now() + 12000;
   while (Date.now() < deadline) { if (await c.ev(expression)) return; await sleep(60); }
@@ -10,9 +12,9 @@ const until = async expression => {
 };
 try {
   await c.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-  await c.send('Page.navigate', { url: 'http://localhost:8765/resulttest' });
+  await c.send('Page.navigate', { url: pageUrl.href.replace(/\/$/, '') });
   await until('typeof ResultCopyCatalog !== "undefined" && document.querySelectorAll("#items li").length === 7');
-  assert.equal(await c.ev('location.pathname'), '/resulttest/');
+  assert.equal(await c.ev('location.pathname'), pageUrl.pathname);
   assert.equal(await c.ev('document.querySelectorAll("#catalog-tables tbody tr").length'), 41);
   assert.equal(await c.ev('document.querySelectorAll("#rules tbody tr").length'), 9);
   await c.ev('document.fonts.ready');
@@ -36,9 +38,10 @@ try {
   assert.equal(await c.ev('document.querySelectorAll("#catalog-tables tbody tr").length'), 1);
   await c.ev(`document.getElementById('catalog').scrollIntoView()`);
   await c.shot('search-bilingual');
+  const file = out + '/result-copy-worksheet-2026-11-18.html';
+  rmSync(file, { force: true });
   await c.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: out });
   await c.ev('document.getElementById("download").click()');
-  const file = out + '/result-copy-worksheet-2026-11-18.html';
   const deadline = Date.now() + 10000;
   while (Date.now() < deadline && !existsSync(file)) await sleep(80);
   const downloaded = readFileSync(file, 'utf8');
@@ -51,10 +54,10 @@ try {
   assert.equal(await c.ev('document.documentElement.scrollWidth <= innerWidth'), true);
   await c.ev('document.getElementById("catalog").scrollIntoView()'); await c.shot('mobile-catalog');
   assert.equal(await c.ev('document.documentElement.scrollWidth <= innerWidth'), true);
-  for (const path of ['/resulttest/guide.html', '/docs/result-copy-worksheet.md', '/docs/result-copy-guide.md']) {
-    assert.equal((await fetch('http://localhost:8765' + path)).status, 200);
+  for (const path of ['guide.html', '../docs/result-copy-worksheet.md', '../docs/result-copy-guide.md']) {
+    assert.equal((await fetch(new URL(path, pageUrl))).status, 200);
   }
-  await c.send('Page.navigate', { url: 'http://localhost:8765/resulttest/guide.html' });
+  await c.send('Page.navigate', { url: new URL('guide.html', pageUrl).href });
   await until('document.querySelectorAll("tbody tr").length === 41');
   await c.shot('mobile-guide');
   assert.equal(await c.ev('document.documentElement.scrollWidth <= innerWidth'), true);
