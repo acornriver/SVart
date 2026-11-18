@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>결과 문구와 표시 조건 · 모든 귀는 […] 이다</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header>
+    <a class="work" href="../">모든 귀는 […] 이다</a>
+    <div class="heading"><h1>결과 문구와 표시 조건</h1><button class="download" id="download" type="button">작성용 표 다운로드 <span>HTML</span></button></div>
+    <p>현재 앱의 한국어·영어 초안입니다. 검사 결과를 바꾸면 표시되는 문구와 조건을 확인할 수 있습니다.</p>
+    <nav aria-label="이 페이지에서"><a href="#preview">결과 미리보기</a><a href="#catalog">전체 한·영 문구</a><a href="#documents">작성 안내·문서</a></nav>
+  </header>
+  <main>
+    <div class="explorer">
+      <section class="inputs" aria-labelledby="input-heading"><h2 id="input-heading">검사 결과 바꿔보기</h2><div id="controls"></div></section>
+      <div class="output">
+        <section id="preview" aria-labelledby="preview-heading">
+          <div class="section-heading"><h2 id="preview-heading">결과 미리보기</h2><div class="langs" role="group" aria-label="미리보기 언어"><button data-lang="ko" type="button">한국어</button><button data-lang="en" type="button">English</button></div></div>
+          <p class="code" id="code"></p>
+          <div id="result"><h3 id="title"></h3><ol id="items"></ol></div>
+          <p class="helper">문장을 선택하면 아래에 해당 항목의 모든 표시 조건이 나옵니다.</p>
+        </section>
+        <section class="rules" aria-labelledby="rule-heading"><h2 id="rule-heading">선택한 항목의 조건</h2><div id="rules"></div></section>
+      </div>
+    </div>
+    <section class="catalog" id="catalog" aria-labelledby="catalog-heading">
+      <div class="section-heading"><h2 id="catalog-heading">전체 한·영 문구</h2><label class="search">문구·조건 검색<input id="search" type="search" placeholder="예: 저음, 가운데, quiet"></label></div>
+      <p>제목 9가지와 분석 항목별 문구를 조합합니다. 결과값이 없는 항목은 생략합니다. 주파수 자리 <code>{kHz}</code>에는 실제 측정값을 넣습니다.</p>
+      <p class="search-status" id="search-status" role="status"></p>
+      <div id="catalog-tables"></div>
+    </section>
+    <section class="documents" id="documents" aria-labelledby="documents-heading">
+      <h2 id="documents-heading">작성 안내·문서</h2>
+      <p>작성용 표를 내려받아 브라우저에서 열고, 표를 복사해 Google 문서에 붙여넣을 수 있습니다. 각 조건의 한국어·영어 ‘확정안’을 채워 주시면 현재 문구와 함께 대조할 수 있습니다.</p>
+      <p>문구를 연결하는 ID와 측정값 자리 <code>{kHz}</code>를 함께 전달해 주세요. 항목을 추가하거나 조건을 바꾸는 의견은 표 아래 ‘구조·조건 변경 의견’에 적을 수 있습니다.</p>
+      <div class="document-links"><button class="download" data-download type="button">작성용 표 다운로드 <span>HTML</span></button><a href="./guide.html">결과 구조·표시 조건 안내</a><a href="../docs/result-copy-worksheet.md" download>11/10 작성용 표 초안 (Markdown)</a><a href="../docs/result-copy-guide.md" download>11/10 작성 안내 초안 (Markdown)</a></div>
+      <p class="helper">11/10 작성용 표에는 당시의 3문단 구성과 문구 제안이 담겨 있습니다.</p>
+      <p class="source">표시 문구는 앱의 <a href="../copy.js">copy.js</a>, 분류·코드는 <a href="../earCode.js">earCode.js</a>에서 불러옵니다. 고역 한계의 나이 표현과 기준값은 현재 구현된 초안입니다.</p>
+    </section>
+  </main>
+  <footer>결과 문구 검토용 · 2026-11-18 구조 기준</footer>
+  <script>window.GlobalState = { lang: 'ko' };</script>
+  <script src="../voiceMemesound.js"></script>
+  <script src="../earCode.js"></script>
+  <script src="../copy.js"></script>
+  <script src="./catalog.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
