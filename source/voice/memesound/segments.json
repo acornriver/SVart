@@ -67,10 +67,10 @@
       "gainDb": -10.6,
       "parts": [
         {
-          "source": "update-2026-11-17/w_re-1.mp3",
+          "source": "update-2026-11-20/w_re-1_01.mp3",
           "start": 0,
-          "end": 2.65,
-          "gainDb": 1.24
+          "end": 2.75,
+          "gainDb": -3.3
         },
         {
           "source": "snail_m_001.flac",
@@ -79,7 +79,7 @@
           "gainDb": -10.6
         }
       ],
-      "update": "2026-11-17: revised whisper recording; original gesture instructions retained.",
+      "update": "2026-11-20: re-recorded whisper (w_re-*_01); original gesture instructions retained.",
       "outputGainDb": 2.9
     },
     {
@@ -176,10 +176,10 @@
       "gainDb": -10.9,
       "parts": [
         {
-          "source": "update-2026-11-17/w_re-3.mp3",
+          "source": "update-2026-11-20/w_re-3_01.mp3",
           "start": 0,
-          "end": 2.74,
-          "gainDb": 3.18
+          "end": 2.07,
+          "gainDb": -5.9
         },
         {
           "source": "snail_m_001.flac",
@@ -188,8 +188,8 @@
           "gainDb": -10.9
         }
       ],
-      "update": "2026-11-17: revised whisper recording; original gesture instructions retained.",
-      "outputGainDb": 3.27
+      "update": "2026-11-20: re-recorded whisper (w_re-*_01); original gesture instructions retained.",
+      "outputGainDb": 3.54
     },
     {
       "id": "m5-2",
@@ -213,7 +213,7 @@
     },
     {
       "id": "m5-5",
-      "text": "감겼어욕!",
+      "text": "어? 소리를 듣는 사이에 화면 속 선이 돌돌 감겼어욕!",
       "start": 93.388798,
       "end": 97.83932,
       "sourceLufs": -14.5,
@@ -221,14 +221,20 @@
       "gainDb": -12.1,
       "parts": [
         {
-          "source": "update-2026-11-12/a-3.mp3",
+          "source": "update-2026-11-20/add_01.mp3",
           "start": 0,
+          "end": 2.65,
+          "gainDb": -10.0
+        },
+        {
+          "source": "update-2026-11-12/a-3.mp3",
+          "start": 0.1,
           "end": 1.300317,
           "gainDb": -16.47
         }
       ],
-      "update": "2026-11-12: latest f/w/a recording; original gesture/count instructions retained.",
-      "outputGainDb": 0.44
+      "update": "2026-11-20: restored the opening sentence (add recording) before the 11-12 angry ending.",
+      "outputGainDb": 1.09
     },
     {
       "id": "m6-1",

@@ -67,10 +67,10 @@
       "gainDb": -10.3,
       "parts": [
         {
-          "source": "../update-2026-11-17/w_re-2.mp3",
+          "source": "../update-2026-11-20/w_re-2_01.mp3",
           "start": 0,
-          "end": 4.26,
-          "gainDb": 3.32
+          "end": 3.59,
+          "gainDb": -2.4
         },
         {
           "source": "snail_m_002.flac",
@@ -79,7 +79,7 @@
           "gainDb": -10.3
         }
       ],
-      "update": "2026-11-17: revised whisper recording; original gesture instructions retained.",
+      "update": "2026-11-20: re-recorded whisper (w_re-*_01); original gesture instructions retained.",
       "outputGainDb": 2.5
     },
     {
@@ -176,10 +176,10 @@
       "gainDb": -10.4,
       "parts": [
         {
-          "source": "../update-2026-11-17/w_re-4.mp3",
+          "source": "../update-2026-11-20/w_re-4_01.mp3",
           "start": 0,
-          "end": 4.56,
-          "gainDb": 1.74
+          "end": 3.46,
+          "gainDb": -4.1
         },
         {
           "source": "snail_m_002.flac",
@@ -188,8 +188,8 @@
           "gainDb": -10.4
         }
       ],
-      "update": "2026-11-17: revised whisper recording; original gesture instructions retained.",
-      "outputGainDb": 1.7
+      "update": "2026-11-20: re-recorded whisper (w_re-*_01); original gesture instructions retained.",
+      "outputGainDb": 2.48
     },
     {
       "id": "m5-2",
@@ -213,7 +213,7 @@
     },
     {
       "id": "m5-5",
-      "text": "All curled up, yup!",
+      "text": "Oh! While you were listening, the line on the screen curled up!",
       "start": 79.39474,
       "end": 82.56483,
       "sourceLufs": -14.6,
@@ -221,14 +221,20 @@
       "gainDb": -12.0,
       "parts": [
         {
-          "source": "../update-2026-11-12/a-4.mp3",
+          "source": "../update-2026-11-20/add_02.mp3",
           "start": 0,
+          "end": 3.68,
+          "gainDb": -10.3
+        },
+        {
+          "source": "../update-2026-11-12/a-4.mp3",
+          "start": 0.0,
           "end": 1.578957,
           "gainDb": -11.3
         }
       ],
-      "update": "2026-11-12: latest f/w/a recording; original gesture/count instructions retained.",
-      "outputGainDb": 0.46
+      "update": "2026-11-20: restored the opening sentence (add recording) before the 11-12 angry ending.",
+      "outputGainDb": 0.82
     },
     {
       "id": "m6-1",
