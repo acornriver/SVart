@@ -46,8 +46,8 @@ window.CloudConfig = {
   // 미확정: 원우리 작가 확인 필요
   BANNED_WORDS: [],
 
-  // 관객용 모바일 페이지 (SVartTower의 /mobile/). 보내기 뒤 QR이 여기로 연결됨 (tour.js의 towerMobileUrl)
-  MOBILE_URL: 'https://acornriver.github.io/SVartTower/mobile/',
+  // 관객용 모바일 페이지 (SVartTower 첫 화면, 도메인 allearsare.love). 보내기 뒤 QR이 여기로 연결됨 (tour.js의 towerMobileUrl)
+  MOBILE_URL: 'https://allearsare.love/',
 
   // earCode 글자 이름 (미확정: 원우리 작가 확인 필요)
   EAR_CODE_LETTER_NAMES: null,

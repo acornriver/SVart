@@ -117,7 +117,7 @@ function sendToTower() {
 }
 
 /**
- * 관객이 휴대폰으로 자기 결과를 여는 주소 (SVartTower의 /mobile/).
+ * 관객이 휴대폰으로 자기 결과를 여는 주소 (SVartTower 첫 화면, allearsare.love).
  * ear = Firestore 문서 ID(있을 때만), code = 청감 코드. 코드에는 괄호와 '/'가 있어 searchParams로 인코딩함.
  * hue = 달팽이 무지개 색상(0~359). 색은 코드에 없어서, 전송이 안 돼 코드만으로 열 때도 같은 색이 나오게 함께 담음 (11/15)
  */
