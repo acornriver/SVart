@@ -72,13 +72,12 @@ function resetVoiceLevel() {
   setVoiceLevel(VOICE_LEVEL_START);
 }
 
-// ① 확정 후 안내·효과음도 검사음과 같은 관람객 볼륨을 따름.
-// 처음 볼륨을 고르는 안내는 이전 시작 크기를 사용하고, 확정 효과부터 고른 크기를 반영.
-function voiceGain(includeVolumeChoice = false) {
+// 안내·코드 읽기·효과음(밈·드럼롤·인트로)은 검사와 별개로 처음 시작할 때 크기로 고정 (사용자 지시 11/21).
+// ①에서 고른 크기는 검사음·음악에만 걸림. 크기를 바꾸는 것은 오른쪽 위 안내 음량 슬라이더뿐.
+// 인자는 예전 호출부와 맞추려고 남겨 둠(무시함).
+function voiceGain() {
   const gs = window.GlobalState;
-  const introductory = FLOW_STAGES.indexOf(gs.currentStage) < 1 && !includeVolumeChoice;
-  const reference = introductory ? Math.pow(10, -AudioMix.settings.voiceDb / 20) : 1;
-  return gs.voiceOn ? gs.voiceLevel * gs.voiceLevel * AudioMix.participantGain(includeVolumeChoice) * reference : 0;
+  return gs.voiceOn ? gs.voiceLevel * gs.voiceLevel * Math.pow(10, -AudioMix.settings.voiceDb / 20) : 0;
 }
 
 function applyVoiceGain() {

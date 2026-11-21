@@ -308,7 +308,7 @@ function goToStep(index, initialVolumeDb) {
   gs.currentStage = stage;
   gs.part1.stepIndex = index;
   gs.part1.hasMoved = false;
-  applyVoiceGain(); // ①을 지나면 안내 크기가 고른 볼륨을 따라감
+  applyVoiceGain(); // 안내 크기는 ①과 무관하게 처음 값 그대로 (11/21). 슬라이더 값만 다시 적용
 
   hushVoice();
   unlockInput(0);
