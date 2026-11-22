@@ -214,7 +214,7 @@ export async function runFastFlow({ send, ev, shot, lang, view = { w: 1024, h: 7
   await check(`(() => { const r = getSnailAnalysis({...GlobalState.userEQProfile,lowShelf:{gain:-10},highShelf:{gain:-10}},{...GlobalState.psychoProfile,maxFreqHz:12000},''); return r.animal === 'SLOTH' && r.title === ${JSON.stringify(lang==='en'?"You're a Sloth Snail!":'나무늘보 달팽이예요!')} && !!r.line; })()`, 'Animal title is wrong');
   await check(`(() => { const r = getSnailAnalysis(GlobalState.userEQProfile, GlobalState.psychoProfile, ''); return r.animal === SnailAnimal.fromCode(EAR_RESULT.code).id; })()`, 'Animal differs from the one the code gives the tower');
   // 행동 한 줄: 결과 화면에서만 계산하고 저장·전송하지 않음
-  await check(`(() => { const st = getBehaviourStats(), b = getBehaviourLine(st); return !!b && st.adjustSec > 0 && st.turnDb > 0 && st.answerSec > 0 && !JSON.stringify(EAR_RESULT).includes(b.id) && !('behaviour' in EAR_RESULT) && !JSON.stringify(EarSchema.buildDoc(EAR_RESULT, 'ABCDEFGHJK')).includes('adjust'); })()`, 'Behaviour line missing or stored');
+  await check(`(() => { const st = getBehaviourStats(), b = getBehaviourLine(st); return !!b && st.adjustSec >= 0 && st.sweeps > 0 && st.answerSec > 0 && !JSON.stringify(EAR_RESULT).includes(b.id) && !('behaviour' in EAR_RESULT) && !JSON.stringify(EarSchema.buildDoc(EAR_RESULT, 'ABCDEFGHJK')).includes('adjust'); })()`, 'Behaviour line missing or stored');
   await shot('fast-09-analysis');
   await check('!canHoldConfirm() && !document.querySelector(".analysis-next").hidden', 'Analysis must continue by clicking its text');
   const beforePet = await ev('({x:cur.cx,y:cur.groundY,profile:JSON.stringify(GlobalState.userEQProfile)})');

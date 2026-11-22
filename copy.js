@@ -363,19 +363,20 @@ function getSnailAnalysis(profile, psycho, name) {
 /**
  * 행동 한 줄 (11/22, 작가 확인한 초안). 검사하는 동안의 시간·조작량으로 고르며 **결과 화면에만** 잠깐 보이고
  * 저장·전송하지 않습니다(사용자 지시: 휘발되는 한 줄. DB 기록은 그대로).
- * stats: { adjustSec ①②③ 첫 쓸기부터 확정까지 평균(초), turnDb ①②③ 노브를 돌린 양 평균(dB), answerSec ⑦⑧ 답하기까지 평균(초) }. 없는 값은 null
- * 위에서부터 먼저 맞는 것 하나. 기준값은 Claude 초안
+ * stats: { adjustSec ①②③ 실제로 쓸어 내린 시간 평균(첫 쓸기~마지막 쓸기, 초), sweeps ①②③ 돌린 양 평균(그 단계 범위의 몇 배, 1 = 끝에서 끝까지 한 번),
+ *          answerSec ⑦⑧ 답하기까지 평균(초) }. 없는 값은 null
+ * 위에서부터 먼저 맞는 것 하나. 기준값은 Claude 초안 (11/22 고침: 처음엔 dB 합과 확정 안내 기다리는 시간까지 재서 대부분 '모험가'가 나왔음)
  */
 const BEHAVIOUR_LINES = [
-  { id: 'ADVENTURER', ko: '모험가 스타일', en: 'Adventurer style', rule: '①②③ 노브를 평균 40 dB 이상 돌림', test: b => b.turnDb !== null && b.turnDb >= 40,
+  { id: 'ADVENTURER', ko: '모험가 스타일', en: 'Adventurer style', rule: '①②③ 노브를 단계마다 평균 2.5번 이상 끝에서 끝까지 돌림', test: b => b.sweeps !== null && b.sweeps >= 2.5,
     lineKo: '끝에서 끝까지 다 돌려 본 모험가 스타일이에요!', lineEn: 'You turned every knob end to end. Adventurer style!' },
-  { id: 'DETECTIVE', ko: '탐정 스타일', en: 'Detective style', rule: '①②③ 평균 15초 이상 조절', test: b => b.adjustSec !== null && b.adjustSec >= 15,
+  { id: 'DETECTIVE', ko: '탐정 스타일', en: 'Detective style', rule: '①②③ 단계마다 평균 10초 이상 쓸어 가며 조절', test: b => b.adjustSec !== null && b.adjustSec >= 10,
     lineKo: '오래오래 듣고 골랐어요. 꼼꼼한 탐정 스타일!', lineEn: 'You listened long and chose with care. Detective style!' },
   { id: 'LIGHTNING', ko: '번개 직감파', en: 'Lightning instinct', rule: '⑦⑧ 평균 1초 안에 답함', test: b => b.answerSec !== null && b.answerSec <= 1,
     lineKo: '듣자마자 바로 답! 번개 같은 직감파예요.', lineEn: 'You answered the moment you heard it. Lightning instinct!' },
   { id: 'PHILOSOPHER', ko: '철학자 스타일', en: 'Philosopher style', rule: '⑦⑧ 평균 3초 이상 고민', test: b => b.answerSec !== null && b.answerSec >= 3,
     lineKo: '답 하나에도 깊이 고민했어요. 생각 많은 철학자 스타일.', lineEn: 'Every answer got deep thought. Philosopher style.' },
-  { id: 'DECIDER', ko: '결단파', en: 'Quick decider', rule: '①②③ 평균 5초 이하 조절', test: b => b.adjustSec !== null && b.adjustSec <= 5,
+  { id: 'DECIDER', ko: '결단파', en: 'Quick decider', rule: '①②③ 단계마다 평균 2초 안에 쓸기를 끝냄', test: b => b.adjustSec !== null && b.adjustSec <= 2,
     lineKo: '처음 느낌을 믿고 바로 정했어요. 시원한 결단파!', lineEn: 'You trusted your first feeling. A quick decider!' },
   { id: 'STEADY', ko: '차근차근', en: 'Steady pace', rule: '위 어디에도 해당하지 않음', test: () => true,
     lineKo: '자기 속도대로 차근차근 들었어요.', lineEn: 'You listened at your own steady pace.' }
@@ -383,7 +384,7 @@ const BEHAVIOUR_LINES = [
 
 function getBehaviourLine(stats) {
   if (!stats) return null;
-  const b = { adjustSec: null, turnDb: null, answerSec: null, ...stats };
+  const b = { adjustSec: null, sweeps: null, answerSec: null, ...stats };
   const row = BEHAVIOUR_LINES.find(item => item.test(b));
   return { id: row.id, text: currentLang() === 'ko' ? row.lineKo : row.lineEn };
 }

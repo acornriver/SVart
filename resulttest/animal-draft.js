@@ -11,7 +11,7 @@ const AnimalDraft = (() => {
   const behaviours = BEHAVIOUR_LINES;
   const codeFor = s => getFullEarCode(catalog.profile(s), catalog.psycho(s));
   const animalFor = s => window.SnailAnimal.fromCode(codeFor(s));
-  const behaviourFor = b => behaviours.find(x => x.test({ adjustSec: null, turnDb: null, answerSec: null, ...b }));
+  const behaviourFor = b => behaviours.find(x => x.test({ adjustSec: null, sweeps: null, answerSec: null, ...b }));
 
   // 동물이 한쪽으로 몰리지 않는지 보려고, 가정한 관람객 분포로 2만 명을 뽑아 비율을 셈
   function distribution(n = 20000) {
@@ -36,7 +36,7 @@ const AnimalDraft = (() => {
 (() => {
   const catalog = ResultCopyCatalog, esc = catalog.escape;
   const state = { ...catalog.defaults };
-  const beh = { adjustSec: 9, turnDb: 22, answerSec: 1.8 };
+  const beh = { adjustSec: 5, sweeps: 1.2, answerSec: 1.8 };
   const slider = (key, label, min, max, step, ends, measured) => `<div class="control"><div class="control-top"><label for="${key}">${label}</label><output class="value" data-value="${key}"></output></div>
     <input id="${key}" data-key="${key}" type="range" min="${min}" max="${max}" step="${step}" value="${state[key] ?? beh[key]}">
     <div class="ends"><span>${ends[0]}</span><span>${ends[1]}</span></div>
@@ -54,13 +54,13 @@ const AnimalDraft = (() => {
     ${choice('ear', '⑦ 우세 귀', [['LEFT', '왼쪽'], ['RIGHT', '오른쪽'], [null, '결과 없음']])}
     ${choice('pitch', '⑧ 바탕음·배음', [['F', 'F 바탕음'], ['B', 'B 함께'], ['H', 'H 배음'], [null, '결과 없음']])}
     <p class="part">검사하는 동안의 행동 → 한 줄</p>
-    ${slider('adjustSec', '①②③ 단계마다 조절한 시간(평균)', 2, 40, 1, ['짧게', '오래'])}
-    ${slider('turnDb', '①②③ 노브를 돌린 양(평균)', 0, 80, 1, ['조금', '많이'])}
+    ${slider('adjustSec', '①②③ 단계마다 쓸어 가며 조절한 시간(평균)', 0, 30, 0.5, ['짧게', '오래'])}
+    ${slider('sweeps', '①②③ 노브를 끝에서 끝까지 돌린 횟수(평균)', 0, 6, 0.1, ['조금', '많이'])}
     ${slider('answerSec', '⑦⑧ 답하기까지 걸린 시간(평균)', .3, 6, .1, ['바로', '천천히'])}`;
   const formats = {
     volDb: v => `${v} dB`, lowDb: v => `${v > 0 ? '+' : ''}${v} dB`, highDb: v => `${v > 0 ? '+' : ''}${v} dB`,
     maxHz: v => `${(v / 1000).toFixed(1)} kHz`, centerDeg: v => `${v > 0 ? '+' : ''}${v}°`,
-    adjustSec: v => `${v}초`, turnDb: v => `${v} dB`, answerSec: v => `${v.toFixed(1)}초`
+    adjustSec: v => `${v}초`, sweeps: v => `${v.toFixed(1)}번`, answerSec: v => `${v.toFixed(1)}초`
   };
 
   function render() {

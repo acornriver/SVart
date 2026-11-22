@@ -109,7 +109,7 @@
 - **작성용 HTML 표 다운로드**에 현재 한/영 문구·조건·ID·확정안 작성 칸·`{kHz}` 자리표시자를 담았습니다. 브라우저에서 연 표를 Google 문서에 붙여넣어 작성할 수 있습니다. 조건 안내 문서는 `resulttest/guide.html`입니다.
 - `docs/result-copy-guide.md`·`docs/result-copy-worksheet.md`는 **11/10의 3문단 구성·문구 제안이 담긴 이전 초안**이며 페이지에서 다운로드 링크를 제공합니다. 최신 항목별 문구와 조건은 `/resulttest/`와 `resulttest/guide.html`을 기준으로 확인합니다.
 - **동물 유형**(11/22 앱 반영, 원우리 작가 확정): 결과 제목은 `cloud/snailAnimal.js`가 **청감 코드 글자만으로** 고르는 동물 11가지(박쥐·공작·하마·돌고래·나무늘보·사자·고양이·고래·다람쥐·부엉이·곰, 위에서부터 먼저 맞는 하나)와 한 줄 소개입니다. 같은 파일을 타워에 복사해 휴대폰 화면도 같은 동물을 씁니다(전송 규약·Firestore 규칙 변경 없음). **이모티콘은 쓰지 않습니다**(11/22 사용자 지시: 싸 보임). 동물·문구·기준은 Claude 초안을 작가가 승인.
-- **행동 한 줄**(11/22, `copy.js`의 `BEHAVIOUR_LINES`·`getBehaviourLine`, `part1_audio.js`의 `getBehaviourStats`): ①②③ 첫 쓸기부터 확정까지 시간·돌린 양, ⑦⑧ 답 시간 평균으로 6가지 중 하나. **아이패드 결과 화면에만 보이고 저장·전송하지 않음**(사용자 지시: 휘발되는 한 줄, DB 기록은 그대로). 다음 관람객에게 지움. 미리보기는 `resulttest/animal.html`.
+- **행동 한 줄**(11/22, `copy.js`의 `BEHAVIOUR_LINES`·`getBehaviourLine`, `part1_audio.js`의 `getBehaviourStats`): ①②③ 실제로 쓸어 내린 시간(첫~마지막 쓸기, 안내 기다리는 시간 제외)과 돌린 양(그 단계 범위의 몇 배), ⑦⑧ 답 시간 평균으로 6가지 중 하나. 처음엔 dB 합·확정 안내 시간까지 재서 대부분 '모험가'가 나왔음(사용자 지적, 11/22 고침). 기준: 모험가 2.5번 이상, 탐정 10초 이상, 번개 1초 이하, 철학자 3초 이상, 결단파 2초 이하(Claude 초안). **아이패드 결과 화면에만 보이고 저장·전송하지 않음**(사용자 지시: 휘발되는 한 줄, DB 기록은 그대로). 다음 관람객에게 지움. 미리보기는 `resulttest/animal.html`.
 - `resulttest/catalog.js`가 앱의 `copy.js`·`earCode.js`를 읽어 문구를 연결합니다. 문구 수정 후 `node scripts/export-result-copy.mjs`로 정적 안내 문서를 갱신합니다. `CENTER_SIDE_DEG`의 5° 조건은 테스트로 앱과 일치 여부를 확인합니다.
 
 ---
@@ -293,3 +293,5 @@ node tests/e2e/stall.mjs /tmp/svart-stall
 - **11/22** 원우리 작가 확정·사용자 지시: 결과 제목을 동물 유형 11가지로(공통 `cloud/snailAnimal.js`, 청감 코드로 판정, 타워에 동기화), 분석 아래에 저장하지 않는 행동 한 줄 6가지(①②③ 시간·돌린 양 기록 추가, ⑦⑧ 답 시간). QR에 `lang=en`. 청감타워 휴대폰 화면(`SVartTower` 루트): 내 달팽이 동물 이름·한 줄 소개, '동물별로 귀 고르기' 칩, 선택한 귀 이름('공작 귀로 듣기'), 영어판(KO/EN 버튼, `mobile/i18n.js`). 이모티콘은 넣었다가 사용자 지시로 모두 뺌. 타워 TV 이름표는 그대로(사용자 선택). `/resulttest/` 제목 표를 동물 11가지로(43개 조건). 한/영 빠른 flow, stall, 코드 왕복, 결과 문구 테스트, 계약 29개, 터치·soak·방치, 아이패드→에뮬레이터→타워 TV→휴대폰 한/영(같은 동물·언어), 휴대폰 화면(칩 거르기·영어판·재생·320px) 통과. QC 도구를 새 주소 구조(`/wall/`, 루트=휴대폰)에 맞춤. SVart `dev`·`main`(Firebase), 타워 배포 브랜치 `tower-visual` 푸시.
 
 - **11/22 (2차)** 사용자 결정: 아이패드 앱 배포를 Firebase Hosting에서 GitHub Pages(`main`)로 옮김. 사용자가 Pages 배포 브랜치를 `main`으로 바꿨고, Firebase Hosting 자동 배포 워크플로 2개와 `firebase.json`의 `hosting`을 지움. Firestore는 그대로.
+
+- **11/22 (3차)** 사용자 지적('모험가만 나오는 것 같다') 재현·수정: 돌린 양을 단계 범위 대비 왕복 횟수로, 시간을 실제 쓸기 시간으로 바꿈. 조절 방식 5가지로 결단파·모험가·탐정·차근차근이 각각 나오는 것을 확인. 한/영 빠른 flow, stall, 결과 문구 테스트 통과. 타워(`tower-visual`)는 13~18 kHz 리맵핑과 카메라 쪽 도착(SVartTower CLAUDE.md).

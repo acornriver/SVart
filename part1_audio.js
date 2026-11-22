@@ -112,7 +112,8 @@ let sourceWatchTimer = 0;
 let adjustValue = 0;       // 현재 값 (dB)
 let movedPath = 0;         // 단계 시작 후 값이 움직인 누적량 (dB)
 let stepElapsed = 0;
-// 행동 한 줄용 (11/22): ①②③마다 첫 쓸기부터 확정까지 걸린 시간과 돌린 양. 결과 화면에만 쓰고 저장·전송하지 않음(사용자 지시)
+// 행동 한 줄용 (11/22): ①②③마다 실제로 쓸어 내린 시간(첫 쓸기~마지막 쓸기, 안내 기다리는 시간 제외)과 돌린 양(그 단계 범위의 몇 배인지).
+// 결과 화면에만 쓰고 저장·전송하지 않음(사용자 지시)
 let adjustFirstDragAt = null;
 let behaviourAdjust = [];
 let voiceCue = {};         // 이 단계에서 이미 나온 조건부 안내
@@ -583,7 +584,9 @@ function applyAdjustValue(stage) {
  */
 function tapConfirmAdjust() {
   if (!window.GlobalState.part1.hasMoved) return;
-  behaviourAdjust.push({ sec: (millis() - (adjustFirstDragAt ?? millis())) / 1000, turn: movedPath });
+  const cfg = PART1_ADJUST[window.GlobalState.currentStage];
+  const lastDrag = window.GlobalState.part1.lastDragAt;
+  behaviourAdjust.push({ sec: adjustFirstDragAt === null ? 0 : Math.max(0, lastDrag - adjustFirstDragAt) / 1000, sweeps: movedPath / (cfg.max - cfg.min) });
   confirmStep();
 }
 
@@ -596,7 +599,7 @@ function getBehaviourStats() {
   const answers = [...(raw.octave?.answers || []), ...(raw.f0?.answers || [])].map((a) => a.rtMs / 1000).filter(Number.isFinite);
   return {
     adjustSec: avg(behaviourAdjust.map((a) => a.sec)),
-    turnDb: avg(behaviourAdjust.map((a) => a.turn)),
+    sweeps: avg(behaviourAdjust.map((a) => a.sweeps)),
     answerSec: avg(answers)
   };
 }
