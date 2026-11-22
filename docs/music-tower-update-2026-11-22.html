@@ -1,0 +1,37 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>감상 화면 청감타워 안내 업데이트 · 2026-11-22</title></head>
+<body style="font-family:Arial,'Noto Sans KR',sans-serif;font-size:11pt;line-height:1.55;max-width:960px;margin:32px auto;padding:0 16px">
+<h1>감상 화면 청감타워 안내 업데이트 · 2026-11-22</h1>
+<p>원우리 작가·차민휘 님 대화 반영. 아이패드 앱 <code>dev</code> 브랜치에 반영했습니다(전시 아이패드용 <code>main</code>에는 아직 올리지 않음).</p>
+<h2>바뀐 것</h2>
+<table style="border-collapse:collapse;width:100%">
+<tr><th style="border:1px solid #999;padding:5px 8px;background:#e8eaed;text-align:left">항목</th><th style="border:1px solid #999;padding:5px 8px;background:#e8eaed;text-align:left">전</th><th style="border:1px solid #999;padding:5px 8px;background:#e8eaed;text-align:left">후</th><th style="border:1px solid #999;padding:5px 8px;background:#e8eaed;text-align:left">누가 정함</th></tr>
+<tr><td style="border:1px solid #999;padding:5px 8px">청감타워 안내가 나오는 때</td><td style="border:1px solid #999;padding:5px 8px">감상 시작 60초 뒤</td><td style="border:1px solid #999;padding:5px 8px">고른 곡을 처음부터 <b>한 번 끝까지</b> 들었을 때. 곡을 바꾸면 그 곡 기준으로 다시 셈. 한 번 뜨면 곡을 바꿔도 남음</td><td style="border:1px solid #999;padding:5px 8px">작가·사용자</td></tr>
+<tr><td style="border:1px solid #999;padding:5px 8px">곡을 안 고르고 자동으로 넘어갈 때</td><td style="border:1px solid #999;padding:5px 8px">60초 뒤</td><td style="border:1px solid #999;padding:5px 8px">여섯 곳을 한 바퀴(15초 × 6 = 90초) 돈 뒤</td><td style="border:1px solid #999;padding:5px 8px">Claude 초안</td></tr>
+<tr><td style="border:1px solid #999;padding:5px 8px">안내 문구 크기</td><td style="border:1px solid #999;padding:5px 8px">23px</td><td style="border:1px solid #999;padding:5px 8px">빨간 굵은 30px (영어처럼 두 줄이 되면 25px)</td><td style="border:1px solid #999;padding:5px 8px">작가(크게) · 크기는 Claude</td></tr>
+<tr><td style="border:1px solid #999;padding:5px 8px">화살표</td><td style="border:1px solid #999;padding:5px 8px">달팽이 옆 작은 →</td><td style="border:1px solid #999;padding:5px 8px">다 들은 뒤 달팽이 오른쪽에 <b>‘———&gt; 청감 타워로 보내기’</b>: 오른쪽으로 흐르는 빨간 점선 화살표와 34px 글자. 0.9초 동안 늘어나며 등장, 은은하게 깜빡임. 그 전에는 예전처럼 작은 →</td><td style="border:1px solid #999;padding:5px 8px">작가(화살표) · 모양은 Claude</td></tr>
+<tr><td style="border:1px solid #999;padding:5px 8px">음성 안내</td><td style="border:1px solid #999;padding:5px 8px">없음</td><td style="border:1px solid #999;padding:5px 8px">다 들은 순간 한 번 <b>자막만</b> 나옴(<code>m9-8</code>). 녹음이 오면 파일만 넣으면 소리도 나옴. 터치를 막지 않아 바로 밀어 보내도 됨</td><td style="border:1px solid #999;padding:5px 8px">사용자(녹음 전 자막만)</td></tr>
+<tr><td style="border:1px solid #999;padding:5px 8px">아래쪽 도움말</td><td style="border:1px solid #999;padding:5px 8px">‘달팽이를 오른쪽으로 밀면 청감타워로 가요’ 항상</td><td style="border:1px solid #999;padding:5px 8px">큰 안내가 뜬 뒤에는 같은 말이라 뺌</td><td style="border:1px solid #999;padding:5px 8px">Claude</td></tr>
+<tr><td style="border:1px solid #999;padding:5px 8px">분석 화면 ‘음악 들으러 가기 →’</td><td style="border:1px solid #999;padding:5px 8px">보통 굵기 최대 24px</td><td style="border:1px solid #999;padding:5px 8px">굵게 최대 34px, 밑줄 굵게</td><td style="border:1px solid #999;padding:5px 8px">작가 요청 · 크기는 Claude</td></tr>
+</table>
+<h2>차민휘 님 녹음 요청 (m9-8)</h2>
+<p>지금 자막 문구(Claude 초안)입니다. 녹음 내용에 맞춰 자막을 바꾸겠습니다.</p>
+<ul>
+<li>한국어: 음악 잘 들으셨나요? 이제 저를 오른쪽으로 쭉 밀어서 청감타워로 보내 주세요!</li>
+<li>English: Enjoyed the music? Now push me to the right and send me off to the Hearing Tower!</li>
+</ul>
+<h2>검증</h2>
+<ul>
+<li>한/영 빠른 전체 흐름: 곡이 끝나기 3초 전에는 안내가 뜨지 않고, 끝나면 큰 안내·화살표·자막(m9-8)이 뜨며, 자막이 끝난 뒤에도 안내가 남는지 확인. 통과</li>
+<li>영상·소리 멈춤 복구(stall) 통과</li>
+<li>아이패드 미니 5 가로(1024×768)와 주소창이 보이는 높이(1024×704)에서 한/영 화면 확인</li>
+<li>미확인: 실제 아이패드에서 화살표 움직임 느낌. 지금 임시 곡이 16~42초라 안내가 금방 뜨지만, 작가 곡(약 3분)이 오면 그만큼 늦게 뜸</li>
+</ul>
+<h2>화면</h2>
+<p><b>감상 시작 (예전과 같음, 작은 →)</b><br><img src="screens-2026-11-22/music-before-ko.png" width="720"></p>
+<p><b>곡을 끝까지 들은 순간: 자막 안내 + 화살표 (한국어)</b><br><img src="screens-2026-11-22/music-tower-subtitle-ko.png" width="720"></p>
+<p><b>자막이 끝난 뒤 (한국어)</b><br><img src="screens-2026-11-22/music-tower-arrow-ko.png" width="720"></p>
+<p><b>곡을 끝까지 들은 순간 (영어)</b><br><img src="screens-2026-11-22/music-tower-subtitle-en.png" width="720"></p>
+<p><b>자막이 끝난 뒤 (영어)</b><br><img src="screens-2026-11-22/music-tower-arrow-en.png" width="720"></p>
+<p><b>주소창이 보이는 높이 704 (영어, 두 줄이라 25px)</b><br><img src="screens-2026-11-22/music-tower-arrow-en-704.png" width="720"></p>
+<p><b>분석 화면 ‘음악 들으러 가기 →’ (한/영)</b><br><img src="screens-2026-11-22/analysis-music-button-ko.png" width="720"><br><img src="screens-2026-11-22/analysis-music-button-en.png" width="720"></p>
+</body></html>

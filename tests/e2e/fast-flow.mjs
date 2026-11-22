@@ -255,9 +255,20 @@ export async function runFastFlow({ send, ev, shot, lang, view = { w: 1024, h: 7
   const b = (await targets()).eqSlider;
   await tap({ x: b.x0 + (b.x1 - b.x0) * 0.25, y: b.y });
   await check('Math.abs(GlobalState.part1.eqMix - 0.25) < 0.02', 'EQ slider did not respond');
-  await ev('GlobalState.tour.startAt -= TOWER_PROMPT_MS'); await sleep(120);
-  await check('towerPromptOn()', 'Tower prompt did not appear after listening');
+  // Switching tracks restarts the count; the prompt appears once the chosen track has played through once (11/22).
+  await ev('GlobalState.tour.listenAt = millis() - tourTrackMs() + 3000'); await sleep(120);
+  await check('!towerPromptOn()', 'Tower prompt shown before the track ended');
+  await ev('GlobalState.tour.listenAt = millis() - tourTrackMs() - 50'); await sleep(200);
+  await check('towerPromptOn()', 'Tower prompt did not appear after the track played through');
+  await check("voiceNow === 'm9-8' && __fastFlow.voices.some(x => x.stage === 'MUSIC' && x.id === 'm9-8')", 'Tower guide subtitle missing');
+  await shot('fast-10-music-prompt-voice');
+  await until('!voiceBusy()', 20000); await sleep(1200);
+  await check('towerPromptOn()', 'Tower prompt vanished after the guide');
   await shot('fast-10-music-prompt');
+  await send('Emulation.setDeviceMetricsOverride', ALT);
+  await sleep(500); await shot('fast-10-music-prompt-toolbar');
+  await send('Emulation.setDeviceMetricsOverride', BASE);
+  await sleep(500);
   if (lang === 'ko') await ev("window.svartCloud = { ...(window.svartCloud || {}), sendEar: () => 'ABCDEFGHJK' }"); // Stand-in for a queued upload; nothing is sent.
   const p = (await targets()).snail;
   await drag(view.w * 0.25, 0, p);

@@ -1574,17 +1574,41 @@ function drawMusic(L) {
   drawTextShade(L, a / 255);
   drawMusicText(L, a);
   if (a > 1) {
-    // 오른쪽으로 밀기 안내 화살표
-    const bob = Math.sin(millis() / 360) * 6;
-    label('→', lastShape.cx + cur.R0 * 2.9 + bob, lastShape.cy, { family: FONT.mono, size: 20, c: COLORS.accent, a: a * (0.5 + 0.4 * Math.sin(millis() / 360)), align: CENTER });
+    // 오른쪽으로 밀기 안내 화살표. 음악을 다 들은 뒤에는 '———> 청감 타워로 보내기'로 크게 (11/22 작가 지시)
+    if (towerPromptOn()) drawTowerArrow(L, a);
+    else {
+      const bob = Math.sin(millis() / 360) * 6;
+      label('→', lastShape.cx + cur.R0 * 2.9 + bob, lastShape.cy, { family: FONT.mono, size: 20, c: COLORS.accent, a: a * (0.5 + 0.4 * Math.sin(millis() / 360)), align: CENTER });
+    }
     push();
     drawingContext.globalAlpha = a / 255;
-    drawHints(L, voiceBusy() ? [voiceLine()] : [t('hint.result1'), t('hint.result2')]);
+    drawHints(L, voiceBusy() ? [voiceLine()] : towerPromptOn() ? [t('hint.result1')] : [t('hint.result1'), t('hint.result2')]); // 큰 안내가 뜬 뒤에는 같은 말을 아래에 또 쓰지 않음
     pop();
   }
 
   // 곡 선택 버튼 + EQ 슬라이더
   drawResultControls(L, a);
+}
+
+// 달팽이 오른쪽에서 화면 오른쪽 끝(포탈이 열리는 쪽)까지 흐르는 점선 화살표와 '청감 타워로 보내기' (모양·크기는 Claude가 정함)
+let towerArrowAt = -1;
+function drawTowerArrow(L, a) {
+  if (towerArrowAt < 0) towerArrowAt = millis();
+  const grow = constrain((millis() - towerArrowAt) / 900, 0, 1), ease = 1 - Math.pow(1 - grow, 3);
+  const x0 = lastShape.cx + cur.R0 * 2.4, xEnd = width - L.m - 6, y = lastShape.cy;
+  if (xEnd - x0 < 80) return;
+  const x1 = lerp(x0, xEnd, ease), pulse = 0.75 + 0.25 * Math.sin(millis() / 320);
+  const ctx = drawingContext, col = rgba(COLORS.accent, (a / 255) * pulse);
+  ctx.save();
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 5; ctx.lineCap = 'round';
+  ctx.setLineDash([22, 14]); ctx.lineDashOffset = -millis() / 18; // 점선이 오른쪽으로 흐름
+  ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1 - 22, y); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x1 - 30, y - 18); ctx.lineTo(x1 - 30, y + 18); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  const text = t('music.towerArrow'), room = xEnd - x0;
+  const size = min(34, 34 * room / max(1, textW(text, 34, 700)));
+  label(text, (x0 + xEnd) / 2, y - 22, { size, weight: 700, c: COLORS.accent, a: a * ease, align: CENTER, valign: BOTTOM });
 }
 
 function drawResultControls(L, a) {
@@ -1635,8 +1659,13 @@ function drawTextShade(L, k) {
 function drawMusicText(L, a) {
   label(stageCopy('MUSIC').title, width / 2, L.m + 15, { size: 36, weight: 700, a, align: CENTER, valign: TOP });
   label(getFullEarCode(gs().userEQProfile, gs().psychoProfile), width / 2, L.m + 70, { family: FONT.mono, size: min(32, width * 0.045), a, align: CENTER, valign: TOP });
-  const prompt = !voiceBusy() && towerPromptOn(); // 충분히 들은 뒤: 청감타워 안내
-  wrapText(voiceBusy() ? voiceLine() : t(prompt ? 'music.towerPrompt' : 'music.preview'), width - L.m * 2, 23, 500).forEach((line, i) => label(line, width / 2, L.m + 125 + i * 35, { size: 23, weight: prompt ? 700 : 400, c: prompt ? COLORS.accent : COLORS.ink, a, align: CENTER, valign: TOP }));
+  const prompt = towerPromptOn(); // 음악을 다 들은 뒤: 청감타워 안내를 크게 (11/22 작가 지시. 자막도 같은 크기·색)
+  if (!prompt) towerArrowAt = -1;
+  const text = voiceBusy() ? voiceLine() : t(prompt ? 'music.towerPrompt' : 'music.preview');
+  let sz = prompt ? 30 : 23, lines = wrapText(text, width - L.m * 2, sz, prompt ? 700 : 500);
+  if (prompt && lines.length > 1) { sz = 25; lines = wrapText(text, width - L.m * 2, sz, 700); } // 두 줄(영어)이면 달팽이 껍질에 닿지 않게 조금 작게
+  const lh = sz * 1.4;
+  lines.forEach((line, i) => label(line, width / 2, L.m + 122 + i * lh, { size: sz, weight: prompt ? 700 : 400, c: prompt ? COLORS.accent : COLORS.ink, a, align: CENTER, valign: TOP }));
 }
 
 /**

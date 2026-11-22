@@ -26,7 +26,9 @@ const TOUR_FADE = 1.2;          // 장소 사이 소리 크로스페이드 (초)
 const SEND_WALK_MS = 4200;      // 보내기: 화면 밖으로 기어 나가는 시간
 const SEND_HOLD_MS = 45000;     // 나간 뒤 QR·크레딧 화면을 보여 주는 시간, 그다음 첫 화면 (사용자 확정 11/13: 45초, 누르면 바로)
 const TOWER_CARD_GUARD_MS = 1500; // QR 화면이 뜨자마자 잘못 눌러 넘어가지 않게 기다리는 시간
-const TOWER_PROMPT_MS = 60000;  // 감상을 시작하고 이만큼 지나면 청감타워로 보내라는 안내가 나옴 (60초는 Claude 초안)
+// 청감타워로 보내라는 큰 안내·화살표·음성은 '음악을 다 들은 것 같을 때' 나옴 (11/22 작가·사용자 결정: 고른 곡을 한 번 끝까지 들었을 때).
+// 곡을 바꾸면 그 곡 기준으로 다시 셈. 한 번 나오면 곡을 바꿔도 남음. 곡을 안 고르고 자동으로 돌 때는 여섯 곳을 한 바퀴 돈 뒤 (Claude가 정함)
+const TOWER_FALLBACK_MS = 60000; // 곡 길이를 못 읽었을 때만 쓰는 대신값
 
 const BACKDROP_FADE = 0.8;      // 영상 크로스페이드 (초)
 const BACKDROP_STALL_SECONDS = 2;
@@ -56,6 +58,7 @@ function startTour() {
   tour.startAt = millis();
   tour.pinned = false;
   tour.listenAt = millis();
+  tour.towerReady = false;
   hideTowerCard();
   enterPlace();
 }
@@ -83,6 +86,10 @@ function selectTourPlace(index) {
  */
 function updateTour() {
   const tour = tourState();
+  if (tour.sendAt === null && !tour.towerReady && listenedEnough()) {
+    tour.towerReady = true;
+    if (!voiceBusy()) say(voicePlan('towerReady')); // 잠그지 않음: 바로 밀어 보내도 됨. 녹음 전에는 자막만
+  }
   if (tour.sendAt !== null || tour.pinned) return;
   if (millis() - tour.placeAt >= TOUR_SECONDS * 1000) {
     tour.index = (tour.index + 1) % TOUR_PLACES.length;
@@ -133,10 +140,23 @@ function towerMobileUrl(earId, code, hueDeg) {
   return url.href;
 }
 
-// 감상을 충분히 했으면(TOWER_PROMPT_MS) 청감타워로 보내라는 안내를 띄움
+// 지금 고른 곡의 길이(ms). 아직 못 읽었으면 대신값
+function tourTrackMs() {
+  const s = typeof sampleSources !== 'undefined' && sampleSources[tourPlace().key];
+  const sec = s && s.isLoaded && s.isLoaded() ? s.duration() : 0;
+  return sec > 0 ? sec * 1000 : TOWER_FALLBACK_MS;
+}
+
+function listenedEnough() {
+  const tour = tourState();
+  if (tour.pinned) return millis() - tour.listenAt >= tourTrackMs();
+  return millis() - (tour.startAt || 0) >= TOUR_SECONDS * 1000 * TOUR_PLACES.length;
+}
+
+// 음악을 다 들은 것 같으면 청감타워로 보내라는 큰 안내·화살표를 띄움
 function towerPromptOn() {
   const tour = tourState();
-  return tour.sendAt === null && millis() - (tour.startAt || 0) >= TOWER_PROMPT_MS;
+  return tour.sendAt === null && !!tour.towerReady;
 }
 
 // 보내기 진행 0(시작) ~ 1(화면 밖). 보내기 전이면 -1

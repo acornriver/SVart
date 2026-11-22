@@ -61,6 +61,7 @@ window.GlobalState = {
     sendAt: null,          // 보내기를 누른 시각(millis). null이면 아직
     listenAt: -1e9,        // 곡 버튼을 눌러 달팽이가 귀 기울여 듣기 시작한 시각(millis)
     pinned: false,         // 곡 버튼을 눌렀으면 그 곡에 고정 (자동으로 넘어가지 않음)
+    towerReady: false,     // 음악을 다 들은 것 같아 청감타워 안내를 띄웠는지 (tour.js의 listenedEnough)
   },
 
   // Part 1 결과 (최종 감상 곡의 개인 EQ, Part 2 기준 볼륨)
