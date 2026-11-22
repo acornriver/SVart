@@ -99,13 +99,23 @@ if (MODE === 'mobile-prod' || MODE === 'mobile-local') {
     note(!p.paused && p.src.includes(tr) && p.t > 0.3, `${MODE}: 곡 '${tr}'로 바꿔도 계속 재생 (${p.t.toFixed(1)}초)`);
   }
   await b.ev("document.querySelector('#ears .ear-card:not([hidden])').click()"); await sleep(800);
-  const c = await b.ev("({ side, sel: selected && selected.code, otherOn: document.getElementById('other-listening').getAttribute('aria-pressed'), mixOwn: comparison.chains ? comparison.chains.own.mix.gain.value : null, playing: !player.paused })");
+  const c = await b.ev("({ mix, sel: selected && selected.code, slider: !document.getElementById('ear-mix').disabled, right: document.getElementById('other-ear-label').textContent, playing: !player.paused })");
   await sleep(500);
-  const c2 = await b.ev("({ mixOwn: comparison.chains.own.mix.gain.value, mixOther: comparison.chains.other.mix.gain.value })");
-  note(c.side === 'other' && !!c.sel && c.playing && c2.mixOther > 0.9 && c2.mixOwn < 0.1, `${MODE}: 다른 달팽이를 고르면 그 귀로 바뀌어 재생 (${c.sel}, 내 귀 ${c2.mixOwn.toFixed(2)} / 다른 귀 ${c2.mixOther.toFixed(2)})`);
-  await b.ev("document.getElementById('own-listening').click()"); await sleep(600);
-  const c3 = await b.ev("({ mixOwn: comparison.chains.own.mix.gain.value, mixOther: comparison.chains.other.mix.gain.value })");
-  note(c3.mixOwn > 0.9 && c3.mixOther < 0.1, `${MODE}: '내 귀'로 돌아오기 (${c3.mixOwn.toFixed(2)} / ${c3.mixOther.toFixed(2)})`);
+  const g = () => b.ev("({ own: comparison.chains.own.mix.gain.value, other: comparison.chains.other.mix.gain.value })");
+  const c2 = await g();
+  note(c.mix === 1 && !!c.sel && c.slider && c.playing && c2.other > 0.9 && c2.own < 0.1, `${MODE}: 다른 달팽이를 고르면 그 귀로 재생, 슬라이더 켜짐 (${c.sel}, 오른쪽 '${c.right}', 내 귀 ${c2.own.toFixed(2)} / 다른 귀 ${c2.other.toFixed(2)})`);
+  const slide = async (v) => { await b.ev(`(() => { const s = document.getElementById('ear-mix'); s.value = ${v}; s.dispatchEvent(new Event('input', { bubbles: true })); })()`); await sleep(400); return g(); };
+  const half = await slide(0.5);
+  note(Math.abs(half.own - Math.SQRT1_2) < .05 && Math.abs(half.other - Math.SQRT1_2) < .05, `${MODE}: 슬라이더 가운데면 두 귀를 같은 크기로 섞음 (${half.own.toFixed(2)} / ${half.other.toFixed(2)})`);
+  const c3 = await slide(0);
+  note(c3.own > 0.9 && c3.other < 0.1, `${MODE}: 슬라이더를 왼쪽 끝으로 → 내 귀 (${c3.own.toFixed(2)} / ${c3.other.toFixed(2)})`);
+  const tracks = await b.ev("[...document.querySelectorAll('#track option')].map(o => o.value + ':' + o.textContent)");
+  note(tracks.length === 6, `${MODE}: 곡 6개 ${JSON.stringify(tracks)}`);
+  for (const tr of ['wonwoori', 'felix', 'collab']) {
+    await b.ev(`(() => { const s = document.getElementById('track'); s.value = '${tr}'; s.dispatchEvent(new Event('change')); })()`); await sleep(1800);
+    const p = await b.ev("({ paused: player.paused, t: player.currentTime, src: player.getAttribute('src') })");
+    note(!p.paused && p.t > 0.3, `${MODE}: 작가 곡 자리 '${tr}' 재생 (${p.src}, ${p.t.toFixed(1)}초)`);
+  }
   await b.ev("play.click()"); await sleep(300); note(await b.ev('player.paused'), `${MODE}: 일시정지`);
   await b.ev("scrollTo(0, 0)"); await b.shot('m5-compare-top');
   const full = await b.ev('document.documentElement.scrollHeight'); console.log('  page height', full);
