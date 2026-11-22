@@ -426,6 +426,20 @@
       ],
       "update": "2026-11-13: last recording, whole line (drum-roll tease before the ear code).",
       "outputGainDb": 0.25
+    },
+    {
+      "id": "m9-8",
+      "text": "Have you had a good listen to the music tuned to your ears? Slide me to the right to go to the Hearing Tower!",
+      "parts": [
+        {
+          "source": "../update-2026-11-22/e_10_01.mp3",
+          "start": 0,
+          "end": 5.55,
+          "gainDb": -13.8
+        }
+      ],
+      "outputGainDb": 3.4,
+      "update": "2026-11-22: tower prompt after the chosen track plays through (recorded after seeing the arrow screen)."
     }
   ],
   "decodedPcmSha256": "0cb82dd774bd4e8549e5f313e35482d8610c35ad3b3dc08c44a9ecf22d77e1fb",

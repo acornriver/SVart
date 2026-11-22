@@ -235,13 +235,16 @@
     {
       "lang": "ko",
       "id": "digit_9",
-      "source": "originals/ko/칠 팔 구 점.mp3",
-      "sourceSha256": "00c8147f4666e7cf0005be2833813d4c0701b5a8813eeba61cbedf3bd0c2aaa6",
-      "start": 0.52,
-      "end": 0.665,
-      "trimStart": 0.0,
-      "trimEnd": 0.145011,
-      "gainDb": -2.51
+      "source": "update-2026-11-22/k_code_9.mp3",
+      "sourceSha256": "dc8450b11db6b3cb1d367982d8a3945214401875682180d6addfb06df800dc08",
+      "start": 0,
+      "end": 1.020227,
+      "trimStart": 0.109683,
+      "trimEnd": 0.399342,
+      "gainDb": -5.0,
+      "tailMs": 80,
+      "fadeOutMs": 60,
+      "update": "2026-11-22: re-recorded '구' with room for the natural decay (it sounded clipped as the last word)."
     },
     {
       "lang": "ko",

@@ -426,6 +426,20 @@
       ],
       "update": "2026-11-13: last recording, whole line (drum-roll tease before the ear code).",
       "outputGainDb": 0.3
+    },
+    {
+      "id": "m9-8",
+      "text": "내 귀에 맞춘 음악, 충분히 들어보셨나요? 저를 오른쪽으로 쭉 밀면 청감 타워로 가요!",
+      "parts": [
+        {
+          "source": "update-2026-11-22/k_10_01.mp3",
+          "start": 0,
+          "end": 5.43,
+          "gainDb": -10.5
+        }
+      ],
+      "outputGainDb": 3.4,
+      "update": "2026-11-22: tower prompt after the chosen track plays through (recorded after seeing the arrow screen)."
     }
   ]
 }

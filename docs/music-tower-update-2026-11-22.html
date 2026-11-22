@@ -13,22 +13,25 @@
 <tr><td style="border:1px solid #999;padding:5px 8px">아래쪽 도움말</td><td style="border:1px solid #999;padding:5px 8px">‘달팽이를 오른쪽으로 밀면 청감타워로 가요’ 항상</td><td style="border:1px solid #999;padding:5px 8px">큰 안내가 뜬 뒤에는 같은 말이라 뺌</td><td style="border:1px solid #999;padding:5px 8px">Claude</td></tr>
 <tr><td style="border:1px solid #999;padding:5px 8px">분석 화면 ‘음악 들으러 가기 →’</td><td style="border:1px solid #999;padding:5px 8px">보통 굵기 최대 24px</td><td style="border:1px solid #999;padding:5px 8px">굵게 최대 34px, 밑줄 굵게</td><td style="border:1px solid #999;padding:5px 8px">작가 요청 · 크기는 Claude</td></tr>
 </table>
-<h2>차민휘 님 녹음 요청 (m9-8)</h2>
-<p>지금 자막 문구(Claude 초안)입니다. 녹음 내용에 맞춰 자막을 바꾸겠습니다.</p>
+<h2>차민휘 님 녹음 반영 (2차)</h2>
 <ul>
-<li>한국어: 음악 잘 들으셨나요? 이제 저를 오른쪽으로 쭉 밀어서 청감타워로 보내 주세요!</li>
-<li>English: Enjoyed the music? Now push me to the right and send me off to the Hearing Tower!</li>
+<li><b>청감타워 안내 녹음 m9-8</b>(한 k_10_01, 영 e_10_01)을 넣었습니다. 화면 위 빨간 큰 문구도 같은 문장으로 바꾸고, 전달받은 자리에서 두 줄로 끊었습니다(사용자 선택).<br>한국어: 내 귀에 맞춘 음악, 충분히 들어보셨나요? / 저를 오른쪽으로 쭉 밀면 청감 타워로 가요!<br>English: Have you had a good listen to the music tuned to your ears? / Slide me to the right to go to the Hearing Tower!</li>
+<li>녹음은 다른 안내와 같은 −27 LUFS로 맞췄습니다. 원본은 체크섬과 함께 보관했습니다.</li>
+<li><b>청감 코드 한국어 '구'</b>를 새 녹음(k_code_9)으로 바꿨습니다. 예전 '구'는 0.145초로 소리 중간에서 잘려 있었고, 지금은 소리가 잦아드는 끝까지 살려 0.29초에 끝만 살짝 페이드했습니다(사용자 선택). 음량은 다른 발음과 같은 −27 LUFS.</li>
+<li>안내 위에 같은 문장이 크게 떠 있어, 녹음이 나오는 동안 아래쪽에 자막을 한 번 더 쓰지 않게 했습니다(Claude).</li>
+<li>주소창이 보이는 낮은 화면(704)에서는 영어 두 줄이 달팽이 껍질에 닿지 않게 큰 문구를 약간 작게(약 27px) 합니다(Claude).</li>
 </ul>
 <h2>검증</h2>
 <ul>
-<li>한/영 빠른 전체 흐름: 곡이 끝나기 3초 전에는 안내가 뜨지 않고, 끝나면 큰 안내·화살표·자막(m9-8)이 뜨며, 자막이 끝난 뒤에도 안내가 남는지 확인. 통과</li>
+<li>한/영 빠른 전체 흐름: 곡이 끝나기 3초 전에는 안내가 뜨지 않고, 끝나면 큰 안내·화살표와 녹음 안내(m9-8)가 실제 녹음으로 나오며, 끝난 뒤에도 안내가 남는지 확인. 통과</li>
+<li>안내 녹음 한/영 32개씩 길이·음량·피크, 코드 발음 50개 음량·원본 체크섬, 코드 읽기 계획 1,176,120개와 정상 속도 읽기 검사 통과</li>
 <li>영상·소리 멈춤 복구(stall) 통과</li>
 <li>아이패드 미니 5 가로(1024×768)와 주소창이 보이는 높이(1024×704)에서 한/영 화면 확인</li>
 <li>미확인: 실제 아이패드에서 화살표 움직임 느낌. 지금 임시 곡이 16~42초라 안내가 금방 뜨지만, 작가 곡(약 3분)이 오면 그만큼 늦게 뜸</li>
 </ul>
 <h2>화면</h2>
 <p><b>감상 시작 (예전과 같음, 작은 →)</b><br><img src="screens-2026-11-22/music-before-ko.png" width="720"></p>
-<p><b>곡을 끝까지 들은 순간: 자막 안내 + 화살표 (한국어)</b><br><img src="screens-2026-11-22/music-tower-subtitle-ko.png" width="720"></p>
+<p><b>곡을 끝까지 들은 순간: 녹음 안내 + 화살표 (한국어)</b><br><img src="screens-2026-11-22/music-tower-subtitle-ko.png" width="720"></p>
 <p><b>자막이 끝난 뒤 (한국어)</b><br><img src="screens-2026-11-22/music-tower-arrow-ko.png" width="720"></p>
 <p><b>곡을 끝까지 들은 순간 (영어)</b><br><img src="screens-2026-11-22/music-tower-subtitle-en.png" width="720"></p>
 <p><b>자막이 끝난 뒤 (영어)</b><br><img src="screens-2026-11-22/music-tower-arrow-en.png" width="720"></p>

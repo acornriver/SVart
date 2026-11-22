@@ -26,9 +26,9 @@ const STAGE_COPY = {
 // 녹음이 아직 없는 줄. 녹음이 오면 media/voice에 넣고 여기서 지움. 그 전까지는 소리 없이 자막만 나옴
 const VOICE_PENDING = {
   // 분석 화면 새 대사. m6-1 · m6-3은 11/22 새 녹음('중앙'·'가운데' 표현 없이)으로 교체됨
-  // m9-8(곡을 다 들은 뒤 청감타워로 보내라는 안내, 11/22): 차민휘 님이 화살표 화면을 보고 녹음해 주기로 함. 그 전까지 자막만 (사용자 선택)
-  ko: ['m9-5', 'm9-6', 'm9-8'],
-  en: ['m9-5', 'm9-6', 'm9-8']
+  // m9-8(곡을 다 들은 뒤 청감타워 안내)은 11/22 녹음이 와서 뺌
+  ko: ['m9-5', 'm9-6'],
+  en: ['m9-5', 'm9-6']
 };
 
 const VOICE_COPY = {
@@ -99,7 +99,7 @@ const COPY = {
     'hint.listening': '잘 들어보세요…',
     'hint.analysis': '음악 들으러 가기 →',
     'music.preview': '듣고 싶은 소리를 골라 보세요',
-    'music.towerPrompt': '충분히 들었다면, 달팽이를 오른쪽으로 밀어 청감타워로 보내 주세요',
+    'music.towerPrompt': '내 귀에 맞춘 음악, 충분히 들어보셨나요?\n저를 오른쪽으로 쭉 밀면 청감 타워로 가요!', // m9-8 녹음과 같은 문장·줄바꿈 (11/22 차민휘 님 전달)
     'music.towerArrow': '청감 타워로 보내기',
     'result.compare': '비교하며 듣기',
     'hint.result1': '슬라이더로 원래 소리와 내 귀 소리를 비교해보세요',
@@ -172,7 +172,7 @@ const COPY = {
     'hint.listening': 'Listen…',
     'hint.analysis': 'Listen to music →',
     'music.preview': 'Pick a sound to listen to',
-    'music.towerPrompt': 'When you’ve heard enough, push the snail to the right to send it to the Hearing Tower',
+    'music.towerPrompt': 'Have you had a good listen to the music tuned to your ears?\nSlide me to the right to go to the Hearing Tower!',
     'music.towerArrow': 'Send to the Hearing Tower',
     'result.compare': 'Compare',
     'hint.result1': 'Slide to compare the original sound and your ear',

@@ -37,7 +37,7 @@ const MEME_VOICE_COPY = {
   "m9-5": "짜잔! 이게 당신의 청감 코드예요!",
   "m9-6": "당신의 청감은 이런 특징이 있어요.",
   "m9-7": "이제 음악을 들으러 가볼까요?",
-  "m9-8": "음악 잘 들으셨나요? 이제 저를 오른쪽으로 쭉 밀어서 청감타워로 보내 주세요!"
+  "m9-8": "내 귀에 맞춘 음악, 충분히 들어보셨나요?\n저를 오른쪽으로 쭉 밀면 청감 타워로 가요!"
 };
 const MEME_VOICE_COPY_EN = {
   "m1-1": "Hey, everyone! I can grow and shrink! Swipe your finger up and down on the screen.",
@@ -72,7 +72,7 @@ const MEME_VOICE_COPY_EN = {
   "m9-5": "Ta-da! This is your hearing code!",
   "m9-6": "Here’s what makes your hearing yours.",
   "m9-7": "Shall we listen to some music now?",
-  "m9-8": "Enjoyed the music? Now push me to the right and send me off to the Hearing Tower!"
+  "m9-8": "Have you had a good listen to the music tuned to your ears?\nSlide me to the right to go to the Hearing Tower!"
 };
 const VOICE_PLANS = {
   "adjustVolumeIntro": {

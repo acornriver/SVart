@@ -425,6 +425,7 @@ function waveAt(u) {
  */
 function wrapText(str, maxW, size, weight) {
   drawingContext.font = `${weight} ${size}px ${FONT.sans}`;
+  if (str.includes('\n')) return str.split('\n').flatMap(part => wrapText(part, maxW, size, weight)); // 작가가 정한 줄바꿈(11/22 m9-8)
   const out = [];
   let ln = '';
   str.split(' ').forEach((word) => {
@@ -1582,7 +1583,7 @@ function drawMusic(L) {
     }
     push();
     drawingContext.globalAlpha = a / 255;
-    drawHints(L, voiceBusy() ? [voiceLine()] : towerPromptOn() ? [t('hint.result1')] : [t('hint.result1'), t('hint.result2')]); // 큰 안내가 뜬 뒤에는 같은 말을 아래에 또 쓰지 않음
+    drawHints(L, towerPromptOn() ? [t('hint.result1')] : voiceBusy() ? [voiceLine()] : [t('hint.result1'), t('hint.result2')]); // 큰 안내가 뜬 뒤에는 같은 말(자막 포함)을 아래에 또 쓰지 않음
     pop();
   }
 
@@ -1662,8 +1663,8 @@ function drawMusicText(L, a) {
   const prompt = towerPromptOn(); // 음악을 다 들은 뒤: 청감타워 안내를 크게 (11/22 작가 지시. 자막도 같은 크기·색)
   if (!prompt) towerArrowAt = -1;
   const text = voiceBusy() ? voiceLine() : t(prompt ? 'music.towerPrompt' : 'music.preview');
-  let sz = prompt ? 30 : 23, lines = wrapText(text, width - L.m * 2, sz, prompt ? 700 : 500);
-  if (prompt && lines.length > 1) { sz = 25; lines = wrapText(text, width - L.m * 2, sz, 700); } // 두 줄(영어)이면 달팽이 껍질에 닿지 않게 조금 작게
+  let sz = prompt ? min(30, height * 0.039) : 23, lines = wrapText(text, width - L.m * 2, sz, prompt ? 700 : 500);
+  if (prompt && lines.length > text.split('\n').length) { sz = 25; lines = wrapText(text, width - L.m * 2, sz, 700); } // 정한 줄이 더 접히면 달팽이 껍질에 닿지 않게 조금 작게
   const lh = sz * 1.4;
   lines.forEach((line, i) => label(line, width / 2, L.m + 122 + i * lh, { size: sz, weight: prompt ? 700 : 400, c: prompt ? COLORS.accent : COLORS.ink, a, align: CENTER, valign: TOP }));
 }

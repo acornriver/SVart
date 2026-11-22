@@ -260,7 +260,7 @@ export async function runFastFlow({ send, ev, shot, lang, view = { w: 1024, h: 7
   await check('!towerPromptOn()', 'Tower prompt shown before the track ended');
   await ev('GlobalState.tour.listenAt = millis() - tourTrackMs() - 50'); await sleep(200);
   await check('towerPromptOn()', 'Tower prompt did not appear after the track played through');
-  await check("voiceNow === 'm9-8' && __fastFlow.voices.some(x => x.stage === 'MUSIC' && x.id === 'm9-8')", 'Tower guide subtitle missing');
+  await check("voiceNow === 'm9-8' && !!voiceClips[currentLang()]['m9-8'] && !VOICE_PENDING[currentLang()].includes('m9-8') && __fastFlow.voices.some(x => x.stage === 'MUSIC' && x.id === 'm9-8')", 'Tower guide recording missing');
   await shot('fast-10-music-prompt-voice');
   await until('!voiceBusy()', 20000); await sleep(1200);
   await check('towerPromptOn()', 'Tower prompt vanished after the guide');

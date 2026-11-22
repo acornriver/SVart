@@ -33,6 +33,7 @@ def levels(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--verify-only', action='store_true')
+    parser.add_argument('--units', nargs='+', help='Rebuild only these lang/id units, e.g. ko/digit_9')
     args = parser.parse_args()
     manifest_path = SOURCE / 'segments.json'
     manifest = json.loads(manifest_path.read_text())
@@ -41,7 +42,7 @@ def main():
         if hashlib.sha256(original.read_bytes()).hexdigest() != unit['sourceSha256']:
             raise ValueError(f'Original checksum changed: {original}')
         dest = TARGET / unit['lang'] / (unit['id'] + '.mp3')
-        if not args.verify_only:
+        if not args.verify_only and (not args.units or f"{unit['lang']}/{unit['id']}" in args.units):
             pcm = run(['ffmpeg', '-v', 'error', '-ss', str(unit['start']), '-i', str(original),
                        '-t', str(unit['end'] - unit['start']), '-ac', '1', '-ar', '44100',
                        '-f', 's16le', '-']).stdout
@@ -54,13 +55,15 @@ def main():
             if not active:
                 raise ValueError(f'Empty phoneme: {unit["id"]}')
             start = max(0, active[0] - 1323) / 44100
-            end = min(len(samples), active[-1] + frame + 1323) / 44100
+            # tailMs: keep more of the natural decay (e.g. ko/digit_9 sounded clipped as the last word, 11/22)
+            end = min(len(samples), active[-1] + frame + 1323 + int(unit.get('tailMs', 0) * 44.1)) / 44100
+            fade = unit.get('fadeOutMs', 2) / 1000
             with tempfile.TemporaryDirectory() as temp:
                 wav = Path(temp) / 'unit.wav'
                 # Decode the preserved original again at the measured outer-silence trims.
                 run(['ffmpeg', '-v', 'error', '-y', '-ss', str(unit['start'] + start),
                      '-i', str(original), '-t', str(end - start), '-ac', '1', '-ar', '44100',
-                     '-af', f'afade=t=in:d=0.002,afade=t=out:st={max(0, end-start-0.002)}:d=0.002', str(wav)])
+                     '-af', f'afade=t=in:d=0.002,afade=t=out:st={max(0, end-start-fade)}:d={fade}', str(wav)])
                 loudness, peak = levels(wav)
                 gain = min(manifest['targetLufs'] - loudness, -3.2 - peak)
                 dest.parent.mkdir(parents=True, exist_ok=True)
