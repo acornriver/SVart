@@ -28,7 +28,8 @@ if (MODE === 'prod' || MODE === 'mock') {
   while (Date.now() - t0 < minutes * 60000) { await sleep(10000); const s = await b.ev(towerState); maxAll = Math.max(maxAll, s.all); }
   const s1 = await b.ev(towerState); const h1 = await b.heap(); const f1 = await b.fps();
   console.log('  after', minutes, 'min', JSON.stringify(s1), 'heap', h1, 'fps', f1);
-  note(maxAll <= 40, `${MODE}: 최대 마릿수 한도 지킴 (가장 많을 때 ${maxAll}, 한도 40)`);
+  const cap = await b.ev('CFG.MAX_SNAILS');
+  note(maxAll <= cap, `${MODE}: 최대 마릿수 한도 지킴 (가장 많을 때 ${maxAll}, 한도 ${cap})`);
   note(f1 >= 30, `${MODE}: ${minutes}분 뒤 프레임 ${f1}fps (시작 ${f0})`);
   note(h1 - h0 < 30, `${MODE}: ${minutes}분 동안 메모리 ${h0} → ${h1} MB`);
   await b.shot(MODE + '-tv-after');

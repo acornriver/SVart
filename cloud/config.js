@@ -53,7 +53,7 @@ window.CloudConfig = {
   EAR_CODE_LETTER_NAMES: null,
 
   // TV 피드 최대 개수
-  FEED_LIMIT: 500,
+  FEED_LIMIT: 150, // 11/22 사용자 지시: 500 → 150 (타워 70마리 + 대기 80마리, 읽기 사용량 줄임)
 
   // 피드 재연결 체크 간격 (fromCache가 이 시간 넘으면 리스너 재연결)
   FEED_CACHE_TIMEOUT_MS: 2 * 60 * 1000,
