@@ -12,26 +12,5 @@
       "enabled": false
     },
     "singleProjectMode": false
-  },
-  "hosting": {
-    "public": ".",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**",
-      "CLAUDE.md",
-      "README.md",
-      "LICENSE",
-      "firestore.rules",
-      "firestore.indexes.json",
-      "skills-lock.json",
-      "docs/**",
-      "ref/**",
-      "render/**",
-      "scripts/**",
-      "source/**",
-      "tests/**",
-      "media/img/**"
-    ]
   }
 }

@@ -95,12 +95,13 @@
 - 테스트: `npm ci --prefix tests/cloud`, 에뮬레이터 8181 실행 후 `npm test --prefix tests/cloud`.
 - **운영 Firebase(`svart-tower`) 규칙·인덱스 배포 및 DB 삭제 보호(`DELETE_PROTECTION_ENABLED`) 설정을 2026-11-12에 완료했습니다**(`firestore.rules`, `firestore.indexes.json`).
 
-### 1-7. 브랜치와 배포 (중요: Firebase 용량 절약 규칙)
-- **평소 개발·디버깅은 반드시 `dev` 브랜치에서 합니다.** 현재 기본 작업 브랜치는 `dev`입니다.
-- **GitHub Pages는 `dev` 브랜치의 루트(`/`)를 배포합니다**(2026-11-18 GitHub Pages 설정 API 확인). 공개 주소는 `https://acornriver.github.io/SVart/`입니다. `dev` 푸시는 Pages 공개 사이트에 반영됩니다.
-- **`main` 브랜치는 Firebase Hosting 운영 배포 전용**입니다. `origin/main`에 푸시할 때마다 `.github/workflows/firebase-hosting-merge.yml`이 실행되어 약 290MB의 미디어와 앱이 Firebase Hosting(`svart-tower`)에 업로드되므로 스토리지·트래픽 용량이 소모됩니다.
-- **절대 수시로 `main`에 커밋·푸시하지 않습니다.** `dev` 브랜치에서 수정·디버깅·검증을 모두 마치고, **확실할 때 사용자가 명시적으로 요청하면 그때만 `main`으로 병합·푸시**해 Firebase Hosting을 업데이트합니다.
-- `firebase.json`에서 루트(`"public": "."`)를 배포하며, 개발·원본 폴더(`source/`, `tests/`, `docs/`, `scripts/`, `ref/`, `render/`, `media/img/` 등)는 `hosting.ignore`로 제외합니다.
+### 1-7. 브랜치와 배포 (11/22 변경: GitHub Pages로 일원화)
+- **평소 개발·디버깅은 반드시 `dev` 브랜치에서 합니다.** `dev` 푸시는 어디에도 배포되지 않습니다.
+- **전시용 아이패드 앱은 GitHub Pages(`main` 브랜치 루트)에서 띄웁니다**: `https://acornriver.github.io/SVart/`. 11/22에 사용자가 Pages 배포 브랜치를 `dev`에서 `main`으로 바꿨습니다. **`main` 푸시 = 전시 아이패드에 바로 반영**이므로, `dev`에서 검증을 마치고 사용자가 요청할 때만 `main`에 병합·푸시합니다.
+- **Firebase Hosting 자동 배포는 껐습니다**(11/22 사용자 결정: 무료 한도·결제 우려). `.github/workflows/firebase-hosting-*.yml`을 지웠고 `firebase.json`에서 `hosting` 항목을 뺐습니다. 예전 주소 `svart-tower.web.app`는 11/22 배포본(`3377325`)이 남아 있을 수 있으니 아이패드 북마크는 Pages 주소로 바꿉니다. 사이트 자체를 내리려면 `firebase hosting:disable --project svart-tower`(사용자 확인 뒤).
+- **Firebase는 DB(Firestore)·규칙에만 씁니다.** 규칙·인덱스 배포는 예전처럼 `firebase deploy --only firestore:rules,firestore:indexes --project svart-tower`(사용자 요청 시). 보내기는 reCAPTCHA Enterprise(App Check)를 거치므로 **키의 허용 도메인에 `acornriver.github.io`가 있어야** Pages 주소에서 전송됩니다(11/22 미확인, 개관 전 시험 전송 필요).
+- 청감타워(SVartTower)는 GitHub Pages `tower-visual` 브랜치 → `allearsare.love`(휴대폰 화면이 첫 화면, TV는 `/wall/`).
+- 미디어 약 290MB. GitHub Pages 한도(사이트 1GB, 월 약 100GB 전송) 안입니다.
 
 ### 1-8. 결과 문구 작업 (진행 중)
 - 협업용 검토 페이지는 **`/resulttest/`**입니다. 공개 주소는 `https://acornriver.github.io/SVart/resulttest/`이며, `resulttest/index.html`이 진입점입니다. 검사값을 바꾸고 문장을 선택하면 현재 적용 조건을 볼 수 있습니다.
@@ -185,7 +186,7 @@ node tests/e2e/stall.mjs /tmp/svart-stall
 - 측정 원칙: 한 축만 조작, 시작값 무작위, 음량 자동 보정, 숫자는 숨김. **화면 효과가 답의 단서가 되면 안 됩니다.**
 - **영상·소리는 절대 멈추면 안 됩니다.** 멈춤 방지 장치(`ensureAudioRunning`, `watchActiveSource`, 영상 blob 캐시·감시)를 지우지 않습니다.
 - UI 크기·배치·실기기 검증은 **아이패드 미니 5 가로 화면(1024×768 pt)** 기준입니다.
-- **[중요] 브랜치·배포 원칙**: `origin/main` 푸시는 곧바로 Firebase Hosting 배포(용량 소모)로 이어지므로, 모든 개발·디버깅은 `dev` 브랜치에서 하고, 확실할 때 사용자가 요청할 때만 `main`에 병합·푸시합니다(1-7).
+- **[중요] 브랜치·배포 원칙**: `origin/main` 푸시는 곧바로 전시 아이패드 앱(GitHub Pages)에 반영되므로, 모든 개발·디버깅은 `dev` 브랜치에서 하고, 확실할 때 사용자가 요청할 때만 `main`에 병합·푸시합니다(1-7).
 
 ---
 
@@ -290,3 +291,5 @@ node tests/e2e/stall.mjs /tmp/svart-stall
 - **11/21 (2차)** 사용자 요청으로 결과 제목 새 초안(동물 유형 11가지 + 행동 한 줄 6가지, 한/영)을 `/resulttest/animal.html`에 올림. 기존 페이지 상단에 링크. 앱 동작은 바꾸지 않음. 결과 문구 페이지 테스트 통과, 브라우저에서 조작·한/영·모바일 확인. `dev` 푸시.
 
 - **11/22** 원우리 작가 확정·사용자 지시: 결과 제목을 동물 유형 11가지로(공통 `cloud/snailAnimal.js`, 청감 코드로 판정, 타워에 동기화), 분석 아래에 저장하지 않는 행동 한 줄 6가지(①②③ 시간·돌린 양 기록 추가, ⑦⑧ 답 시간). QR에 `lang=en`. 청감타워 휴대폰 화면(`SVartTower` 루트): 내 달팽이 동물 이름·한 줄 소개, '동물별로 귀 고르기' 칩, 선택한 귀 이름('공작 귀로 듣기'), 영어판(KO/EN 버튼, `mobile/i18n.js`). 이모티콘은 넣었다가 사용자 지시로 모두 뺌. 타워 TV 이름표는 그대로(사용자 선택). `/resulttest/` 제목 표를 동물 11가지로(43개 조건). 한/영 빠른 flow, stall, 코드 왕복, 결과 문구 테스트, 계약 29개, 터치·soak·방치, 아이패드→에뮬레이터→타워 TV→휴대폰 한/영(같은 동물·언어), 휴대폰 화면(칩 거르기·영어판·재생·320px) 통과. QC 도구를 새 주소 구조(`/wall/`, 루트=휴대폰)에 맞춤. SVart `dev`·`main`(Firebase), 타워 배포 브랜치 `tower-visual` 푸시.
+
+- **11/22 (2차)** 사용자 결정: 아이패드 앱 배포를 Firebase Hosting에서 GitHub Pages(`main`)로 옮김. 사용자가 Pages 배포 브랜치를 `main`으로 바꿨고, Firebase Hosting 자동 배포 워크플로 2개와 `firebase.json`의 `hosting`을 지움. Firestore는 그대로.
