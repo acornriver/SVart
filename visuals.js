@@ -1590,25 +1590,25 @@ function drawMusic(L) {
   drawResultControls(L, a);
 }
 
-// 달팽이 오른쪽에서 화면 오른쪽 끝(포탈이 열리는 쪽)까지 흐르는 점선 화살표와 '청감 타워로 보내기' (모양·크기는 Claude가 정함)
+// 달팽이 오른쪽에서 화면 오른쪽 끝(포탈이 열리는 쪽)까지 뻗는 화살표와 '청감 타워로 보내기' (모양·크기는 Claude가 정함).
+// 미니멀하게(11/22 사용자 지시): 가는 빨간 선 하나 + 열린 화살촉. 점선·빛 효과 없이, 화살촉 쪽만 오른쪽으로 살짝 까딱임
 let towerArrowAt = -1;
 function drawTowerArrow(L, a) {
   if (towerArrowAt < 0) towerArrowAt = millis();
   const grow = constrain((millis() - towerArrowAt) / 900, 0, 1), ease = 1 - Math.pow(1 - grow, 3);
-  const x0 = lastShape.cx + cur.R0 * 2.4, xEnd = width - L.m - 6, y = lastShape.cy;
+  const x0 = lastShape.cx + cur.R0 * 2.4, xEnd = width - L.m - 14, y = lastShape.cy;
   if (xEnd - x0 < 80) return;
-  const x1 = lerp(x0, xEnd, ease), pulse = 0.75 + 0.25 * Math.sin(millis() / 320);
-  const ctx = drawingContext, col = rgba(COLORS.accent, (a / 255) * pulse);
+  const nudge = grow < 1 ? 0 : (0.5 - 0.5 * Math.cos((millis() - towerArrowAt) / 520)) * 8; // 다 뻗은 뒤 0~8px 왔다 갔다
+  const x1 = lerp(x0, xEnd, ease) + nudge;
+  const ctx = drawingContext;
   ctx.save();
-  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 5; ctx.lineCap = 'round';
-  ctx.setLineDash([22, 14]); ctx.lineDashOffset = -millis() / 18; // 점선이 오른쪽으로 흐름
-  ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1 - 22, y); ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x1 - 30, y - 18); ctx.lineTo(x1 - 30, y + 18); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = rgba(COLORS.accent, a / 255); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1 - 16, y - 16); ctx.lineTo(x1, y); ctx.lineTo(x1 - 16, y + 16); ctx.stroke();
   ctx.restore();
   const text = t('music.towerArrow'), room = xEnd - x0;
-  const size = min(34, 34 * room / max(1, textW(text, 34, 700)));
-  label(text, (x0 + xEnd) / 2, y - 22, { size, weight: 700, c: COLORS.accent, a: a * ease, align: CENTER, valign: BOTTOM });
+  const size = min(30, 30 * room / max(1, textW(text, 30, 700)));
+  label(text, (x0 + xEnd) / 2, y - 16, { size, weight: 700, c: COLORS.accent, a: a * ease, align: CENTER, valign: BOTTOM });
 }
 
 function drawResultControls(L, a) {
