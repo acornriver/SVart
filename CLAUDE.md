@@ -56,7 +56,7 @@
 - 원본 FLAC·지시문 PDF·분할표는 `source/voice/memesound/`, 재생성은 `python3 scripts/split-memesound.py [--lang en] [--verify-only]`입니다.
 - `copy.js`의 옛 번호 자막 `VOICE_COPY`는 일부 화면 안내 문구로 계속 씁니다.
 - 말하는 동안 위에 자막이 나오고 비트·녹음을 줄입니다. 음성을 꺼도 자막은 같은 시간 나옵니다.
-- ⑥ 안내 2줄(`m6-1`, `m6-3`)은 **11/17 사용자 선택으로 기존 ‘가운데’ 녹음과 자막을 한/영 모두 복원했습니다.** `centerIntro`에 포함하며 `VOICE_PENDING`에서 제거했습니다.
+- ⑥ 안내 2줄(`m6-1`, `m6-3`)은 **11/22에 작가 요청('중앙'이라는 말을 쓰지 않기)으로 다시 녹음한 파일로 통째 교체했습니다**(한 `K6-1_03`·`k6-3_03`, 영 `e6-1_03`·`e6-3_03`. 원본·체크섬 `source/voice/memesound/update-2026-11-22/`, −27 LUFS). `centerIntro`에 포함합니다. 자막은 전달받은 문장 그대로입니다(한 '여러분, 이번엔 소리가 왔다 갔다 하는 걸 들으면서 제일 편하게 들리는 위치를 찾아볼까요?' / '아, 여기서 들릴 때 제일 편하다 싶으면요, 화면 속 저를 길게 눌러주세요!', 영 'Hey, everyone! As the sound moves, find where it feels best!' / 'When you find where the sound feels most comfortable, press and hold me on the screen!').
 - 분석 화면 대사 2줄(`m9-5` 짜잔, `m9-6` 특징 소개)은 녹음이 없어 11/15에 안내에서 뺐습니다(문구는 남겨 둠). `m9-4` 두두둥은 11/13 녹음을 넣었습니다. **영어로 코드는 "hearing code"로 통일**했습니다(녹음 기준, 11/15). `m9-7` 음악 안내는 11/12 `last_001`/`last_002` 녹음의 첫 문장만 잘라 씁니다(원본은 `source/voice/memesound/update-2026-11-12/`). 녹음이 오면 파일을 넣고 `VOICE_PENDING`에서 지웁니다.
 - **청감 코드 읽기**(11/17): `hearingCodeVoice.js`, `media/voice/code-reading/{ko,en}/`. 전달 발음 원본 38개를 보존하고 한국어 24개·영어 26개 단위로 분리했습니다. 완성 코드 588,060개 × 한/영을 지원합니다. 코드가 크게 보이는 동안 효과음 뒤에 실제 코드를 읽고 분석 목록으로 진행합니다. 기존 공통 음성 볼륨·① 크기를 따르며, 언어 변경·단계 이동·초기화 때 중단합니다. 원본·구간표는 `source/voice/code-reading/`, 재생성은 `python3 scripts/prepare-code-voice.py`입니다.
 - **안내 잠금**: 할 일을 알려 주는 동안은 터치를 받지 않습니다(`voice.js`의 `lockInput / unlockInput / sayGuide`). 끝나고 1초(`INPUT_UNLOCK_MS`) 뒤에 풀리고, 잠긴 동안 시작한 터치는 버립니다. 잠금은 최대 60초입니다.
@@ -295,3 +295,5 @@ node tests/e2e/stall.mjs /tmp/svart-stall
 - **11/22 (2차)** 사용자 결정: 아이패드 앱 배포를 Firebase Hosting에서 GitHub Pages(`main`)로 옮김. 사용자가 Pages 배포 브랜치를 `main`으로 바꿨고, Firebase Hosting 자동 배포 워크플로 2개와 `firebase.json`의 `hosting`을 지움. Firestore는 그대로.
 
 - **11/22 (3차)** 사용자 지적('모험가만 나오는 것 같다') 재현·수정: 돌린 양을 단계 범위 대비 왕복 횟수로, 시간을 실제 쓸기 시간으로 바꿈. 조절 방식 5가지로 결단파·모험가·탐정·차근차근이 각각 나오는 것을 확인. 한/영 빠른 flow, stall, 결과 문구 테스트 통과. 타워(`tower-visual`)는 13~18 kHz 리맵핑과 카메라 쪽 도착(SVartTower CLAUDE.md).
+
+- **11/22 (4차)** 작가 요청으로 ⑥ 안내 `m6-1`·`m6-3`을 '중앙' 표현 없는 새 녹음 4개로 교체(원본 보관·체크섬, 부분 −27 LUFS 후 완성 −27 LUFS, 한/영 31개씩 음량·피크 검사, 한/영 빠른 flow·stall 통과). 길이 한 2.98→5.73초·4.10→5.23초, 영 2.83→3.92초·3.23→4.14초. 자막도 전달 문장으로 교체. 같은 요청으로 결과 글의 '가운데'도 뺌(사용자 선택): 분석 ⑥ C 'Sound that leans to neither side…' = '어느 쪽에도 치우치지 않은 소리가 편해요. 두 귀의 균형이 좋아요.', 부엉이 소개 '어느 쪽으로도 기울지 않는 귀. 균형 감각이 남다른 밤의 귀.'(`cloud/snailAnimal.js`, 타워에 동기화).

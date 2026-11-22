@@ -25,7 +25,7 @@ const STAGE_COPY = {
 // 음성 안내의 자막 (차민휘 지시문 그대로, media/voice 파일과 번호가 같음). 재생 시점은 part1_audio.js · part2_audio.js
 // 녹음이 아직 없는 줄. 녹음이 오면 media/voice에 넣고 여기서 지움. 그 전까지는 소리 없이 자막만 나옴
 const VOICE_PENDING = {
-  // 분석 화면 새 대사. m6-1 · m6-3은 기존 '가운데' 녹음으로 복원(11/17).
+  // 분석 화면 새 대사. m6-1 · m6-3은 11/22 새 녹음('중앙'·'가운데' 표현 없이)으로 교체됨
   ko: ['m9-5', 'm9-6'],
   en: ['m9-5', 'm9-6']
 };
@@ -333,7 +333,7 @@ function getSnailAnalysis(profile, psycho, name) {
   const center = psycho.centerImage;
   if (center) items.push(pick({
     L: ['소리가 조금 왼쪽에 있을 때 편해요. 왼쪽 귀가 더 편한가 봐요.', 'Sound feels most comfortable a little to your left. Maybe your left ear feels more at home.'],
-    C: ['소리가 한가운데에 있을 때 편해요. 두 귀가 고르게 들어요.', 'Sound feels most comfortable right in the middle. Both ears hear evenly.'],
+    C: ['어느 쪽에도 치우치지 않은 소리가 편해요. 두 귀의 균형이 좋아요.', 'Sound that leans to neither side feels best. Your ears are well balanced.'], // 11/22 '가운데' 표현 빼기 (작가 요청, 사용자 선택)
     R: ['소리가 조금 오른쪽에 있을 때 편해요. 오른쪽 귀가 더 편한가 봐요.', 'Sound feels most comfortable a little to your right. Maybe your right ear feels more at home.']
   }[center]));
 

@@ -36,9 +36,9 @@ window.SnailAnimal = (() => {
     { id: 'SQUIRREL', ko: '다람쥐', en: 'Squirrel', rule: '④ 멜로디 C(높은 음, I) 선택', test: t => t.register === 'HIGH',
       lineKo: '높은 멜로디가 제일 편해요. 나무 꼭대기에서 재잘재잘.',
       lineEn: 'High melodies feel best. Chattering away at the treetops.' },
-    { id: 'OWL', ko: '부엉이', en: 'Owl', rule: '⑥ 편한 자리가 가운데(C)', test: t => t.center === 'C',
-      lineKo: '소리가 딱 가운데 있을 때 편해요. 균형 감각이 남다른 밤의 귀.',
-      lineEn: 'You like sound right in the middle. A night ear with perfect balance.' },
+    { id: 'OWL', ko: '부엉이', en: 'Owl', rule: '⑥ 편한 자리가 어느 쪽에도 치우치지 않음(C)', test: t => t.center === 'C',
+      lineKo: '어느 쪽으로도 기울지 않는 귀. 균형 감각이 남다른 밤의 귀.',
+      lineEn: 'Your ears lean to neither side. A night ear with perfect balance.' },
     { id: 'BEAR', ko: '곰', en: 'Bear', rule: '위 어디에도 해당하지 않음', test: () => true,
       lineKo: '무던하고 든든한 귀. 어떤 소리든 일단 꼭 안아 줘요.',
       lineEn: 'Easygoing and steady. You give every sound a big hug.' }

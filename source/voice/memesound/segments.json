@@ -238,13 +238,22 @@
     },
     {
       "id": "m6-1",
-      "text": "이번엔요, 소리가 딱 가운데에서 들리게 해볼 거예요!",
+      "text": "여러분, 이번엔 소리가 왔다 갔다 하는 걸 들으면서 제일 편하게 들리는 위치를 찾아볼까요?",
       "start": 98.525329,
       "end": 101.510136,
       "sourceLufs": -18.6,
       "sourceTruePeakDbfs": -4.2,
       "gainDb": -8.2,
-      "outputGainDb": 3.04
+      "outputGainDb": 0.88,
+      "parts": [
+        {
+          "source": "update-2026-11-22/K6-1_03.mp3",
+          "start": 0,
+          "end": 5.73,
+          "gainDb": -10.3
+        }
+      ],
+      "update": "2026-11-22: re-recorded without the word for 'centre' (artist request)."
     },
     {
       "id": "m6-2",
@@ -258,13 +267,22 @@
     },
     {
       "id": "m6-3",
-      "text": "소리가 가운데에서 들리면요, 화면 속 저를 길게 눌러주세요.",
+      "text": "아, 여기서 들릴 때 제일 편하다 싶으면요, 화면 속 저를 길게 눌러주세요!",
       "start": 107.278186,
       "end": 111.381587,
       "sourceLufs": -16.6,
       "sourceTruePeakDbfs": -4.1,
       "gainDb": -10.0,
-      "outputGainDb": 3.25
+      "outputGainDb": 0.74,
+      "parts": [
+        {
+          "source": "update-2026-11-22/k6-3_03.mp3",
+          "start": 0,
+          "end": 5.23,
+          "gainDb": -10.7
+        }
+      ],
+      "update": "2026-11-22: re-recorded without the word for 'centre' (artist request)."
     },
     {
       "id": "m6-4",

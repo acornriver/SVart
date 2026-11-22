@@ -1,5 +1,5 @@
 /** 한/영 밈사운드 안내 (2026-11-09). 원본·구간표: source/voice/memesound/.
- * m6-1 · m6-3은 사용자 요청으로 기존 '가운데' 녹음을 복원함(11/17). m9-5 · m9-6은 녹음 대기. m9-2는 11/12부터 쓰지 않음.
+ * m6-1 · m6-3은 11/22 작가 요청으로 '중앙'·'가운데' 표현 없는 새 녹음(_03)으로 교체함. m9-5 · m9-6은 녹음 대기. m9-2는 11/12부터 쓰지 않음.
  * 11/12 f/w/a 새 녹음은 update-2026-11-12/에 보관하며 m9-7도 녹음으로 재생합니다.
  * 한/영 모두 m 접두어의 새 녹음을 사용합니다. 영어 원본·구간표는 en/에 보관합니다.
  */
@@ -20,9 +20,9 @@ const MEME_VOICE_COPY = {
   "m5-2": "화면 속 저를 오른쪽으로 천천히 밀어보세요. 소리가 더 이상 들리지 않으면 그 자리에서 멈춰주세요.",
   "m5-4": "이제 다음으로 갈까요? 화면 속 저를 길게 눌러주세요!",
   "m5-5": "어? 소리를 듣는 사이에 화면 속 선이 돌돌 감겼어욕!",
-  "m6-1": "이번엔요, 소리가 딱 가운데에서 들리게 해볼 거예요!",
+  "m6-1": "여러분, 이번엔 소리가 왔다 갔다 하는 걸 들으면서 제일 편하게 들리는 위치를 찾아볼까요?",
   "m6-2": "손가락으로 화면을 왼쪽이나 오른쪽으로 쓸어보세요. 소리도 따라 움직여요!",
-  "m6-3": "소리가 가운데에서 들리면요, 화면 속 저를 길게 눌러주세요.",
+  "m6-3": "아, 여기서 들릴 때 제일 편하다 싶으면요, 화면 속 저를 길게 눌러주세요!",
   "m6-4": "이건요, 두 번 해볼게요!",
   "m7-1": "여러분, 저 이번엔 어디로 가야 할까요? 높은 음이 어느 쪽에서 들리는지 찾아볼 거예요.",
   "m7-2": "높은 음이 들린 쪽으로 화면 속 저를 밀어주세요.",
@@ -54,9 +54,9 @@ const MEME_VOICE_COPY_EN = {
   "m5-2": "Slide me slowly to the right. When you can’t hear the sound anymore, stop right there.",
   "m5-4": "Ready to move on? Press and hold me on the screen!",
   "m5-5": "Oh! While you were listening, the line on the screen curled up!",
-  "m6-1": "Now let’s move the sound so you hear it right in the middle!",
+  "m6-1": "Hey, everyone! As the sound moves, find where it feels best!",
   "m6-2": "Swipe left or right on the screen. The sound moves with your finger!",
-  "m6-3": "When you hear the sound in the middle, press and hold me on the screen.",
+  "m6-3": "When you find where the sound feels most comfortable, press and hold me on the screen!",
   "m6-4": "We’ll do this twice!",
   "m7-1": "Hey, everyone! Which way should I go this time? Let’s find out which side the higher note comes from.",
   "m7-2": "Slide me toward the side where you hear the higher note.",

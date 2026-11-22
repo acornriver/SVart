@@ -238,13 +238,22 @@
     },
     {
       "id": "m6-1",
-      "text": "Now let’s move the sound so you hear it right in the middle!",
+      "text": "Hey, everyone! As the sound moves, find where it feels best!",
       "start": 82.84195,
       "end": 85.674308,
       "sourceLufs": -13.8,
       "sourceTruePeakDbfs": -1.1,
       "gainDb": -12.7,
-      "outputGainDb": 3.03
+      "outputGainDb": 0.65,
+      "parts": [
+        {
+          "source": "../update-2026-11-22/e6-1_03.mp3",
+          "start": 0,
+          "end": 3.92,
+          "gainDb": -12.9
+        }
+      ],
+      "update": "2026-11-22: re-recorded without the word for 'centre' (artist request)."
     },
     {
       "id": "m6-2",
@@ -258,13 +267,22 @@
     },
     {
       "id": "m6-3",
-      "text": "When you hear the sound in the middle, press and hold me on the screen.",
+      "text": "When you find where the sound feels most comfortable, press and hold me on the screen!",
       "start": 89.546553,
       "end": 92.774921,
       "sourceLufs": -14.9,
       "sourceTruePeakDbfs": -1.6,
       "gainDb": -11.6,
-      "outputGainDb": 3.13
+      "outputGainDb": 0.82,
+      "parts": [
+        {
+          "source": "../update-2026-11-22/e6-3_03.mp3",
+          "start": 0,
+          "end": 4.14,
+          "gainDb": -10.6
+        }
+      ],
+      "update": "2026-11-22: re-recorded without the word for 'centre' (artist request)."
     },
     {
       "id": "m6-4",
