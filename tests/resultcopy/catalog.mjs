@@ -3,14 +3,19 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const root = new URL('../../', import.meta.url);
 const context = vm.createContext({ window: { GlobalState: { lang: 'ko' } } });
-for (const path of ['voiceMemesound.js', 'earCode.js', 'copy.js', 'resulttest/catalog.js']) {
+for (const path of ['voiceMemesound.js', 'earCode.js', 'cloud/snailAnimal.js', 'copy.js', 'resulttest/catalog.js']) {
   vm.runInContext(readFileSync(new URL(path, root), 'utf8'), context, { filename: path });
 }
 const api = vm.runInContext('ResultCopyCatalog', context);
 const rows = api.rows();
-assert.equal(rows.length, 41);
-assert.equal(new Set(rows.map(row => row.id)).size, 41);
-assert.equal(rows.filter(row => row.group === 'title').length, 9);
+assert.equal(rows.length, 43);
+assert.equal(new Set(rows.map(row => row.id)).size, 43);
+assert.equal(rows.filter(row => row.group === 'title').length, 11);
+// 동물 행마다 예시 값이 그 동물을 실제로 만드는지 (앱 getSnailAnalysis와 타워가 쓰는 코드 판정이 같은 결과)
+for (const row of rows.filter(row => row.group === 'title')) {
+  const id = row.id.replace('ANIMAL_', '');
+  assert.ok(row.ko.startsWith(vm.runInContext(`window.SnailAnimal.LIST.find(a => a.id === '${id}').ko`, context)), row.id);
+}
 assert.equal(rows.filter(row => row.group === 'missing').length, 5);
 for (const row of rows) {
   assert.equal(typeof row.ko, 'string');
@@ -50,4 +55,4 @@ for (const centerDeg of [-5.001, -5, 5, 5.001]) for (const lang of ['ko', 'en'])
   assert.equal(JSON.stringify(Object.values(result.items)), JSON.stringify(expected.items));
   checked++;
 }
-console.log(`41 bilingual condition rows; ${checked} boundary/missing cases match actual app copy; static guide current.`);
+console.log(`43 bilingual condition rows (11 animals); ${checked} boundary/missing cases match actual app copy; static guide current.`);

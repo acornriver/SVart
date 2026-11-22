@@ -112,6 +112,9 @@ let sourceWatchTimer = 0;
 let adjustValue = 0;       // 현재 값 (dB)
 let movedPath = 0;         // 단계 시작 후 값이 움직인 누적량 (dB)
 let stepElapsed = 0;
+// 행동 한 줄용 (11/22): ①②③마다 첫 쓸기부터 확정까지 걸린 시간과 돌린 양. 결과 화면에만 쓰고 저장·전송하지 않음(사용자 지시)
+let adjustFirstDragAt = null;
+let behaviourAdjust = [];
 let voiceCue = {};         // 이 단계에서 이미 나온 조건부 안내
 
 // 음역 고르기 내부 상태
@@ -191,6 +194,7 @@ function initAudio() {
  */
 function startFlow(initialVolumeDb) {
   initAudio();
+  behaviourAdjust = []; // 앞 관람객의 행동 기록은 남기지 않음
   goToStep(0, initialVolumeDb);
 }
 
@@ -429,6 +433,7 @@ function saveEarResult() {
 function restartFlow() {
   IntroSequence.cancel();
   MemeFX.cancel();
+  behaviourAdjust = [];
   const gs = window.GlobalState;
   const profile = gs.userEQProfile;
   profile.lowShelf.gain = 0;
@@ -502,6 +507,7 @@ function beginAdjust(stage, initialDb) {
   adjustValue = initialDb ?? random(cfg.startMin, cfg.startMax);
   movedPath = 0;
   stepElapsed = 0;
+  adjustFirstDragAt = null;
   applyAdjust(stage);
   sayGuide(voicePlan(ADJUST_VOICE[stage].intro));
 }
@@ -545,6 +551,7 @@ function dragAdjust(dyRatio) {
 
   const next = constrain(adjustValue + dyRatio * cfg.span, cfg.min, cfg.max);
   movedPath += Math.abs(next - adjustValue);
+  if (adjustFirstDragAt === null) adjustFirstDragAt = millis();
   adjustValue = next;
   window.GlobalState.part1.lastDragAt = millis(); // 비주얼: 달팽이를 누르는 손가락 자국
   voiceOnDrag(stage, dyRatio);
@@ -575,7 +582,23 @@ function applyAdjustValue(stage) {
  * 확정 버튼
  */
 function tapConfirmAdjust() {
-  if (window.GlobalState.part1.hasMoved) confirmStep();
+  if (!window.GlobalState.part1.hasMoved) return;
+  behaviourAdjust.push({ sec: (millis() - (adjustFirstDragAt ?? millis())) / 1000, turn: movedPath });
+  confirmStep();
+}
+
+/**
+ * 행동 한 줄의 재료 (copy.js의 getBehaviourLine). ⑦⑧ 답 시간은 Part 2가 이미 남기는 rtMs를 씀. 없는 값은 null
+ */
+function getBehaviourStats() {
+  const avg = (list) => list.length ? list.reduce((a, b) => a + b, 0) / list.length : null;
+  const raw = window.GlobalState.psychoProfile.raw || {};
+  const answers = [...(raw.octave?.answers || []), ...(raw.f0?.answers || [])].map((a) => a.rtMs / 1000).filter(Number.isFinite);
+  return {
+    adjustSec: avg(behaviourAdjust.map((a) => a.sec)),
+    turnDb: avg(behaviourAdjust.map((a) => a.turn)),
+    answerSec: avg(answers)
+  };
 }
 
 /**

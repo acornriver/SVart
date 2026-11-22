@@ -39,7 +39,7 @@
     const age = HEARING_AGE.find(item => state.maxHz >= item.hz);
     const db = 20 * Math.log10(Math.max(p.masterVolume, 1e-4));
     return new Set([
-      'TITLE_' + tone, 'TONE_' + tone,
+      'ANIMAL_' + catalog.analyse(state, window.GlobalState.lang).animal, 'TONE_' + tone,
       state.ear ? 'EAR_' + state.ear : 'MISSING_EAR',
       state.maxMeasured ? 'HEARING_' + (age ? age.hz : 'FREQUENCY') : 'MISSING_HEARING',
       'VOLUME_' + (db >= LOUD_WORDS_DB.loud ? 'LOUD' : db <= LOUD_WORDS_DB.quiet ? 'QUIET' : 'MODERATE'),
@@ -71,6 +71,7 @@
     document.getElementById('result').lang = lang;
     document.getElementById('code').textContent = result.code;
     document.getElementById('title').textContent = result.title;
+    document.getElementById('animal-line').textContent = result.line || '';
     document.getElementById('items').innerHTML = Object.entries(result.items).map(([key, value]) => `<li><button type="button" data-item="${key}" aria-label="${catalog.labels[key]} 표시 조건 보기" aria-pressed="${selected === key}"><span class="tag">${catalog.tags[key]}</span><span>${escape(value)}</span></button></li>`).join('');
     document.getElementById('rules').innerHTML = `<h3>${groupLabel(selected)}</h3>${table(allRows.filter(row => row.group === selected), active)}`;
     Object.entries(formats).forEach(([key, format]) => {

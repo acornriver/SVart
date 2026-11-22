@@ -6,7 +6,7 @@ const ResultCopyCatalog = (() => {
     maxMeasured: true, centerDeg: -8, centerMeasured: true, ear: 'RIGHT', pitch: 'F'
   });
   const groups = [
-    ['title', '유형 제목 · ②③ 저음·고음 조합'], ['tone', '②③ 저음·고음 선호'],
+    ['title', '동물 유형 · 청감 코드로 위에서부터 먼저 맞는 하나'], ['tone', '②③ 저음·고음 선호'],
     ['ear', '⑦ 우세 귀'], ['hf', '⑤ 고역 한계'], ['vol', '① 선호 음량'],
     ['center', '⑥ 편한 자리'], ['register', '④ 멜로디 음역'],
     ['pitch', '⑧ 바탕음·배음'], ['missing', '결과값이 없는 경우']
@@ -42,7 +42,7 @@ const ResultCopyCatalog = (() => {
       const keys = [ps.dominantEar && 'ear', 'tone', typeof ps.maxFreqHz === 'number' && 'hf', 'vol',
         ps.centerImage && 'center', p.registerPeak.register && 'register', ps.pitchMode && 'pitch'].filter(Boolean);
       if (keys.length !== result.items.length) throw new Error('앱 결과 항목과 문구 연결을 확인해 주세요.');
-      return { title: result.title, items: Object.fromEntries(keys.map((key, i) => [key, result.items[i]])), code: getFullEarCode(p, ps) };
+      return { title: result.title, line: result.line, animal: result.animal, items: Object.fromEntries(keys.map((key, i) => [key, result.items[i]])), code: getFullEarCode(p, ps) };
     } finally { window.GlobalState.lang = previous; }
   }
 
@@ -51,17 +51,25 @@ const ResultCopyCatalog = (() => {
     const add = (id, group, condition, patch, key, note = '') => {
       const values = { ...defaults, ...patch };
       const ko = analyse(values, 'ko'), en = analyse(values, 'en');
-      result.push({ id, group, condition, ko: key === 'title' ? ko.title : ko.items[key] ?? '',
-        en: key === 'title' ? en.title : en.items[key] ?? '', note });
+      result.push({ id, group, condition, ko: key === 'title' ? `${ko.title} ${ko.line}` : ko.items[key] ?? '',
+        en: key === 'title' ? `${en.title} ${en.line}` : en.items[key] ?? '', note });
     };
     const boundary = EAR_CODE.SHELF_STEP_DB / 2;
     const low = [[-8, 'T', `저음 < −${boundary} dB`], [0, 'E', `−${boundary} dB ≤ 저음 < +${boundary} dB`], [8, 'W', `저음 ≥ +${boundary} dB`]];
     const high = [[-8, 'V', `고음 < −${boundary} dB`], [0, 'E', `−${boundary} dB ≤ 고음 < +${boundary} dB`], [8, 'S', `고음 ≥ +${boundary} dB`]];
     for (const [lowDb, l, lc] of low) for (const [highDb, h, hc] of high) {
       const condition = `${lc}\n${hc}`;
-      add(`TITLE_${l}${h}`, 'title', condition, { lowDb, highDb }, 'title');
       add(`TONE_${l}${h}`, 'tone', condition, { lowDb, highDb }, 'tone');
     }
+    // 동물 11가지 (cloud/snailAnimal.js): 각 동물이 나오는 예시 값. 고역은 박쥐만 17 kHz 이상
+    const animalExample = {
+      BAT: { maxHz: 18000 }, PEACOCK: { lowDb: 8, highDb: 8 }, HIPPO: { lowDb: 8, highDb: 0 }, DOLPHIN: { lowDb: 0, highDb: 8 },
+      SLOTH: { lowDb: -8, highDb: -8 }, LION: { lowDb: 0, highDb: 0, volDb: -5 }, CAT: { lowDb: 0, highDb: 0, volDb: -35 },
+      WHALE: { lowDb: 0, highDb: 0, register: 'LOW' }, SQUIRREL: { lowDb: 0, highDb: 0, register: 'HIGH' },
+      OWL: { lowDb: 0, highDb: 0, register: 'MID', centerDeg: 0 }, BEAR: { lowDb: 0, highDb: 0, register: 'MID', centerDeg: 20 }
+    };
+    window.SnailAnimal.LIST.forEach((animal, i) => add(`ANIMAL_${animal.id}`, 'title', `${i + 1}. ${animal.rule}`,
+      { maxHz: 15000, ...animalExample[animal.id] }, 'title', i === window.SnailAnimal.LIST.length - 1 ? '' : '위 동물에 먼저 해당하면 그 동물이 나옵니다.'));
     add('EAR_LEFT', 'ear', '⑦ 결과 LEFT · 왼쪽', { ear: 'LEFT' }, 'ear');
     add('EAR_RIGHT', 'ear', '⑦ 결과 RIGHT · 오른쪽', { ear: 'RIGHT' }, 'ear');
     HEARING_AGE.forEach((age, i) => {
@@ -109,8 +117,8 @@ const ResultCopyCatalog = (() => {
     return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${worksheet ? '결과 문구 작성용 표' : '결과 문구·표시 조건 안내'}</title>
       <style>@page{size:A4 landscape;margin:15mm}thead{display:table-header-group}tr{break-inside:avoid}h2{font-size:16pt;margin-top:28px}</style></head>
       <body style="font-family:Arial,'Apple SD Gothic Neo',sans-serif;font-size:11pt;line-height:1.6;max-width:1100px;margin:28px auto;padding:0 20px;">
-      <h1>모든 귀는 […] 이다 · ${worksheet ? '결과 문구 작성용 표' : '결과 문구·표시 조건 안내'}</h1><p>2026-11-18 구조 기준. 유형 제목 1줄과 분석 항목 최대 7줄로 조합합니다.</p>
-      ${worksheet ? '<p>작성자 [작성]　검토자 [작성]　버전·날짜 [작성]</p>' : '<p>제목은 ② 저음·③ 고음의 3×3 조합으로 정합니다. 분석 순서는 ⑦ 우세 귀 → ②③ 저음·고음 → ⑤ 고역 한계 → ① 음량 → ⑥ 편한 자리 → ④ 멜로디 → ⑧ 바탕음·배음입니다.</p>'}
+      <h1>모든 귀는 […] 이다 · ${worksheet ? '결과 문구 작성용 표' : '결과 문구·표시 조건 안내'}</h1><p>2026-11-22 구조 기준. 동물 유형 제목 1줄(+ 한 줄 소개)과 분석 항목 최대 7줄로 조합합니다. 행동 한 줄은 아이패드 결과 화면에만 잠깐 보이고 저장하지 않아 이 표에서 뺐습니다.</p>
+      ${worksheet ? '<p>작성자 [작성]　검토자 [작성]　버전·날짜 [작성]</p>' : '<p>제목은 청감 코드 글자로 동물 11가지 중 위에서부터 먼저 맞는 하나를 고릅니다(청감타워 휴대폰 화면과 같은 동물). 분석 순서는 ⑦ 우세 귀 → ②③ 저음·고음 → ⑤ 고역 한계 → ① 음량 → ⑥ 편한 자리 → ④ 멜로디 → ⑧ 바탕음·배음입니다.</p>'}
       <p>각 조건의 한·영 확정안을 적어 주세요. {kHz}는 측정값이 들어가는 자리입니다. ID와 함께 전달하면 앱 문구와 대조할 수 있습니다.</p>
       ${tables}${worksheet ? '<h2>구조·조건 변경 의견</h2><p>[추가할 항목, 조건 변경, 한 화면 구성에 대한 의견]</p>' : '<p><a href="./">결과 미리보기·작성용 표 다운로드로 돌아가기</a></p>'}</body></html>`;
   }

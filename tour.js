@@ -128,6 +128,8 @@ function towerMobileUrl(earId, code, hueDeg) {
   if (earId) url.searchParams.set('ear', earId);
   if (code) url.searchParams.set('code', code);
   if (typeof hueDeg === 'number' && Number.isFinite(hueDeg)) url.searchParams.set('hue', String(Math.round(hueDeg) % 360));
+  // 영어로 검사한 관람객은 휴대폰 화면도 영어로 열림 (11/22). 한국어는 기본이라 붙이지 않음
+  if (window.GlobalState && window.GlobalState.lang === 'en') url.searchParams.set('lang', 'en');
   return url.href;
 }
 

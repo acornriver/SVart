@@ -4,7 +4,7 @@
 import { writeFileSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { browser, sleep } from './towerlib.mjs';
 const OUT = process.argv[2], MODE = process.argv[3];
-const PROD = 'https://acornriver.github.io/SVartTower/';
+const PROD = 'https://allearsare.love/'; // 11/21부터 관객용 휴대폰 화면이 첫 화면, 전시장 TV는 /wall/
 const LOCAL = 'http://localhost:8766/';
 const notes = []; const note = (ok, t) => { notes.push((ok ? 'ok   ' : 'FAIL ') + t); console.log((ok ? '  ok   ' : '  FAIL ') + t); };
 
@@ -12,7 +12,7 @@ const towerState = `({ onTower: snails.filter(s => s.ear).length, all: snails.le
 
 if (MODE === 'prod' || MODE === 'mock') {
   const b = await browser(OUT, { w: 1920, h: 1080 });
-  const url = MODE === 'prod' ? PROD : LOCAL + '?mock=1&arrive=2';
+  const url = MODE === 'prod' ? PROD + 'wall/' : LOCAL + 'wall/?mock=1&arrive=2';
   await b.go(url);
   note(await b.until("typeof snails !== 'undefined' && typeof feedStarted !== 'undefined' && feedStarted", 30000), `${MODE}: TV 화면이 뜨고 피드 시작`);
   await b.until("snails.filter(s => s.ear).length > 0", 30000);
@@ -46,7 +46,7 @@ if (MODE === 'prod' || MODE === 'mock') {
 }
 
 if (MODE === 'mobile-prod' || MODE === 'mobile-local') {
-  const base = MODE === 'mobile-prod' ? PROD + 'mobile/' : LOCAL + 'mobile/?mock=1';
+  const base = MODE === 'mobile-prod' ? PROD : LOCAL + '?mock=1';
   const join = (q) => base + (base.includes('?') ? '&' : '?') + q;
   const b = await browser(OUT, { w: 390, h: 844, mobile: true, touch: true });
   const read = () => b.ev(`({ own: own && own.code, ownId: own && own.earId, hue: own && own.profile && own.profile.hueDeg, cards: gallery.size, status: document.getElementById('code-status').textContent, feed: document.getElementById('feed-status').textContent, play: !play.disabled, snails: typeof snails !== 'undefined' ? snails.length : null })`);
@@ -59,6 +59,17 @@ if (MODE === 'mobile-prod' || MODE === 'mobile-local') {
   await b.go(join('code=' + encodeURIComponent('IWS-RLF(13.2k/6)') + '&hue=120')); await b.until('!!own', 10000); await sleep(800);
   r = await read(); console.log('  code+hue', JSON.stringify(r));
   note(r.own === 'IWS-RLF(13.2k/6)' && r.hue === 120 && r.play, `${MODE}: code+hue로 열면 내 달팽이(${r.own}, 색 ${r.hue})와 재생 버튼`);
+  // 동물 이름 (11/22): 코드로 고른 동물, 칩으로 고르기, 영어판
+  const an = await b.ev("({ own: document.getElementById('own-animal').textContent, expect: SnailAnimal.earName(SnailAnimal.fromCode(own.code), 'ko'), chips: document.querySelectorAll('#animal-chips button').length, labels: [...document.querySelectorAll('.ear-card .card-animal')].every(s => s.textContent.includes('귀')) })");
+  note(an.own.includes(an.expect) && an.chips >= 2 && an.labels, `${MODE}: 내 달팽이 동물 '${an.own}', 동물 칩 ${an.chips}개, 모든 카드에 동물 이름`);
+  await b.ev("document.querySelector('#animal-chips button:nth-child(2)').click()"); await sleep(200);
+  const fl = await b.ev("(() => { const want = document.querySelector('#animal-chips button[aria-pressed=true]').textContent.split(' ')[0]; const shown = [...document.querySelectorAll('.ear-card:not([hidden]) .card-animal')].map(s => s.textContent); return { want, n: shown.length, ok: shown.length > 0 && shown.every(t => t.includes(want)) }; })()");
+  note(fl.ok, `${MODE}: 동물 칩 '${fl.want}'을 누르면 그 귀 ${fl.n}개만 보임`);
+  await b.ev("document.querySelector('#animal-chips button:nth-child(1)').click()");
+  await b.go(join('lang=en&code=' + encodeURIComponent('IWS-RLF(13.2k/6)'))); await b.until('!!own', 10000); await sleep(800);
+  const en = await b.ev("({ lang: document.documentElement.lang, h1: document.querySelector('h1').textContent, own: document.getElementById('own-animal').textContent, status: document.getElementById('code-status').textContent, hangul: /[가-힣]/.test(document.body.innerText) })");
+  note(en.lang === 'en' && en.h1 === 'Hearing Tower' && /ear$/.test(en.own) && !en.hangul, `${MODE}: lang=en이면 영어판 ('${en.h1}', '${en.own}', 한글 ${en.hangul ? '남음' : '없음'})`);
+  await b.shot('m3-english');
   await b.shot('m2-code-hue');
   // 3) 잘못된 코드
   await b.go(join('code=XXX')); await sleep(2500); r = await read();

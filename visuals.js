@@ -1673,7 +1673,14 @@ function drawAnalysis(L) {
   const data = getSnailAnalysis(state.userEQProfile, state.psychoProfile, state.userName);
   const shown = (delayMs) => phase === 'ready' ? 1 : constrain((since - delayMs) / ANALYSIS.fadeMs, 0, 1);
   const titleSize = height < 850 ? 24 : 28;
-  label(data.title, width / 2, L.m + fit(42) + 14, { size: titleSize, weight: 700, a: 255 * shown(ANALYSIS.riseMs * 0.6), align: CENTER, valign: TOP });
+  const titleY = L.m + fit(42) + 14;
+  label(data.title, width / 2, titleY, { size: titleSize, weight: 700, a: 255 * shown(ANALYSIS.riseMs * 0.6), align: CENTER, valign: TOP });
+  // 동물 한 줄 소개 (11/22): 제목 바로 아래, 작게
+  if (data.line) {
+    const lineSize = height < 850 ? 16 : 18;
+    wrapText(data.line, min(width - L.m * 2, 760), lineSize, 500).slice(0, 2).forEach((row, i) => label(row, width / 2, titleY + titleSize * 1.4 + i * lineSize * 1.45,
+      { size: lineSize, weight: 500, c: COLORS.mute, a: 255 * shown(ANALYSIS.riseMs * 0.8), align: CENTER, valign: TOP }));
+  }
 
   // 항목: 가운데에 놓은 덩어리 안에서 왼쪽 맞춤, 앞에 빨간 네모 점
   const size = height < 850 ? 21 : 24, lineH = size * 1.6, bullet = size * 1.1;
@@ -1691,6 +1698,12 @@ function drawAnalysis(L) {
     rows.forEach((row) => { label(row, x + bullet, y + dy, { size, weight: 500, a: 255 * a, valign: TOP }); y += lineH; });
     y += 4;
   });
+  // 행동 한 줄 (11/22): 검사하는 동안의 시간·조작량으로 고른 한 줄. 이 화면에만 보이고 저장·전송하지 않음
+  const behaviour = getBehaviourLine(getBehaviourStats());
+  if (behaviour) {
+    const a = shown(ANALYSIS.firstMs + items.length * ANALYSIS.stepMs);
+    label(behaviour.text, width / 2, y + 12 + (1 - a) * 10, { size: size * 0.92, weight: 700, c: COLORS.accent, a: 255 * a, align: CENTER, valign: TOP });
+  }
   // 이동 안내는 실제 클릭 가능한 DOM 텍스트로 표시.
   if (said) drawHints(L, [said]);
 }

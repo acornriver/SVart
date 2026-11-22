@@ -210,7 +210,11 @@ export async function runFastFlow({ send, ev, shot, lang, view = { w: 1024, h: 7
   await check("getSnailAnalysis(GlobalState.userEQProfile,GlobalState.psychoProfile,'').items.length === 7", 'Analysis must list all seven items');
   await check("getSnailAnalysis(GlobalState.userEQProfile,{...GlobalState.psychoProfile,maxFreqHz:16000},'').items[2].includes(currentLang()==='ko'?'10대':'teenager') && !/대|years/.test(getSnailAnalysis(GlobalState.userEQProfile,{...GlobalState.psychoProfile,maxFreqHz:13900},'').items[2])", 'Age wording must appear only for the thirties and younger');
   await check("cur.shellSquare === undefined && antennaTips.length === 2", 'Shell shape must not change with the leading ear');
-  await check(`getSnailAnalysis({...GlobalState.userEQProfile,lowShelf:{gain:-10},highShelf:{gain:-10}},GlobalState.psychoProfile,'').title === ${JSON.stringify(lang==='en'?'Your snail is quiet':'차분한 달팽이예요')}`, 'Nameless analysis title has a dangling prefix');
+  // 제목은 청감 코드로 고른 동물 (11/22). 저음·고음을 모두 덜면 (고역 17 kHz 미만일 때) 나무늘보
+  await check(`(() => { const r = getSnailAnalysis({...GlobalState.userEQProfile,lowShelf:{gain:-10},highShelf:{gain:-10}},{...GlobalState.psychoProfile,maxFreqHz:12000},''); return r.animal === 'SLOTH' && r.title === ${JSON.stringify(lang==='en'?"You're a Sloth Snail!":'나무늘보 달팽이예요!')} && !!r.line; })()`, 'Animal title is wrong');
+  await check(`(() => { const r = getSnailAnalysis(GlobalState.userEQProfile, GlobalState.psychoProfile, ''); return r.animal === SnailAnimal.fromCode(EAR_RESULT.code).id; })()`, 'Animal differs from the one the code gives the tower');
+  // 행동 한 줄: 결과 화면에서만 계산하고 저장·전송하지 않음
+  await check(`(() => { const st = getBehaviourStats(), b = getBehaviourLine(st); return !!b && st.adjustSec > 0 && st.turnDb > 0 && st.answerSec > 0 && !JSON.stringify(EAR_RESULT).includes(b.id) && !('behaviour' in EAR_RESULT) && !JSON.stringify(EarSchema.buildDoc(EAR_RESULT, 'ABCDEFGHJK')).includes('adjust'); })()`, 'Behaviour line missing or stored');
   await shot('fast-09-analysis');
   await check('!canHoldConfirm() && !document.querySelector(".analysis-next").hidden', 'Analysis must continue by clicking its text');
   const beforePet = await ev('({x:cur.cx,y:cur.groundY,profile:JSON.stringify(GlobalState.userEQProfile)})');
@@ -265,7 +269,8 @@ export async function runFastFlow({ send, ev, shot, lang, view = { w: 1024, h: 7
   await until("towerCard && !towerCard.hidden");
   await check(`(() => { const u = new URL(towerCardUrl); const id = u.searchParams.get('ear');
     return u.origin + u.pathname === CloudConfig.MOBILE_URL && u.searchParams.get('code') === EAR_RESULT.code && Number(u.searchParams.get('hue')) === Math.round(EAR_RESULT.psychoProfile.hueDeg) % 360
-      && (${lang === 'ko'} ? id === 'ABCDEFGHJK' && GlobalState.tour.earId === id : id === null); })()`, 'Wrong QR link');
+      && (${lang === 'ko'} ? id === 'ABCDEFGHJK' && GlobalState.tour.earId === id : id === null)
+      && u.searchParams.get('lang') === (${lang === 'en'} ? 'en' : null); })()`, 'Wrong QR link');
   await check("!!towerCard.querySelector('.tower-qr img, .tower-qr canvas') && towerCard.querySelector('.tower-lead').textContent === t('tower.scan')", 'QR or scan guide missing');
   await check(`towerCard.querySelector('.tower-tracks').children.length === 3 && towerCard.querySelector('.tower-caption').textContent.includes(${JSON.stringify(lang === 'en' ? 'Commissioned by Buk-Seoul Museum of Art' : '서울시립 북서울미술관 제작지원')})`, 'Credits missing');
   await send('Emulation.setDeviceMetricsOverride', ALT);
@@ -277,6 +282,7 @@ export async function runFastFlow({ send, ev, shot, lang, view = { w: 1024, h: 7
   await stage('INIT');
   await check("towerCard.hidden && towerCardUrl === '' && !towerCard.querySelector('.tower-qr').children.length && GlobalState.tour.earId === null", 'Previous QR leaked into the next visit');
   await check('GlobalState.psychoProfile.hueDeg === null && sendPortal() === null', 'Snail colour or portal leaked into the next visit');
+  await check('getBehaviourStats().adjustSec === null', 'Behaviour record leaked into the next visit');
   await until("!!document.querySelector('.intro:not(.started):not(.gone) .title-btn')"); // Wait for the next draw to show the intro before the next visitor clicks.
   await ev("document.querySelector('.intro .title-btn').click()");
   await stage('PART1_VOLUME');

@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-NAMES = ('schema.js', 'config.js', 'firebase.js', 'feed.js')
+NAMES = ('schema.js', 'config.js', 'firebase.js', 'feed.js', 'snailAnimal.js')
 HEADER = '// Mirrored from SVart/cloud (schema v2). Update SVart first, then run scripts/sync-tower-cloud.py.\n'
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--tower', type=Path, default=ROOT.parent / 'SVartTower')
