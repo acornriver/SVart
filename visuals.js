@@ -239,7 +239,9 @@ function renderVisuals() {
     if (window.GlobalState.part1.resultPhase !== 'code') drawSnail(L); // 코드만 보이는 순간에는 달팽이도 숨김
     drawAnalysis(L);
   } else if (stage === 'MUSIC') {
-    drawSnail(L);
+    // 포탈로 다 들어간 뒤(보내기 진행 100%)에는 달팽이를 다시 그리지 않음. 예전에는 포탈이 닫히는 순간 달팽이가
+    // 제자리에 다시 나타나 크레딧 화면이 떠오르는 동안 QR 위로 비쳤음 (11/22 사용자 지적)
+    if (sendProgress() < 1) drawSnail(L);
     drawMusic(L);
   } else {
     drawGround(L);

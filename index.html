@@ -98,9 +98,12 @@
     .tower-card { position: fixed; inset: 0; z-index: 4; display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
       align-items: center; gap: clamp(28px, 5vw, 80px); padding: clamp(24px, 5vh, 56px) clamp(32px, 6vw, 96px);
       background: #000; color: #f5f5f0; font-family: 'Noto Sans KR', sans-serif; cursor: pointer;
-      word-break: keep-all; overflow-wrap: break-word; animation: tower-in .6s ease both; }
+      word-break: keep-all; overflow-wrap: break-word; animation: tower-bg .45s ease both; }
+    .tower-card > * { animation: tower-in .6s ease .25s both; }
     .tower-card[hidden] { display: none; }
-    @keyframes tower-in { from { opacity: 0; } to { opacity: 1; } }
+    /* 11/22: 바탕이 먼저 검게 덮고 글자·QR이 뒤따라 나타남(예전에는 화면 전체가 반투명으로 떠올라 뒤 그림이 비쳤음) */
+    @keyframes tower-bg { from { background: rgba(0, 0, 0, 0); } to { background: #000; } }
+    @keyframes tower-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
     .tower-card p, .tower-card h2, .tower-card h3 { margin: 0; }
     .tower-scan { display: flex; flex-direction: column; align-items: center; text-align: center; gap: clamp(14px, 2.6vh, 24px); }
     .tower-scan h2 { font-size: clamp(22px, 2.6vw, 30px); font-weight: 700; letter-spacing: -.01em; line-height: 1.3; }
@@ -122,7 +125,7 @@
     .tower-tracks b { display: block; font-weight: 500; color: #f5f5f0; }
     .tower-tracks span { display: block; color: #80807c; }
     @media (orientation: portrait) { .tower-card { grid-template-columns: 1fr; align-content: center; } }
-    @media (prefers-reduced-motion: reduce) { .tower-card { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .tower-card, .tower-card > * { animation: none; } }
 
     .analysis-next { position: fixed; z-index: 3; left: 50%; bottom: max(24px, 5vh);
       transform: translateX(-50%); min-height: 48px; max-width: 90vw; padding: 10px 16px;
