@@ -99,7 +99,7 @@
 - **평소 개발·디버깅은 반드시 `dev` 브랜치에서 합니다.** `dev` 푸시는 어디에도 배포되지 않습니다.
 - **전시용 아이패드 앱은 GitHub Pages(`main` 브랜치 루트)에서 띄웁니다**: `https://acornriver.github.io/SVart/`. 11/22에 사용자가 Pages 배포 브랜치를 `dev`에서 `main`으로 바꿨습니다. **`main` 푸시 = 전시 아이패드에 바로 반영**이므로, `dev`에서 검증을 마치고 사용자가 요청할 때만 `main`에 병합·푸시합니다.
 - **Firebase Hosting 자동 배포는 껐습니다**(11/22 사용자 결정: 무료 한도·결제 우려). `.github/workflows/firebase-hosting-*.yml`을 지웠고 `firebase.json`에서 `hosting` 항목을 뺐습니다. 예전 주소 `svart-tower.web.app`는 11/22 배포본(`3377325`)이 남아 있을 수 있으니 아이패드 북마크는 Pages 주소로 바꿉니다. 사이트 자체를 내리려면 `firebase hosting:disable --project svart-tower`(사용자 확인 뒤).
-- **Firebase는 DB(Firestore)·규칙에만 씁니다.** 규칙·인덱스 배포는 예전처럼 `firebase deploy --only firestore:rules,firestore:indexes --project svart-tower`(사용자 요청 시). 보내기는 reCAPTCHA Enterprise(App Check)를 거치므로 **키의 허용 도메인에 `acornriver.github.io`가 있어야** Pages 주소에서 전송됩니다(11/22 미확인, 개관 전 시험 전송 필요).
+- **Firebase는 DB(Firestore)·규칙에만 씁니다.** 규칙·인덱스 배포는 예전처럼 `firebase deploy --only firestore:rules,firestore:indexes --project svart-tower`(사용자 요청 시). App Check(reCAPTCHA)는 쓰지 않습니다(`cloud/config.js`의 `APP_CHECK_SITE_KEY`가 비어 있음)라 도메인 등록은 필요 없습니다. 다만 Google Cloud의 API 키에 웹사이트(리퍼러) 제한이 걸려 있다면 `acornriver.github.io`를 넣어야 하므로, 개관 전 Pages 주소에서 시험 달팽이 한 번을 보내 확인합니다(11/22 미확인).
 - 청감타워(SVartTower)는 GitHub Pages `tower-visual` 브랜치 → `allearsare.love`(휴대폰 화면이 첫 화면, TV는 `/wall/`).
 - 미디어 약 290MB. GitHub Pages 한도(사이트 1GB, 월 약 100GB 전송) 안입니다.
 
